@@ -1,0 +1,9 @@
+Please, don't include commands which requests lists of vms, images, endpoints,
+tenants, etc. to decrease a high load on the cluster.
+Add these command to 'extended' role, which can be configured for some nodes.
+
+The following commands can be executed in extended mode:
+cinder-list
+nova-list
+nova-usage-list
+nova-manage-vm-list

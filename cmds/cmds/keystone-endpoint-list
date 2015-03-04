@@ -1,0 +1,2 @@
+source /root/openrc
+keystone endpoint-list

@@ -1,0 +1,2 @@
+source /root/openrc
+neutron agent-list

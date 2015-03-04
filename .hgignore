@@ -1,0 +1,4 @@
+logs/
+tmp/
+./*.pyc
+doc/build
