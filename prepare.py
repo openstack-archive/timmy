@@ -65,7 +65,7 @@ class Nodes(object):
         self.sfdir = sfdir
         self.fuelip = fuelip
 
-        self.ex = extended == "1"
+        self.extended = extended
 
         with open(filename, 'r') as json_data:
             data = json.load(json_data)
@@ -177,7 +177,7 @@ class Nodes(object):
         self.files_by_os()
         self.files_by_release()
 
-        if self.ex:
+        if self.extended:
             self.files_once_by_role()
 
         for ip, node in self.nodes.items():
@@ -235,15 +235,14 @@ class Nodes(object):
         self.static_files_by_release()
 
         for ip, node in self.nodes.items():
+            fname = self.template + ip + '-files.txt'
 
-            oipf = open(self.template + ip + '-files.txt', 'w')
-            oipf.write("#" + str(node.node_id + '\n'))
-            oipf.write("#roles: " + str(node.roles) + '\n')
+            file_lines = ["#{0}".format(node.node_id)]
+            file_lines.append("#roles: {0}".format(node.roles))
+            file_lines.extend(set(node.sfiles))
 
-            for sfile in set(node.sfiles):
-                oipf.write(str(sfile)+'\n')
-
-            oipf.close()
+            with open(fname, 'w') as oipf:
+                oipf.write("\n".join(file_lines) + "\n")
 
 
 def main(argv=None):
@@ -255,20 +254,21 @@ def main(argv=None):
                         help='nodes file', default='./logs/nodes.json')
     parser.add_argument('-v', '--fuel-version', required=True,
                         help='fuel version')
-    parser.add_argument('-t', '--template', required=False,
+    parser.add_argument('-t', '--template',
                         help='template of cmdfiles', default='./logs/ip-')
-    parser.add_argument('-r', '--rolesd', required=False,
+    parser.add_argument('-r', '--rolesd',
                         help='directory of cmdfiles', default='./cmd')
-    parser.add_argument('-s', '--req-files', required=False,
+    parser.add_argument('-s', '--req-files',
                         help='directory of requested files',
                         default='./req-files')
-    parser.add_argument('-e', '--extended', required=False,
-                        help='exec once by role cmdfiles', default=0)
-    parser.add_argument('-c', '--cluster', required=False, help='cluster id')
-    parser.add_argument('-i', '--admin-ip', required=False,
+    parser.add_argument('-e', '--extended', default="0",
+                        help='exec once by role cmdfiles')
+    parser.add_argument('-c', '--cluster', help='cluster id')
+    parser.add_argument('-i', '--admin-ip',
                         help='fuel admin ip address', default="localhost")
 
     args = parser.parse_args(argv[1:])
+    args.extended = args.extended == "1"
 
     fnodes = Nodes(filename=args.nodes,
                    rolesd=args.rolesd,
@@ -283,7 +283,6 @@ def main(argv=None):
     fnodes.files_by_role()
     fnodes.dump_rfiles()
     fnodes.static_dump_rfiles()
-
     return 0
 
 if __name__ == '__main__':
