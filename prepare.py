@@ -15,206 +15,276 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Prepare module
+"""
 Prepare module
 """
 
-import json
-import argparse
-import sys
-import glob
 import os
+import sys
+import json
+import glob
+import argparse
+import os.path
 
-r = "\t"
 
-
-class node():
+class Node(object):
     """Init node"""
-    def __init__ (self, id, cluster, mac, os, roles, status, online ):
-        self.id = id
+    def __init__(self, node_id, cluster, mac, os_platform,
+                 roles, status, online, ip):
+        self.node_id = node_id
         self.cluster = cluster
         self.mac = mac
         self.roles = roles
         self.rolelist = roles.split(',')
         self.rfiles = []
-        self.os = os
+        self.os_platform = os_platform
         self.sfiles = []
         self.online = online
         self.status = status
+        self.ip = ip
+
+    def __str__(self):
+        if self.status != 'ready' or not self.online:
+            my_id = '#' + self.node_id
+        else:
+            my_id = self.node_id
+
+        templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform}'
+        templ += '{1.roles} {1.online} {1.status}'
+        return templ.format(my_id, self)
 
 
-class nodes():
+class Nodes(object):
     """Class nodes """
-    def __init__ (self, filename, rolesd, sfdir, template, extended, version, fuelip ):
+
+    def __init__(self, filename, rolesd, sfdir, template, extended,
+                 version, fuelip, cluster):
         self.cdir = rolesd
         self.template = template
         self.version = version
         self.sfdir = sfdir
         self.fuelip = fuelip
-        if extended == "1":
-            self.ex = True
-        else:
-            self.ex = False
-        with open(filename,'r') as json_data:
+
+        self.ex = extended == "1"
+
+        with open(filename, 'r') as json_data:
             data = json.load(json_data)
-            self.n = {self.fuelip: node('fuel', '0', 'n/a', 'centos', 'fuel', 'ready', True )}
-            for i in data:
-                if 'roles' in i.keys():
-                    if (( args.cluster == "" ) or ( args.cluster == None )) or ( str(args.cluster) == str(i['cluster']) ):
-                        if isinstance(i['roles'], list):
-                            roles = ', '.join([str(x) for x in i['roles']]).replace(' ', '')
+            node = Node(node_id='fuel',
+                        cluster='0',
+                        mac='n/a',
+                        os_platform='centos',
+                        roles='fuel',
+                        status='ready',
+                        online=True,
+                        ip=self.fuelip)
+
+            self.nodes = {self.fuelip: node}
+
+            for node in data:
+
+                node_roles = node.get('roles')
+                if node_roles is not None:
+                    is_cluster_empty = cluster == "" or cluster is None
+                    if is_cluster_empty or cluster == node['cluster']:
+
+                        if isinstance(node_roles, list):
+                            roles = ', '.join(map(str, node_roles))
+                            roles = roles.replace(' ', '')
                         else:
-                            roles = str(i['roles']).replace(' ', '')
-                        self.n[str(i['ip'])] = node(str(i['id']), str(i['cluster']), str(i['mac']), str(i['os_platform']), roles, i['status'], i['online'])
+                            roles = str(node_roles).replace(' ', '')
 
-    def printnodes (self):
+                        node_ip = str(node['ip'])
+
+                        keys = "cluster mac os_platform status online".split()
+                        params = {'node_id': str(node['id']),
+                                  'roles': roles,
+                                  'ip': node_ip}
+                        for key in keys:
+                            params[key] = str(node[key])
+
+                        self.nodes[node_ip] = Node(**params)
+
+    def printnodes(self):
         """print nodes"""
+
         print('#node-id, cluster, admin-ip, mac, os, roles, online, status')
-        for i in self.n:
-            id = self.n[i].id
-            if ( self.n[i].status != u'ready' ) or ( self.n[i].online != True ):
-                id = '#%s' %(self.n[i].id)
-            print('%s %s %s %s %s %s %s %s' %(id, self.n[i].cluster, i, self.n[i].mac, self.n[i].os, str(self.n[i].roles), self.n[i].online, self.n[i].status))
 
-    def files_by_role (self):
+        for node in self.nodes.values():
+            print(str(node))
+
+    def files_by_role(self):
         """create file by role"""
-        for ip in self.n:
-            for role in self.n[ip].rolelist:
-                d = self.cdir + '/by-role/' + role + '/*'
-                rl = glob.glob(d)
-                d = self.cdir + '/by-role/' + role + '/.*-' + self.n[ip].os
-                rl += glob.glob(d)
-                self.n[ip].rfiles += rl
 
-    def files_default (self):
-       """files_default""" 
-       for ip in self.n:
-            d = self.cdir + '/default/default/*'
-            rl = glob.glob(d)
-            d = self.cdir + '/default/default/.*-' + self.n[ip].os
-            rl += glob.glob(d)
-            self.n[ip].rfiles += rl
+        for node in self.nodes.values():
+            for role in node.rolelist:
+                directory = os.path.join(self.cdir, 'by-role', role, '*')
+                node.rfiles += glob.glob(directory)
 
-    def files_once_by_role (self):
+                directory = os.path.join(self.cdir, 'by-role', role,
+                                         '.*-' + node.os_platform)
+                node.rfiles += glob.glob(directory)
+
+    def files_default(self):
+        """files_default"""
+
+        for node in self.nodes.values():
+            directory = os.path.join(self.cdir, 'default', 'default', '*')
+            node.rfiles = glob.glob(directory)
+            directory = os.path.join(self.cdir, 'default', 'default',
+                                     '.*-' + node.os_platform)
+            node.rfiles += glob.glob(directory)
+
+    def files_once_by_role(self):
         """files once by role"""
         d = self.cdir + '/once-by-role'
         roles = glob.glob(d + '/*')
         for role in roles:
             r = os.path.basename(role)
-            for ip in self.n:
-                if r in self.n[ip].rolelist:
+            for node in self.nodes.values():
+                if r in node.rolelist:
                     dd = role + '/*'
                     rl = glob.glob(dd)
-                    dd = role + '/.*-' + self.n[ip].os
+                    dd = role + '/.*-' + node.os_platform
                     rl += glob.glob(dd)
-                    self.n[ip].rfiles += rl
+                    node.rfiles += rl
                     break
 
-    def files_by_os (self):
+    def files_by_os(self):
         """files by os"""
-        for ip in self.n:
-            d = self.cdir + '/by-os/' + self.n[ip].os + '/*'
+        for node in self.nodes.values():
+            d = self.cdir + '/by-os/' + node.os_platform + '/*'
             rl = glob.glob(d)
-            self.n[ip].rfiles += rl
+            node.rfiles += rl
 
-    def files_by_release (self):
+    def files_by_release(self):
         """files by release"""
         d = self.cdir + '/release-' + self.version + '/'
         roles = glob.glob(d + '/*')
         for role in roles:
             r = os.path.basename(role)
-            for ip in self.n:
-                if r in self.n[ip].rolelist:
+            for node in self.nodes.values():
+                if r in node.rolelist:
                     dd = role + '/*'
                     rl = glob.glob(dd)
-                    dd = role + '/.*-' + self.n[ip].os
+                    dd = role + '/.*-' + node.os_platform
                     rl += glob.glob(dd)
-                    self.n[ip].rfiles += rl
+                    node.rfiles += rl
 
-    def dump_rfiles (self):
+    def dump_rfiles(self):
         """dump role files"""
         self.files_by_role()
         self.files_default()
         self.files_by_os()
         self.files_by_release()
+
         if self.ex:
             self.files_once_by_role()
-        for ip in self.n:
+
+        for ip, node in self.nodes.items():
             oipf = open(self.template + ip + '-cmds.txt', 'w')
-            oipf.write("#" + str(self.n[ip].id + '\n'))
-            oipf.write("#roles: " + str(self.n[ip].roles) + '\n' )
-            for rfile in set(self.n[ip].rfiles):
+            oipf.write("#" + str(node.node_id + '\n'))
+            oipf.write("#roles: " + str(node.roles) + '\n')
+            for rfile in set(node.rfiles):
                 oipf.write(str(rfile)+'\n')
             oipf.close()
 
-    def static_files_by_role (self):
+    def static_files_by_role(self):
         """ methods to get static files. Static files by role"""
-        for ip in self.n:
-            for role in self.n[ip].rolelist:
+        for node in self.nodes.values():
+            for role in node.rolelist:
                 d = self.sfdir + '/by-role/' + role + '/*'
                 rl = glob.glob(d)
-                d = self.sfdir + '/by-role/' + role + '/.*-' + self.n[ip].os
+                d = self.sfdir + '/by-role/' + role + '/.*-' + node.os_platform
                 rl += glob.glob(d)
-                self.n[ip].sfiles += rl
+                node.sfiles += rl
 
-    def static_files_default (self):
+    def static_files_default(self):
         """static files default"""
-        for ip in self.n:
+        for node in self.nodes.values():
             d = self.sfdir + '/default/default/*'
             rl = glob.glob(d)
-            d = self.sfdir + '/default/default/.*-' + self.n[ip].os
+            d = self.sfdir + '/default/default/.*-' + node.os_platform
             rl += glob.glob(d)
-            self.n[ip].sfiles += rl
+            node.sfiles += rl
 
-    def static_files_by_os (self):
+    def static_files_by_os(self):
         """static files by OS"""
-        for ip in self.n:
-            d = self.sfdir + '/by-os/' + self.n[ip].os + '/*'
-            rl = glob.glob(d)
-            self.n[ip].sfiles += rl
+        for node in self.nodes.values():
+            d = self.sfdir + '/by-os/' + node.os_platform + '/*'
+            node.sfiles += glob.glob(d)
 
-    def static_files_by_release (self):
+    def static_files_by_release(self):
         """static files by release"""
         d = self.sfdir + '/release-' + self.version + '/'
         roles = glob.glob(d + '/*')
         for role in roles:
             r = os.path.basename(role)
-            for ip in self.n:
-                if r in self.n[ip].rolelist:
+            for node in self.nodes.values():
+                if r in node.rolelist:
                     dd = role + '/*'
                     rl = glob.glob(dd)
-                    dd = role + '/.*-' + self.n[ip].os
+                    dd = role + '/.*-' + node.os_platform
                     rl += glob.glob(dd)
-                    self.n[ip].sfiles += rl
+                    node.sfiles += rl
 
-    def static_dump_rfiles (self):
+    def static_dump_rfiles(self):
         """static dump role files"""
         self.static_files_by_role()
         self.static_files_default()
         self.static_files_by_os()
         self.static_files_by_release()
-        for ip in self.n:
+
+        for ip, node in self.nodes.items():
+
             oipf = open(self.template + ip + '-files.txt', 'w')
-            oipf.write("#" + str(self.n[ip].id + '\n'))
-            oipf.write("#roles: " + str(self.n[ip].roles) + '\n' )
-            for sfile in set(self.n[ip].sfiles):
+            oipf.write("#" + str(node.node_id + '\n'))
+            oipf.write("#roles: " + str(node.roles) + '\n')
+
+            for sfile in set(node.sfiles):
                 oipf.write(str(sfile)+'\n')
+
             oipf.close()
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='get cluster id')
-    parser.add_argument( '-f', '--nodes', required=True, help='nodes file', default = './logs/nodes.json' )
-    parser.add_argument( '-v', '--fuel-version', required=True, help='fuel version' )
-    parser.add_argument( '-t', '--template', required=False, help='template of cmdfiles', default = './logs/ip-')
-    parser.add_argument( '-r', '--rolesd', required=False, help='directory of cmdfiles', default = './cmd')
-    parser.add_argument( '-s', '--req-files', required=False, help='directory of requested files', default = './req-files')
-    parser.add_argument( '-e', '--extended', required=False, help='exec once by role cmdfiles', default = 0)
-    parser.add_argument( '-c', '--cluster', required=False, help='cluster id')
-    parser.add_argument( '-i', '--admin-ip', required=False, help='fuel admin ip address', default="localhost")
-    args = parser.parse_args()
 
-    fnodes = nodes(filename = args.nodes, rolesd = args.rolesd, template = args.template, extended = str(args.extended), version=args.fuel_version, sfdir = args.req_files, fuelip=args.admin_ip)
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    parser = argparse.ArgumentParser(description='get cluster id')
+    parser.add_argument('-f', '--nodes', required=True,
+                        help='nodes file', default='./logs/nodes.json')
+    parser.add_argument('-v', '--fuel-version', required=True,
+                        help='fuel version')
+    parser.add_argument('-t', '--template', required=False,
+                        help='template of cmdfiles', default='./logs/ip-')
+    parser.add_argument('-r', '--rolesd', required=False,
+                        help='directory of cmdfiles', default='./cmd')
+    parser.add_argument('-s', '--req-files', required=False,
+                        help='directory of requested files',
+                        default='./req-files')
+    parser.add_argument('-e', '--extended', required=False,
+                        help='exec once by role cmdfiles', default=0)
+    parser.add_argument('-c', '--cluster', required=False, help='cluster id')
+    parser.add_argument('-i', '--admin-ip', required=False,
+                        help='fuel admin ip address', default="localhost")
+
+    args = parser.parse_args(argv[1:])
+
+    fnodes = Nodes(filename=args.nodes,
+                   rolesd=args.rolesd,
+                   sfdir=args.req_files,
+                   template=args.template,
+                   extended=str(args.extended),
+                   version=args.fuel_version,
+                   fuelip=args.admin_ip,
+                   cluster=args.cluster)
+
     fnodes.printnodes()
     fnodes.files_by_role()
     fnodes.dump_rfiles()
     fnodes.static_dump_rfiles()
+
+    return 0
+
+if __name__ == '__main__':
+    exit(main(sys.argv))
