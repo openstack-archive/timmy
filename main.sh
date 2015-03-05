@@ -87,8 +87,11 @@ do
 done
 
 #jobs -l
-wait
+wait #wait for finish all background processes
 
 [ -e $errlog ] && echo "something went wrong, see $errlog file" && tail $errlog
 
+nlog "Create archives"
 source ./create-arc.sh
+
+nlog "Done. Results are stored into $infod"
