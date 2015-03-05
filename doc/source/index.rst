@@ -11,18 +11,8 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   specification
+   requirements
    installation
+   configuration
    usage
-   main
-   history
-   get_nodes
-   create-arc
-   prepare
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-

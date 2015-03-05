@@ -1,4 +1,0 @@
-============
-History
-============
-.. include:: ../../ChangeLog
