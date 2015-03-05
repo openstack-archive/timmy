@@ -15,6 +15,7 @@
 #    under the License.
 
 source ./env.sh
+
 dn=`basename "$PWD"`
 dlabel=`date +%Y-%m-%d-%H-%M`
 tar jcf ../timmy-snap-${dlabel}-min.tar.bz2 ../$dn --exclude="../$dn/${filesd}"

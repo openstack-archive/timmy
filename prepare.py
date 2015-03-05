@@ -44,12 +44,12 @@ class Node(object):
         self.ip = ip
 
     def __str__(self):
-        if self.status != 'ready' or not self.online:
-            my_id = '#' + self.node_id
-        else:
+        if self.status == 'ready' and self.online:
             my_id = self.node_id
+        else:
+            my_id = '#' + self.node_id
 
-        templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform}'
+        templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform} '
         templ += '{1.roles} {1.online} {1.status}'
         return templ.format(my_id, self)
 
@@ -100,7 +100,9 @@ class Nodes(object):
                                   'roles': roles,
                                   'ip': node_ip}
                         for key in keys:
-                            params[key] = str(node[key])
+                            #params[key] = str(node[key])
+                            params[key] = node[key]
+                        #params['online'] = node['online']
 
                         self.nodes[node_ip] = Node(**params)
 

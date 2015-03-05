@@ -17,17 +17,32 @@
 # Set environment variables for the environment
 source ./env.sh
 
-[ -e $mainlog ] && cat $mainlog >> $mainlog.old && rm -f $mainlog
+[ -e $errlog ] && cat $errlog >> $errlog.old && rm -f $errlog
+[ -e $noticelog ] && cat $noticelog >> $noticelog.old && rm -f $noticelog
 
+command -v rsync > /dev/null 2>&1 || { nlog "rsync is not installed. "; elog "rsync is not installed"; }
+
+nlog "local"
 # Command which should be lauched on master node
 source ./local.sh
 
 # Get list nodes
+nlog "get node list from fuel"
 source ./get_nodes.sh
+
+nlog "get release of fuel"
 release=`cat /etc/nailgun/version.yaml | awk '/release/ {print $2}' | tr -d '"'`
 
 # Run the parser nodes
-./prepare.py --nodes "${nodesf}.json" --cluster "$cluster" --template "$template" --rolesd "$rolesd" --extended="$extended" --fuel-version="$release" --req-files="$reqdir"| column -t > "${nodesf}.txt"
+nlog "create node's list and related files"
+./prepare.py \
+    --nodes "${nodesf}.json" \
+    --cluster "$cluster" \
+    --template "$template" \
+    --rolesd "$rolesd" \
+    --extended="$extended" \
+    --fuel-version="$release" \
+    --req-files="$reqdir" | column -t > "${nodesf}.txt" || exit 1
 
 nodef="${nodesf}.txt"
 
@@ -42,10 +57,11 @@ function getoutput {
     logf="$clogd/node-$fnode-$fip-$role-`basename $cmdfile`.log"
     logm="|cluster: ${cluster}|node-$fnode|($fip):|Failed to execute: $cmdfile, see $logf"
     cat $cmdfile | timeout $env_timeout ssh $sshopts -t -T  $fip $sshvars "bash -s " &> \
-    $logf || echo -e `date --utc`$logm | column -s "|" -t >> $mainlog
+    $logf || echo -e `date --utc`$logm | column -s "|" -t >> $errlog
 
 }
 
+nlog "launch remote commands and rsync on nodes"
 for ip in `awk '!/^#/ {print $3}' "${nodef}"`
 do
     node=`egrep $ip $nodef | awk '{print $1}'`
@@ -58,6 +74,7 @@ do
     done & ### launches ssh on all nodes in parallel by send the process in background
 
     # request files from nodes
+    command -v rsync &> /dev/null && \
     for rfile in `cat "${template}${ip}-files.txt" | egrep -v "^#" | sort`
     do
         tf="${template}${ip}-allfiles"
@@ -72,6 +89,6 @@ done
 #jobs -l
 wait
 
-[ -e $mainlog ] && echo "something went wrong, see $mainlog file" && tail $mainlog
+[ -e $errlog ] && echo "something went wrong, see $errlog file" && tail $errlog
 
 source ./create-arc.sh

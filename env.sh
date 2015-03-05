@@ -34,7 +34,8 @@ template="tmp/"
 extended=1
 
 nodesf="${infod}/nodes"
-mainlog="${logd}/error.log"
+errlog="${logd}/error.log"
+noticelog="${logd}/main.log"
 sshopts="-oConnectTimeout=2 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error -lroot"
 env_timeout="15s" # ssh command timeout
 sshvars="OPENRC=/root/openrc"
@@ -43,6 +44,16 @@ sshvars="OPENRC=/root/openrc"
 function ccdir
 {
     [ ! -d "$1" ] && mkdir -p "$1/"
+}
+
+function nlog
+{
+    echo "$1" >> $noticelog
+}
+
+function elog
+{
+    echo "$1" >> $errlog
 }
 
 ccdir ${logd}

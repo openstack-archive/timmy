@@ -15,5 +15,7 @@
 #    under the License.
 
 # Set environment variables for the environment
+
 source ./env.sh
+
 fuel node list --json > "${nodesf}.json" || exit
