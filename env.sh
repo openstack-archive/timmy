@@ -40,7 +40,7 @@ sshopts="-oConnectTimeout=2 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev
 env_timeout="15s" # ssh command timeout
 sshvars="OPENRC=/root/openrc"
 
-stemplate="timmy-snap-"
+stemplate="timmy-snapshot"
 
 # check and create directory
 function ccdir

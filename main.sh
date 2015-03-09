@@ -94,4 +94,4 @@ wait #wait for finish all background processes
 nlog "Create archives"
 source ./create-arc.sh
 
-nlog "Done. Results are stored into $infod"
+nlog "Done. Results are stored into '$infod'"
