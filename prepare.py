@@ -193,7 +193,8 @@ class Nodes(object):
             for role in node.rolelist:
                 directory = os.path.join(self.sfdir, 'by-role', role, '*')
                 node.sfiles += glob.glob(directory)
-                directory = os.path.join(self.sfdir, 'by-role',role, '.*-' + node.os_platform)
+                directory = os.path.join(self.sfdir, 'by-role',role,
+                                         '.*-' + node.os_platform)
                 node.sfiles += glob.glob(directory)
 
     def static_files_default(self):
@@ -201,7 +202,8 @@ class Nodes(object):
         for node in self.nodes.values():
             directory = os.path.join(self.sfdir, 'default', 'default', '*')
             node.sfiles += glob.glob(directory)
-            directory = os.path.join(self.sfdir, 'default','default','.*-' + node.os_platform)
+            directory = os.path.join(self.sfdir, 'default','default',
+                                     '.*-' + node.os_platform)
             node.sfiles += glob.glob(directory)
 
     def static_files_by_os(self):
