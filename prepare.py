@@ -69,7 +69,7 @@ class Nodes(object):
 
         with open(filename, 'r') as json_data:
             data = json.load(json_data)
-            node = Node(node_id='fuel',
+            node = Node(node_id='0',
                         cluster='0',
                         mac='n/a',
                         os_platform='centos',
@@ -111,7 +111,7 @@ class Nodes(object):
 
         print('#node-id, cluster, admin-ip, mac, os, roles, online, status')
 
-        for node in self.nodes.values():
+        for node in sorted(self.nodes.values(), key=lambda x: x.node_id):
             print(str(node))
 
     def files_by_role(self):
