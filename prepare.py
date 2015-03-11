@@ -131,46 +131,43 @@ class Nodes(object):
 
         for node in self.nodes.values():
             directory = os.path.join(self.cdir, 'default', 'default', '*')
-            node.rfiles = glob.glob(directory)
+            node.rfiles += glob.glob(directory)
             directory = os.path.join(self.cdir, 'default', 'default',
                                      '.*-' + node.os_platform)
             node.rfiles += glob.glob(directory)
 
     def files_once_by_role(self):
         """files once by role"""
-        d = self.cdir + '/once-by-role'
-        roles = glob.glob(d + '/*')
+        directory = os.path.join(self.cdir, 'once-by-role', '*')
+        roles = glob.glob(directory)
         for role in roles:
-            r = os.path.basename(role)
+            rfile = os.path.basename(role)
             for node in self.nodes.values():
-                if r in node.rolelist:
-                    dd = role + '/*'
-                    rl = glob.glob(dd)
-                    dd = role + '/.*-' + node.os_platform
-                    rl += glob.glob(dd)
-                    node.rfiles += rl
+                if rfile in node.rolelist:
+                    ddir = os.path.join(role, '*')
+                    node.rfiles += glob.glob(ddir)
+                    ddir = os.path.join(role, '.*-' + node.os_platform)
+                    node.rfiles += glob.glob(ddir)
                     break
 
     def files_by_os(self):
         """files by os"""
         for node in self.nodes.values():
-            d = self.cdir + '/by-os/' + node.os_platform + '/*'
-            rl = glob.glob(d)
-            node.rfiles += rl
+            directory = os.path.join(self.cdir, 'by-os', node.os_platform, '*')
+            node.rfiles += glob.glob(directory)
 
     def files_by_release(self):
         """files by release"""
-        d = self.cdir + '/release-' + self.version + '/'
-        roles = glob.glob(d + '/*')
+        directory = os.path.join(self.cdir, 'release-' + self.version, '*')
+        roles = glob.glob(directory)
         for role in roles:
-            r = os.path.basename(role)
+            rfile = os.path.basename(role)
             for node in self.nodes.values():
-                if r in node.rolelist:
-                    dd = role + '/*'
-                    rl = glob.glob(dd)
-                    dd = role + '/.*-' + node.os_platform
-                    rl += glob.glob(dd)
-                    node.rfiles += rl
+                if rfile in node.rolelist:
+                    ddir = os.path.join(role, '*')
+                    node.rfiles += glob.glob(ddir)
+                    ddir = os.path.join(role,'.*-' + node.os_platform)
+                    node.rfiles += glob.glob(ddir)
 
     def dump_rfiles(self):
         """dump role files"""
@@ -186,48 +183,45 @@ class Nodes(object):
             oipf = open(self.template + ip + '-cmds.txt', 'w')
             oipf.write("#" + str(node.node_id + '\n'))
             oipf.write("#roles: " + str(node.roles) + '\n')
-            for rfile in set(node.rfiles):
+            for rfile in sorted(set(node.rfiles)):
                 oipf.write(str(rfile)+'\n')
             oipf.close()
 
     def static_files_by_role(self):
-        """ methods to get static files. Static files by role"""
+        """method to get static files. Static files by role"""
         for node in self.nodes.values():
             for role in node.rolelist:
-                d = self.sfdir + '/by-role/' + role + '/*'
-                rl = glob.glob(d)
-                d = self.sfdir + '/by-role/' + role + '/.*-' + node.os_platform
-                rl += glob.glob(d)
-                node.sfiles += rl
+                directory = os.path.join(self.sfdir, 'by-role', role, '*')
+                node.sfiles += glob.glob(directory)
+                directory = os.path.join(self.sfdir, 'by-role',role, '.*-' + node.os_platform)
+                node.sfiles += glob.glob(directory)
 
     def static_files_default(self):
         """static files default"""
         for node in self.nodes.values():
-            d = self.sfdir + '/default/default/*'
-            rl = glob.glob(d)
-            d = self.sfdir + '/default/default/.*-' + node.os_platform
-            rl += glob.glob(d)
-            node.sfiles += rl
+            directory = os.path.join(self.sfdir, 'default', 'default', '*')
+            node.sfiles += glob.glob(directory)
+            directory = os.path.join(self.sfdir, 'default','default','.*-' + node.os_platform)
+            node.sfiles += glob.glob(directory)
 
     def static_files_by_os(self):
         """static files by OS"""
         for node in self.nodes.values():
-            d = self.sfdir + '/by-os/' + node.os_platform + '/*'
-            node.sfiles += glob.glob(d)
+            directory = os.path.join(self.sfdir, 'by-os', node.os_platform, '*')
+            node.sfiles += glob.glob(directory)
 
     def static_files_by_release(self):
         """static files by release"""
-        d = self.sfdir + '/release-' + self.version + '/'
-        roles = glob.glob(d + '/*')
+        directory = os.path.join(self.sfdir, 'release-' + self.version, '*')
+        roles = glob.glob(directory)
         for role in roles:
-            r = os.path.basename(role)
+            rfile = os.path.basename(role)
             for node in self.nodes.values():
-                if r in node.rolelist:
-                    dd = role + '/*'
-                    rl = glob.glob(dd)
-                    dd = role + '/.*-' + node.os_platform
-                    rl += glob.glob(dd)
-                    node.sfiles += rl
+                if rfile in node.rolelist:
+                    ddir = os.path.join(role, '*')
+                    node.sfiles += glob.glob(dd)
+                    ddir = os.path.join(role, '.*-' + node.os_platform)
+                    node.sfiles += glob.glob(ddir)
 
     def static_dump_rfiles(self):
         """static dump role files"""
@@ -241,7 +235,7 @@ class Nodes(object):
 
             file_lines = ["#{0}".format(node.node_id)]
             file_lines.append("#roles: {0}".format(node.roles))
-            file_lines.extend(set(node.sfiles))
+            file_lines.extend(sorted(set(node.sfiles)))
 
             with open(fname, 'w') as oipf:
                 oipf.write("\n".join(file_lines) + "\n")
