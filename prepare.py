@@ -100,9 +100,9 @@ class Nodes(object):
                                   'roles': roles,
                                   'ip': node_ip}
                         for key in keys:
-                            #params[key] = str(node[key])
+                            #  params[key] = str(node[key])
                             params[key] = node[key]
-                        #params['online'] = node['online']
+                        #  params['online'] = node['online']
 
                         self.nodes[node_ip] = Node(**params)
 
@@ -166,7 +166,7 @@ class Nodes(object):
                 if rfile in node.rolelist:
                     ddir = os.path.join(role, '*')
                     node.rfiles += glob.glob(ddir)
-                    ddir = os.path.join(role,'.*-' + node.os_platform)
+                    ddir = os.path.join(role, '.*-' + node.os_platform)
                     node.rfiles += glob.glob(ddir)
 
     def dump_rfiles(self):
@@ -193,7 +193,7 @@ class Nodes(object):
             for role in node.rolelist:
                 directory = os.path.join(self.sfdir, 'by-role', role, '*')
                 node.sfiles += glob.glob(directory)
-                directory = os.path.join(self.sfdir, 'by-role',role,
+                directory = os.path.join(self.sfdir, 'by-role', role,
                                          '.*-' + node.os_platform)
                 node.sfiles += glob.glob(directory)
 
@@ -202,14 +202,15 @@ class Nodes(object):
         for node in self.nodes.values():
             directory = os.path.join(self.sfdir, 'default', 'default', '*')
             node.sfiles += glob.glob(directory)
-            directory = os.path.join(self.sfdir, 'default','default',
+            directory = os.path.join(self.sfdir, 'default', 'default',
                                      '.*-' + node.os_platform)
             node.sfiles += glob.glob(directory)
 
     def static_files_by_os(self):
         """static files by OS"""
         for node in self.nodes.values():
-            directory = os.path.join(self.sfdir, 'by-os', node.os_platform, '*')
+            directory = os.path.join(self.sfdir, 'by-os',
+                                     node.os_platform, '*')
             node.sfiles += glob.glob(directory)
 
     def static_files_by_release(self):
