@@ -222,7 +222,7 @@ class Nodes(object):
             for node in self.nodes.values():
                 if rfile in node.rolelist:
                     ddir = os.path.join(role, '*')
-                    node.sfiles += glob.glob(dd)
+                    node.sfiles += glob.glob(ddir)
                     ddir = os.path.join(role, '.*-' + node.os_platform)
                     node.sfiles += glob.glob(ddir)
 
