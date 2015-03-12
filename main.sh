@@ -23,7 +23,7 @@ source ./env.sh
 command -v rsync > /dev/null 2>&1 || { nlog "rsync is not installed. "; elog "rsync is not installed"; }
 
 nlog "local"
-# Command which should be lauched on master node
+# Command which should be lauched on local node
 source ./local.sh
 
 # Get list nodes
@@ -31,7 +31,7 @@ nlog "get node list from fuel"
 source ./get_nodes.sh
 
 nlog "get release of fuel"
-release=`cat /etc/nailgun/version.yaml | awk '/release/ {print $2}' | tr -d '"'`
+release=`ssh ${sshopts} ${fuelip} "cat /etc/nailgun/version.yaml" | awk '/release/ {print $2}' | tr -d '"'`
 
 # Run the parser nodes
 nlog "create node's list and related files"
@@ -42,7 +42,8 @@ nlog "create node's list and related files"
     --rolesd "$rolesd" \
     --extended="$extended" \
     --fuel-version="$release" \
-    --req-files="$reqdir" | column -t > "${nodesf}.txt" || exit 1
+    --req-files="$reqdir" \
+    --admin-ip ${fuelip} | column -t > "${nodesf}.txt" || exit 1
 
 nodef="${nodesf}.txt"
 
@@ -57,8 +58,22 @@ function getoutput {
     logf="$clogd/node-$fnode-$fip-$role-`basename $cmdfile`.log"
     logm="|cluster: ${cluster}|node-$fnode|($fip):|Failed to execute: $cmdfile, see $logf"
     cat $cmdfile | timeout $env_timeout ssh $sshopts -t -T  $fip $sshvars "bash -s " &> \
-    $logf || echo -e `date --utc`$logm | column -s "|" -t >> $errlog
+    $logf || elog "$logm"
 
+}
+
+function getfiles {
+    dfile=$1 # file-list destination file
+    fip=$2 # node ip
+    fnode=$3 # node id
+    destd=$4 # destination directory
+    egrep -v "^#|^[[:space:]]*$" $dfile | sort | uniq > $dfile.tmp
+    mv $dfile.tmp $dfile
+    logf="${logd}/node-${fnode}-${fip}-files.log"
+    logm="|cluster: ${cluster}|node-$fnode|($fip):|rsync failed: $dfile, see $logf"
+    command -v rsync &> /dev/null && \
+    rsync -avzr -e "ssh $sshopts" --files-from "$dfile" ${fip}:/ ${destd} \
+          --delete-before --progress --partial &> $logf || nlog "$logm"
 }
 
 nlog "launch remote commands and rsync on nodes"
@@ -66,24 +81,22 @@ for ip in `awk '!/^#/ {print $3}' "${nodef}"`
 do
     node=`egrep $ip $nodef | awk '{print $1}'`
     cluster=`egrep $ip $nodef | awk '{print $2}'`
-    fd=${filesd}/cluster-${cluster}/node-${node}-${ip}
-    ccdir $fd
+    fd="${filesd}/cluster-${cluster}/node-${node}-${ip}/"
+    ccdir $fd #create destination directory
     for cmdfile in `cat "${template}${ip}-cmds.txt" | egrep -v "^#" | sort`
     do
         getoutput $cmdfile $node $ip
     done & ### launches ssh on all nodes in parallel by send the process in background
 
     # request files from nodes
-    command -v rsync &> /dev/null && \
+    tf="${template}${ip}-allfiles"
+    echo -n > $tf
     for rfile in `cat "${template}${ip}-files.txt" | egrep -v "^#" | sort`
     do
-        tf="${template}${ip}-allfiles"
         cat $rfile >> $tf
-        grep -v "^#" $tf | sort | uniq > $tf.tmp
-        mv $tf.tmp $tf
-        # Copy log files from nodes
-        rsync -avz -e "ssh $sshopts" --files-from "$tf" ${ip}:/ ${fd} --delete-before --progress --partial &> ${logd}/node-${node}-${ip}-files.log
-    done &
+        echo >> $tf #avoid glue strings
+    done
+    getfiles $tf $ip $node $fd & #launch rsync
 done
 
 #jobs -l

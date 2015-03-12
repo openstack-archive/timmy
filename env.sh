@@ -37,8 +37,9 @@ nodesf="${infod}/nodes"
 errlog="${logd}/error.log"
 noticelog="${logd}/main.log"
 sshopts="-oConnectTimeout=2 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error -lroot"
-env_timeout="15s" # ssh command timeout
+env_timeout="25s" # ssh command timeout
 sshvars="OPENRC=/root/openrc"
+fuelip="localhost"
 
 stemplate="timmy-snapshot"
 
@@ -50,12 +51,12 @@ function ccdir
 
 function nlog
 {
-    echo "$1" >> $noticelog
+    echo -e `date --utc` "$1" | column -s "|" -t >> $noticelog
 }
 
 function elog
 {
-    echo "$1" >> $errlog
+    echo -e `date --utc` "$1" | column -s "|" -t >> $errlog
 }
 
 ccdir ${logd}
