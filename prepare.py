@@ -47,7 +47,7 @@ class Node(object):
         if self.status == 'ready' and self.online:
             my_id = self.node_id
         else:
-            my_id = '#' + self.node_id
+            my_id = '#' + str(self.node_id)
 
         templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform} '
         templ += '{1.roles} {1.online} {1.status}'
