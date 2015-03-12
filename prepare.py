@@ -69,7 +69,7 @@ class Nodes(object):
 
         with open(filename, 'r') as json_data:
             data = json.load(json_data)
-            node = Node(node_id='0',
+            node = Node(node_id=0,
                         cluster='0',
                         mac='n/a',
                         os_platform='centos',
@@ -96,7 +96,7 @@ class Nodes(object):
                         node_ip = str(node['ip'])
 
                         keys = "cluster mac os_platform status online".split()
-                        params = {'node_id': str(node['id']),
+                        params = {'node_id': node['id'],
                                   'roles': roles,
                                   'ip': node_ip}
                         for key in keys:
@@ -181,7 +181,7 @@ class Nodes(object):
 
         for ip, node in self.nodes.items():
             oipf = open(self.template + ip + '-cmds.txt', 'w')
-            oipf.write("#" + str(node.node_id + '\n'))
+            oipf.write("#" + str(node.node_id) + '\n')
             oipf.write("#roles: " + str(node.roles) + '\n')
             for rfile in sorted(set(node.rfiles)):
                 oipf.write(str(rfile)+'\n')
