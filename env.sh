@@ -18,7 +18,7 @@ export LANG=C
 export LC_ALL=C
 export TERM=xterm
 
-# cluster="7"
+#cluster="7"
 
 logd='logs'
 rolesd='cmds'
