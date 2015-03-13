@@ -35,7 +35,7 @@ class Node(object):
         self.cluster = cluster
         self.mac = mac
         self.roles = roles
-        self.rolelist = roles.split(',')
+        # self.rolelist = roles.split(',')
         self.rfiles = []
         self.os_platform = os_platform
         self.sfiles = []
@@ -44,14 +44,14 @@ class Node(object):
         self.ip = ip
 
     def __str__(self):
-        if self.status == 'ready' and self.online:
+        if self.status in ['ready', 'discover'] and self.online:
             my_id = self.node_id
         else:
             my_id = '#' + str(self.node_id)
 
         templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform} '
-        templ += '{1.roles} {1.online} {1.status}'
-        return templ.format(my_id, self)
+        templ += '{2} {1.online} {1.status}'
+        return templ.format(my_id, self, ','.join(self.roles))
 
 
 class Nodes(object):
@@ -64,16 +64,17 @@ class Nodes(object):
         self.version = version
         self.sfdir = sfdir
         self.fuelip = fuelip
+        self.cluster = cluster
 
         self.extended = extended
 
         with open(filename, 'r') as json_data:
             data = json.load(json_data)
             node = Node(node_id=0,
-                        cluster='0',
+                        cluster=0,
                         mac='n/a',
                         os_platform='centos',
-                        roles='fuel',
+                        roles=['fuel'],
                         status='ready',
                         online=True,
                         ip=self.fuelip)
@@ -83,42 +84,39 @@ class Nodes(object):
             for node in data:
 
                 node_roles = node.get('roles')
-                if node_roles is not None:
-                    is_cluster_empty = cluster == "" or cluster is None
-                    if is_cluster_empty or cluster == node['cluster']:
+                if not node_roles:
+                    roles = ['None']
+                elif isinstance(node_roles, list):
+                    roles = node_roles
+                else:
+                    roles = str(node_roles).split(', ')
+                node_ip = str(node['ip'])
 
-                        if isinstance(node_roles, list):
-                            roles = ', '.join(map(str, node_roles))
-                            roles = roles.replace(' ', '')
-                        else:
-                            roles = str(node_roles).replace(' ', '')
-
-                        node_ip = str(node['ip'])
-
-                        keys = "cluster mac os_platform status online".split()
-                        params = {'node_id': node['id'],
-                                  'roles': roles,
-                                  'ip': node_ip}
-                        for key in keys:
-                            #  params[key] = str(node[key])
-                            params[key] = node[key]
-                        #  params['online'] = node['online']
-
-                        self.nodes[node_ip] = Node(**params)
+                keys = "cluster mac os_platform status online".split()
+                params = {'node_id': node['id'],
+                          'roles': roles,
+                          'ip': node_ip}
+                for key in keys:
+                    params[key] = node[key]
+                self.nodes[node_ip] = Node(**params)
 
     def printnodes(self):
         """print nodes"""
 
         print('#node-id, cluster, admin-ip, mac, os, roles, online, status')
-
         for node in sorted(self.nodes.values(), key=lambda x: x.node_id):
-            print(str(node))
+            if (self.cluster and
+                    str(self.cluster) != str(node.cluster) and
+                    node.cluster != 0):
+                print("#"+str(node))
+            else:
+                print(str(node))
 
     def files_by_role(self):
         """create file by role"""
 
         for node in self.nodes.values():
-            for role in node.rolelist:
+            for role in node.roles:
                 directory = os.path.join(self.cdir, 'by-role', role, '*')
                 node.rfiles += glob.glob(directory)
 
@@ -127,7 +125,7 @@ class Nodes(object):
                 node.rfiles += glob.glob(directory)
 
     def files_default(self):
-        """files_default"""
+        """files which launches by default"""
 
         for node in self.nodes.values():
             directory = os.path.join(self.cdir, 'default', 'default', '*')
@@ -143,7 +141,7 @@ class Nodes(object):
         for role in roles:
             rfile = os.path.basename(role)
             for node in self.nodes.values():
-                if rfile in node.rolelist:
+                if rfile in node.roles:
                     ddir = os.path.join(role, '*')
                     node.rfiles += glob.glob(ddir)
                     ddir = os.path.join(role, '.*-' + node.os_platform)
@@ -163,7 +161,7 @@ class Nodes(object):
         for role in roles:
             rfile = os.path.basename(role)
             for node in self.nodes.values():
-                if rfile in node.rolelist:
+                if rfile in node.roles:
                     ddir = os.path.join(role, '*')
                     node.rfiles += glob.glob(ddir)
                     ddir = os.path.join(role, '.*-' + node.os_platform)
@@ -182,7 +180,7 @@ class Nodes(object):
         for ip, node in self.nodes.items():
             oipf = open(self.template + ip + '-cmds.txt', 'w')
             oipf.write("#" + str(node.node_id) + '\n')
-            oipf.write("#roles: " + str(node.roles) + '\n')
+            oipf.write("#roles: " + ', '.join(node.roles) + '\n')
             for rfile in sorted(set(node.rfiles)):
                 oipf.write(str(rfile)+'\n')
             oipf.close()
@@ -190,7 +188,7 @@ class Nodes(object):
     def static_files_by_role(self):
         """method to get static files. Static files by role"""
         for node in self.nodes.values():
-            for role in node.rolelist:
+            for role in node.roles:
                 directory = os.path.join(self.sfdir, 'by-role', role, '*')
                 node.sfiles += glob.glob(directory)
                 directory = os.path.join(self.sfdir, 'by-role', role,
@@ -220,7 +218,7 @@ class Nodes(object):
         for role in roles:
             rfile = os.path.basename(role)
             for node in self.nodes.values():
-                if rfile in node.rolelist:
+                if rfile in node.roles:
                     ddir = os.path.join(role, '*')
                     node.sfiles += glob.glob(ddir)
                     ddir = os.path.join(role, '.*-' + node.os_platform)
