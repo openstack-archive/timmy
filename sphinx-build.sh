@@ -14,13 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-#export PYTHONPATH=${PYTHONPATH};${PWD}
-
-#export PYTHONPATH="$PYTHONPATH:~/works/openstack-technical-support/timmy"
-
 # Builds a Sphinx documentation
 
 sphinx-build -b html doc/source/ doc/build/
-#cd doc/
-#make html
 rm -f *.pyc
