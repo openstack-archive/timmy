@@ -1,1 +1,1 @@
-mongo admin --eval "printjson(rs.status())" 
+mongo admin --eval "printjson(rs.status())"
