@@ -31,7 +31,7 @@ nlog "get node list from fuel"
 source ./get_nodes.sh
 
 nlog "get release of fuel"
-release=$(ssh ${sshopts} "${fuelip}" "cat /etc/nailgun/version.yaml" | awk '/release/ {print $2}' | tr -d '"')
+release=$(timeout "$env_timeout" ssh ${sshopts} "${fuelip}" "cat /etc/nailgun/version.yaml" | awk '/release/ {print $2}' | tr -d '"')
 
 # Run the parser nodes
 nlog "create node's list and related files"

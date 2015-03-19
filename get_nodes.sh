@@ -18,4 +18,4 @@
 
 source ./env.sh
 
-ssh ${sshopts} "${fuelip}" "fuel node list --json" > "${nodesf}.json" || exit
+timeout "$env_timeout" ssh ${sshopts} "${fuelip}" "fuel node list --json" > "${nodesf}.json" || { elog "could not connect to master-node"; exit 1; }

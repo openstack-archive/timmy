@@ -36,7 +36,7 @@ extended=1
 nodesf="${infod}/nodes"
 errlog="${logd}/error.log"
 noticelog="${logd}/main.log"
-sshopts="-oConnectTimeout=2 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error -lroot"
+sshopts="-oConnectTimeout=2 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error -lroot -oBatchMode=yes"
 env_timeout="25s" # ssh command timeout
 sshvars="OPENRC=/root/openrc"
 fuelip="localhost"
