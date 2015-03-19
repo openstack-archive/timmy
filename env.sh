@@ -25,7 +25,7 @@ rolesd='cmds'
 infod='info'
 reqdir='req-files'
 
-filesd=${infod}'/files'
+filesd="${infod}/files"
 
 # execution files template
 template="tmp/"
@@ -51,14 +51,14 @@ function ccdir
 
 function nlog
 {
-    echo -e `date --utc` "$1" | column -s "|" -t >> $noticelog
+    echo -e "$(date --utc) $1" | column -s "|" -t >> "$noticelog"
 }
 
 function elog
 {
-    echo -e `date --utc` "$1" | column -s "|" -t >> $errlog
+    echo -e "$(date --utc) $1" | column -s "|" -t >> "$errlog"
 }
 
-ccdir ${logd}
-ccdir ${infod}
-ccdir ${template}
+ccdir "${logd}"
+ccdir "${infod}"
+ccdir "${template}"

@@ -18,4 +18,4 @@
 
 source ./env.sh
 
-ssh ${sshopts} ${fuelip} "fuel node list --json" > "${nodesf}.json" || exit
+ssh ${sshopts} "${fuelip}" "fuel node list --json" > "${nodesf}.json" || exit

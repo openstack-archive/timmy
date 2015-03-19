@@ -16,9 +16,9 @@
 
 source ./env.sh
 
-dn=`basename "$PWD"`
-dlabel=`date +%Y-%m-%d-%H-%M`
-tar jcf /tmp/${stemplate}-${dlabel}-min.tar.bz2 ../$dn --exclude="../$dn/${filesd}" \
+dn=$(basename "$PWD")
+dlabel=$(date +%Y-%m-%d-%H-%M)
+tar jcf "/tmp/${stemplate}-${dlabel}-min.tar.bz2" "../$dn" --exclude="../$dn/${filesd}" \
     || elog "failed to create archive /tmp/${stemplate}-${dlabel}-min.tar.bz2"
-tar jcf /tmp/${stemplate}-${dlabel}-all.tar.bz2 ../$dn \
+tar jcf "/tmp/${stemplate}-${dlabel}-all.tar.bz2" "../$dn" \
     || elog "failed to create archive /tmp/${stemplate}-${dlabel}-all.tar.bz2"

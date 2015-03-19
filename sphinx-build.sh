@@ -17,4 +17,4 @@
 # Builds a Sphinx documentation
 
 sphinx-build -b html doc/source/ doc/build/
-rm -f *.pyc
+rm -f "./*.pyc"
