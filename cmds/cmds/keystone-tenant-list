@@ -1,2 +1,2 @@
-source /root/openrc
+source "$OPENRC"
 keystone tenant-list

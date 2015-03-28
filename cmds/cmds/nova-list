@@ -1,2 +1,2 @@
-source /root/openrc
+source "$OPENRC"
 nova list --all-tenant --fields host,name,status,networks,power_state

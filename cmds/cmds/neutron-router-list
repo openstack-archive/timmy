@@ -1,2 +1,2 @@
-source /root/openrc
+source "$OPENRC"
 neutron router-list
