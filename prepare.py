@@ -178,12 +178,11 @@ class Nodes(object):
             self.files_once_by_role()
 
         for ip, node in self.nodes.items():
-            oipf = open(self.template + ip + '-cmds.txt', 'w')
-            oipf.write("#" + str(node.node_id) + '\n')
-            oipf.write("#roles: " + ', '.join(node.roles) + '\n')
-            for rfile in sorted(set(node.rfiles)):
-                oipf.write(str(rfile)+'\n')
-            oipf.close()
+            with open(self.template + ip + '-cmds.txt', 'w') as oipf:
+                oipf.write("#" + str(node.node_id) + '\n')
+                oipf.write("#roles: " + ', '.join(node.roles) + '\n')
+                for rfile in sorted(set(node.rfiles)):
+                    oipf.write(str(rfile)+'\n')
 
     def static_files_by_role(self):
         """method to get static files. Static files by role"""
