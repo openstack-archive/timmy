@@ -1,0 +1,5 @@
+for i in $(ip netns)
+do
+    ip netns exec "$i" ${IPTABLES_STR}
+    ip netns exec "$i" ${IPTABLES_STR} -t nat
+done

@@ -1,0 +1,13 @@
+#I'm not sure if it needed
+
+for i in $(ovs-dpctl show | awk '/port/ {print $3}')
+do
+    #fix me
+    echo "ovs flows from $i"
+    ovs-ofctl dump-flows $i
+
+    #fix me
+    echo "ovs-ofctl show $i"
+    ovs-ofctl show $i
+    echo -n
+done
