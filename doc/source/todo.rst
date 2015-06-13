@@ -20,3 +20,4 @@ To-Do
   * When it doesn't help
 
 * Separate extended role from once by role 
+* Merge bash-functions for logging

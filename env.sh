@@ -58,7 +58,3 @@ function elog
 {
     echo -e "$(date --utc) $1" | column -s "|" -t >> "$errlog"
 }
-
-ccdir "${logd}"
-ccdir "${infod}"
-ccdir "${template}"

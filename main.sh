@@ -17,6 +17,10 @@
 # Set environment variables for the environment
 source ./env.sh
 
+ccdir "${logd}"
+ccdir "${infod}"
+ccdir "${template}"
+
 [ -e "$errlog" ] && cat "$errlog" >> "$errlog.old" && rm -f "$errlog"
 [ -e "$noticelog" ] && cat "$noticelog" >> "$noticelog.old" && rm -f "$noticelog"
 
