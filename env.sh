@@ -30,8 +30,8 @@ filesd="${infod}/files"
 # execution files template
 template="tmp/"
 
-# exec extended once-by-role
-extended=1
+# exec extended once-by-role, default value "1"
+extended=${extended:-"1"}
 
 nodesf="${infod}/nodes"
 errlog="${logd}/error.log"
