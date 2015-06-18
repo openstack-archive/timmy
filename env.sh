@@ -32,6 +32,12 @@ template="tmp/"
 
 # exec extended once-by-role, default value "1"
 extended=${extended:-"1"}
+# include log-files
+inclogs=${inclogs:-"1"}
+
+# template to find-cmd
+#findtemp=${findtemp:-"\.(log|gz|[0-9])$"}
+findtemp=${findtemp:-"\.(log)$"}
 
 nodesf="${infod}/nodes"
 errlog="${logd}/error.log"

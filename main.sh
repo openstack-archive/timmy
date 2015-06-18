@@ -51,6 +51,12 @@ nlog "create node's list and related files"
 
 nodef="${nodesf}.txt"
 
+command -v rsync &> /dev/null && \
+if [[ "$inclogs" == "1" ]] ; then
+    timeout "$env_timeout" ssh ${sshopts} "$fuelip" "find /var/log | egrep \"$findtemp\"" > "${template}/${fuelip}-log-files.txt"
+    echo -e "#logs\n${template}/${fuelip}-log-files.txt" >> "${template}/${fuelip}-files.txt"
+fi || { nlog "rsync is not installed. "; elog "rsync is not installed"; }
+
 function getoutput {
     cmdfile=$1
     fnode=$2
@@ -68,6 +74,7 @@ function getoutput {
 
 function getfiles {
     dfile=$1 # file-list destination file
+    [[ ! -e "$dfile" ]] && return
     fip=$2 # node ip
     fnode=$3 # node id
     destd=$4 # destination directory
@@ -76,7 +83,7 @@ function getfiles {
     logf="${logd}/node-${fnode}-${fip}-files.log"
     logm="|cluster: ${cluster}|node-$fnode|($fip):|rsync failed: $dfile, see $logf"
     command -v rsync &> /dev/null && \
-    rsync -avzr -e "ssh $sshopts" --files-from "$dfile" "${fip}":/ "${destd}" \
+    rsync -avzr -e "ssh $sshopts -oCompression=no" --files-from "$dfile" "${fip}":/ "${destd}" \
           --delete-before --progress --partial &> "$logf" || nlog "$logm"
 }
 
@@ -100,7 +107,7 @@ do
         cat "$rfile" >> "$tf"
         echo >> "$tf" #avoid glue strings
     done
-    getfiles "$tf" "$ip" "$node" "$fd" & #launch rsync
+    { time getfiles "$tf" "$ip" "$node" "$fd" ; } 2> "$logd/node-${node}-${ip}-files-time.log" & #launch rsync
 done
 
 #jobs -l
