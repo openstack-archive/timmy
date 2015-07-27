@@ -1,0 +1,12 @@
+ssh:
+    opts: -oConnectTimeout=2 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error -lroot -oBatchMode=yes
+    vars: OPENRC=/root/openrc IPTABLES_STR="iptables -nvL"
+#cluster: 0
+fuelip:  localhost
+out-dir: /tmp/timmy-gen/info
+timeout: 15
+find:
+    template: -name '*.gz' -o -name '*.log' -o -name '*-[0-9]4'
+    path: /var/log/
+logs-archive: /tmp/timmy-logs.tar
+compress-timeout: 3600

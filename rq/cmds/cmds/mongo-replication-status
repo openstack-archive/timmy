@@ -1,0 +1,1 @@
+mongo admin --eval "printjson(rs.status())"
