@@ -32,12 +32,13 @@ from tools import *
 ckey = 'cmds'
 fkey = 'files'
 lkey = 'logs'
+varlogdir = '/var/log'
 
 
 class Node(object):
 
     def __init__(self, node_id, mac, cluster, roles, os_platform,
-                 online, status, ip):
+                 online, status, ip, flogs=False):
         self.node_id = node_id
         self.mac = mac
         self.cluster = cluster
@@ -49,6 +50,8 @@ class Node(object):
         self.files = {}
         self.data = {}
         self.logsize = 0
+        # include logs from the command 'find /var/log/ ...'
+        self.flogs = flogs
 
     def set_files(self, dirname, key, ds, version):
         files = []
@@ -185,9 +188,9 @@ class Node(object):
                           (self.node_id, key, self.data[key]))
 
     def log_size_from_find(self, template, sshopts, odir, timeout=5):
-        # template = "\( -name '*.gz' -o -name '*.log' -o -name '*-[0-9]4' \)"
-        cmd = ("find "
-               "/var/log -type f \( %s \) -exec du -b {} +" % template)
+        logging.info('template find: %s' % template)
+        cmd = ("find '%s' -type f \( %s \) -exec du -b {} +" %
+               (varlogdir, str(template)))
         logging.info('node: %s, logs du-cmd: %s' % (self.node_id, cmd))
         outs, errs, code = ssh_node(ip=self.ip,
                                     command=cmd,
@@ -229,21 +232,21 @@ class Node(object):
 class Nodes(object):
     """Class nodes """
 
-    def __init__(self, filesd, logdir, extended, timeout,
-                 fuelip, cluster, sshopts, sshvars, destdir, filename=None):
-        self.dirname = filesd.rstrip('/')
+    def __init__(self, cluster, extended, conf, destdir, filename=None):
+        self.dirname = conf['rqdir'].rstrip('/')
         if (not os.path.exists(self.dirname)):
             logging.error("directory %s doesn't exist" % (self.dirname))
             sys.exit(1)
-        self.files = get_dir_structure(filesd)[os.path.basename(self.dirname)]
-        self.fuelip = fuelip
-        self.sshopts = sshopts
-        self.sshvars = sshvars
-        self.timeout = timeout
+        self.files = get_dir_structure(conf['rqdir'])[os.path.basename(self.dirname)]
+        self.fuelip = conf['fuelip']
+        self.sshopts = conf['ssh']['opts']
+        self.sshvars = conf['ssh']['vars']
+        self.timeout = conf['timeout']
+        self.conf = conf
         self.destdir = destdir
         self.get_version()
         self.cluster = cluster
-        self.logdir = logdir
+        self.logdir = conf['logdir']
         self.extended = extended
         logging.info('extended: %s' % self.extended)
         if filename is not None:
@@ -415,13 +418,12 @@ class Nodes(object):
             logging.error("Can't create archive %s" % (errs))
 
     def create_archive_logs(self, template, outfile, timeout):
-        sdir = '/var/log'
         fuelnode = self.nodes[self.fuelip]
         tstr = '--transform \\"flags=r;s|^|logs/fuel/|\\"'
         cmd = ("find %s -type f \( %s \) -print0 "
                "| tar --create %s --file - "
                "--null --files-from -" %
-               (sdir, template, tstr))
+               (varlogdir, template, tstr))
         outs, errs, code = ssh_node(ip=fuelnode.ip,
                                     command=cmd,
                                     sshopts=self.sshopts,

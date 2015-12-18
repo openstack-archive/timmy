@@ -10,3 +10,7 @@ find:
     path: /var/log/
 logs-archive: /tmp/timmy-logs.tar
 compress-timeout: 3600
+log-files:
+     template: -name '*.gz' -o -name '*.log' -o -name '*-[0-9]4'
+     by-role: compute, controller, mongo, ceph
+     by-node-id: 0

@@ -8,3 +8,12 @@ out-dir: ../timmy-ng/info
 timeout: 15
 find:
     template: -name '*.log'
+log-files:
+     default: -name '*.log'
+     by-role:
+         compute: -name '*.log'
+         controller: -name '*.log' -name '*.log' -o -name '*.log.1' -o -name '*' ! -path '/var/log/atop*'
+         mongo: -name '*.log'
+         ceph: -name '*.log'
+     by-node-id:
+         0: -name '*.log' -o -name '*.log.1'
