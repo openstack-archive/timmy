@@ -56,7 +56,7 @@ class Node(object):
     def set_files(self, dirname, key, ds, version):
         files = []
         for role in self.roles:
-            if role in ds[key]['by-role'].keys():
+            if 'by-role' in ds[key] and role in ds[key]['by-role'].keys():
                 for f in ds[key]['by-role'][role]:
                     files += [os.path.join(dirname, key, 'by-role', role, f)]
             if (('release-'+version in ds[key].keys()) and
@@ -64,11 +64,13 @@ class Node(object):
                 for f in ds[key]['release-'+version][role]:
                         files += [os.path.join(dirname, key,
                                                'release-'+version, role, f)]
-            for f in ds[key]['by-os'][self.os_platform].keys():
-                files += [os.path.join(dirname, key, 'by-os',
-                                       self.os_platform, f)]
-            for f in ds[key]['default']['default'].keys():
-                files += [os.path.join(dirname, key, 'default', 'default', f)]
+            if 'by-os' in ds[key]:
+                for f in ds[key]['by-os'][self.os_platform].keys():
+                    files += [os.path.join(dirname, key, 'by-os',
+                                           self.os_platform, f)]
+            if 'default' in ds[key] and 'default' in ds[key]['default']:
+                for f in ds[key]['default']['default'].keys():
+                    files += [os.path.join(dirname, key, 'default', 'default', f)]
         self.files[key] = sorted(set(files))
         logging.debug('set_files:\nkey: %s, node: %s, file_list: %s' %
                       (key, self.node_id, self.files[key]))
@@ -92,7 +94,7 @@ class Node(object):
 
     def add_files(self, dirname, key, ds):
         for role in self.roles:
-            if role in ds[key]['once-by-role'].keys():
+            if 'once-by-role' in ds[key] and role in ds[key]['once-by-role'].keys():
                 for f in ds[key]['once-by-role'][role]:
                     self.files[key] += [os.path.join(dirname, key,
                                                      'once-by-role', role, f)]
@@ -320,6 +322,7 @@ class Nodes(object):
             roles = []
             for node in self.nodes.values():
                 node.set_files(self.dirname, key, self.files, self.version)
+                # once-by-role functionality
                 if self.extended and key == ckey and node.online:
                     for role in node.roles:
                         if role not in roles:
@@ -335,8 +338,9 @@ class Nodes(object):
                               key,
                               node.files[key]))
         for key in [fkey, lkey]:
-            for node in self.nodes.values():
-                node.get_data_from_files(key)
+            if key in self.files.keys():
+                for node in self.nodes.values():
+                    node.get_data_from_files(key)
         for node in self.nodes.values():
             logging.debug('%s' % node.files[ckey])
 
@@ -351,7 +355,7 @@ class Nodes(object):
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-            if node.status in ['ready', 'discover'] and node.online:
+            if node.status in self.conf['node-status'] and node.online:
                 t = threading.Thread(target=node.exec_cmd,
                                      args=(label,
                                            self.sshvars,
@@ -371,7 +375,7 @@ class Nodes(object):
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-            if node.status in ['ready', 'discover'] and node.online:
+            if node.status in self.conf['node-status'] and node.online:
                 t = threading.Thread(target=node.du_logs,
                                      args=(label,
                                            self.sshopts,
@@ -451,6 +455,9 @@ class Nodes(object):
             logging.warning("Can't compress archive %s" % (errs))
 
     def get_conf_files(self, odir=fkey, timeout=15):
+        if fkey not in self.files:
+            logging.warning("get_conf_files: %s directory does not exist" %(fkey))
+            return
         lock = flock.FLock('/tmp/timmy-files.lock')
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "files"-part')
@@ -461,7 +468,7 @@ class Nodes(object):
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-            if node.status in ['ready', 'discover'] and node.online:
+            if node.status in self.conf['node-status'] and node.online:
                 t = threading.Thread(target=node.get_files,
                                      args=(label,
                                            self.logdir,
@@ -474,18 +481,21 @@ class Nodes(object):
             t.join()
         lock.unlock()
 
-    def get_log_files(self, odir='logfiles', timeout=15):
+    def get_log_files(self, odir=lkey, timeout=15):
         # lock = flock.FLock('/tmp/timmy-logs.lock')
         # if not lock.lock():
         #    logging.warning('Unable to obtain lock, skipping "logs"-part')
         #    return ''
+        if lkey not in self.files:
+            logging.warning("get_log_files: %s directory does not exist" %(lkey))
+            return
         label = lkey
         threads = []
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-            if (node.status in ['ready', 'discover'] and
+            if (node.status in self.conf['node-status'] and
                     node.online and str(node.node_id) != '0'):
                         t = threading.Thread(target=node.get_files,
                                              args=(label,

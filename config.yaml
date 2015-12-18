@@ -5,6 +5,7 @@ fuelip:  127.0.0.1
 rqdir:   ./rq
 logdir:  ./logs
 out-dir: ../timmy-ng/info
+node-status:  ['ready']
 timeout: 15
 find:
     template: -name '*.log'

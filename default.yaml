@@ -5,6 +5,7 @@ ssh:
 fuelip:  localhost
 out-dir: /tmp/timmy-gen/info
 timeout: 15
+node-status: ['ready', 'discover']
 find:
     template: -name '*.gz' -o -name '*.log' -o -name '*-[0-9]4'
     path: /var/log/
