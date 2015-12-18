@@ -51,14 +51,9 @@ def main(argv=None):
                         format='%(asctime)s %(levelname)s %(message)s')
     args.extended = args.extended == "1"
     conf = loadconf.load_conf(args.config)
-    n = nodes.Nodes(filesd=conf['rqdir'],
-                    logdir=conf['logdir'],
+    n = nodes.Nodes(conf=conf,
                     extended=args.extended,
-                    fuelip=conf['fuelip'],
                     cluster=args.cluster,
-                    sshopts=conf['ssh']['opts'],
-                    sshvars=conf['ssh']['vars'],
-                    timeout=conf['timeout'],
                     destdir=args.dest_file)
     # nodes.print_nodes()
     n.get_node_file_list()
