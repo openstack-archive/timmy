@@ -125,7 +125,7 @@ class Node(object):
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                  (self.node_id, self.ip, os.path.basename(f)))
             logging.info('outfile: %s' % dfile)
-            self.mapcmds[f] = dfile
+            self.mapcmds[os.path.basename(f)] = dfile
             try:
                 with open(dfile, 'w') as df:
                     df.write(outs)
