@@ -57,8 +57,11 @@ def main(argv=None):
                     destdir=args.dest_file)
     # nodes.print_nodes()
     n.get_node_file_list()
+    n.launch_ssh(conf['out-dir'])
     n.print_nodes()
     n.get_release()
+    for node in n.nodes.values():
+        logging.info('map: %s' %node.mapcmds)
     return 0
 
 if __name__ == '__main__':
