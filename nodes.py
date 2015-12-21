@@ -322,6 +322,8 @@ class Nodes(object):
         cmd = "awk -F ':' '/fuel_version/ {print \$2}' /etc/astute.yaml"
         for node in self.nodes.values():
             # skip master
+            if node.node_id == 0:
+                node.release = self.version
             if (node.node_id != 0) and ( node.status == 'ready'):
                 release, err, code = ssh_node(ip=node.ip,
                                               command=cmd,
