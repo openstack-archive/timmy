@@ -335,7 +335,7 @@ class Nodes(object):
                     logging.warning("get_release: node: %s: Can't get node release" % (node.node_id))
                     node.release = self.version
                     continue
-                node.release = release.rstrip('\n').strip(' ').strip('"')
+                node.release = release.strip('\n "\'')
                 logging.info("get_release: node: %s, release: %s" % (node.node_id, node.release))
 
     def get_node_file_list(self):
