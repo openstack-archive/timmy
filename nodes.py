@@ -103,7 +103,7 @@ class Node(object):
         logging.debug('add files:\nnode: %s, key: %s, files:\n%s' %
                       (self.node_id, key, self.files[key]))
 
-    def exec_cmd(self, label, sshvars, sshopts, odir='info', timeout=15):
+    def exec_cmd(self, label, sshvars, sshopts, odir='info', timeout=15, fake=false):
         sn = 'node-%s' % self.node_id
         cl = 'cluster-%s' % self.cluster
         logging.debug('%s/%s/%s/%s' % (odir, label, cl, sn))
@@ -111,13 +111,14 @@ class Node(object):
         mdir(ddir)
         for f in self.files[label]:
             logging.info('node:%s(%s), exec: %s' % (self.node_id, self.ip, f))
-            outs, errs, code = ssh_node(ip=self.ip,
-                                        filename=f,
-                                        sshvars=sshvars,
-                                        sshopts=sshopts,
-                                        timeout=timeout,
-                                        command=''
-                                        )
+            if not fake:
+                outs, errs, code = ssh_node(ip=self.ip,
+                                            filename=f,
+                                            sshvars=sshvars,
+                                            sshopts=sshopts,
+                                            timeout=timeout,
+                                            command=''
+                                           )
             if code != 0:
                 logging.error("node: %s, ip: %s, cmdfile: %s,"
                               " code: %s, error message: %s" %
