@@ -26,39 +26,40 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    parser = argparse.ArgumentParser(description='need to add description')
+    parser = argparse.ArgumentParser(description=('Parallel remote command'
+                                                  ' execution and file'
+                                                  ' collection tool'))
     parser.add_argument('--config', default='config.yaml',
-                        help='Config file')
+                        help='config file')
     parser.add_argument('-o', '--dest-file', default='/tmp/',
                         help='output archive file')
     # The following parameter has not been implemented yet.
     parser.add_argument('-f', '--nodes',
                         help='nodes file', default='nodes.json')
-    parser.add_argument('-e', '--extended', default="0",
+    parser.add_argument('-e', '--extended', action='store_true',
                         help='exec once by role cmdfiles')
     parser.add_argument('-c', '--cluster', help='cluster id')
     parser.add_argument('-l', '--logs',
-                        help='Collect logs from fuel-node',
-                        action="store_const", dest='getlogs',
-                        const=True, default=False)
+                        help='collect logs from fuel node',
+                        action='store_true', dest='getlogs',
     parser.add_argument('--only-logs',
-                        action="store_const", dest="only_logs",
-                        const=True, default=False,
+                        action='store_true',
                         help='Collect only logs from fuel-node')
     parser.add_argument('-d', '--debug',
-                        help="Print lots of debugging statements",
-                        action="store_const", dest="loglevel",
-                        const=logging.DEBUG,
-                        default=logging.WARNING,)
+                        help="print lots of debugging statements, implies -v",
+                        action="store_true")
     parser.add_argument('-v', '--verbose',
-                        help="Be verbose",
-                        action="store_const", dest="loglevel",
-                        const=logging.INFO,)
-
+                        help="be verbose",
+                        action="store_true")
     args = parser.parse_args(argv[1:])
+    loglevel = logging.WARNING
+    if args.verbose:
+        if args.debug:
+            loglevel = logging.DEBUG
+        else:
+            loglevel = logging.INFO
     logging.basicConfig(level=args.loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
-    args.extended = args.extended == "1"
     conf = loadconf.load_conf(args.config)
     n = nodes.Nodes(conf=conf,
                     extended=args.extended,
