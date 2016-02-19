@@ -119,19 +119,20 @@ class Node(object):
                                             timeout=timeout,
                                             command=''
                                            )
-            if code != 0:
-                logging.error("node: %s, ip: %s, cmdfile: %s,"
-                              " code: %s, error message: %s" %
-                              (self.node_id, self.ip, f, code, errs))
+                if code != 0:
+                    logging.error("node: %s, ip: %s, cmdfile: %s,"
+                                  " code: %s, error message: %s" %
+                                  (self.node_id, self.ip, f, code, errs))
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                  (self.node_id, self.ip, os.path.basename(f)))
             logging.info('outfile: %s' % dfile)
             self.mapcmds[os.path.basename(f)] = dfile
-            try:
-                with open(dfile, 'w') as df:
-                    df.write(outs)
-            except:
-                logging.error("Can't write to file %s" % dfile)
+            if not fake:
+                try:
+                    with open(dfile, 'w') as df:
+                        df.write(outs)
+                except:
+                    logging.error("Can't write to file %s" % dfile)
 
     def du_logs(self, label, sshopts, odir='info', timeout=15):
         logging.info('node:%s(%s), filelist: %s' %
@@ -367,7 +368,7 @@ class Nodes(object):
         for node in self.nodes.values():
             logging.debug('%s' % node.files[ckey])
 
-    def launch_ssh(self, odir='info', timeout=15):
+    def launch_ssh(self, odir='info', timeout=15, fake=false):
         lock = flock.FLock('/tmp/timmy-cmds.lock')
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
@@ -384,7 +385,8 @@ class Nodes(object):
                                            self.sshvars,
                                            self.sshopts,
                                            odir,
-                                           self.timeout,))
+                                           self.timeout,
+                                           fake))
                 threads.append(t)
                 t.start()
         for t in threads:
