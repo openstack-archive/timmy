@@ -103,7 +103,7 @@ class Node(object):
         logging.debug('add files:\nnode: %s, key: %s, files:\n%s' %
                       (self.node_id, key, self.files[key]))
 
-    def exec_cmd(self, label, sshvars, sshopts, odir='info', timeout=15, fake=false):
+    def exec_cmd(self, label, sshvars, sshopts, odir='info', timeout=15, fake=False):
         sn = 'node-%s' % self.node_id
         cl = 'cluster-%s' % self.cluster
         logging.debug('%s/%s/%s/%s' % (odir, label, cl, sn))
@@ -368,7 +368,7 @@ class Nodes(object):
         for node in self.nodes.values():
             logging.debug('%s' % node.files[ckey])
 
-    def launch_ssh(self, odir='info', timeout=15, fake=false):
+    def launch_ssh(self, odir='info', timeout=15, fake=False):
         lock = flock.FLock('/tmp/timmy-cmds.lock')
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
