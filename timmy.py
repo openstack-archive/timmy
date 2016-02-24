@@ -41,7 +41,7 @@ def main(argv=None):
     parser.add_argument('-c', '--cluster', help='cluster id')
     parser.add_argument('-l', '--logs',
                         help='collect logs from fuel node',
-                        action='store_true', dest='getlogs',
+                        action='store_true', dest='getlogs')
     parser.add_argument('--only-logs',
                         action='store_true',
                         help='Collect only logs from fuel-node')
@@ -58,7 +58,7 @@ def main(argv=None):
             loglevel = logging.DEBUG
         else:
             loglevel = logging.INFO
-    logging.basicConfig(level=args.loglevel,
+    logging.basicConfig(level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
     conf = loadconf.load_conf(args.config)
     n = nodes.Nodes(conf=conf,
