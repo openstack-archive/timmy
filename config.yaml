@@ -4,12 +4,13 @@ ssh:
 fuelip:  127.0.0.1
 rqdir:   ./rq
 logdir:  ./logs
-out-dir: ../timmy-ng/info
-node-status:  ['ready']
+outdir: ../timmy-ng/info
+soft_filter:
+    status:  ['ready']
 timeout: 15
 find:
     template: -name '*.log'
-log-files:
+log_files:
      default: -name '*.log'
      by-role:
          compute: -name '*.log'

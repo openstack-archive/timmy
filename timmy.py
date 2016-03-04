@@ -19,7 +19,7 @@ import argparse
 import nodes
 import logging
 import sys
-import loadconf
+from conf import Conf
 import flock
 
 def main(argv=None):
@@ -60,32 +60,32 @@ def main(argv=None):
             loglevel = logging.INFO
     logging.basicConfig(level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
-    conf = loadconf.load_conf(args.config)
-    n = nodes.Nodes(conf=conf,
+    config = Conf.load_conf(args.config)
+    n = nodes.Nodes(conf=config,
                     extended=args.extended,
                     cluster=args.cluster,
                     destdir=args.dest_file)
     # nodes.print_nodes()
     if not args.only_logs:
         n.get_node_file_list()
-        n.launch_ssh(conf['out-dir'])
-        n.get_conf_files(conf['out-dir'])
-        n.create_archive_general(conf['out-dir'], '/tmp/timmy-gen.tar.bz2', 60)
+        n.launch_ssh(config.outdir)
+        n.get_conf_files(config.outdir)
+        n.create_archive_general(config.outdir, '/tmp/timmy-gen.tar.bz2', 60)
     if args.only_logs or args.getlogs:
         lock = flock.FLock('/tmp/timmy-logs.lock')
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "logs"-part')
             return 1
         n.get_node_file_list()
-        n.calculate_log_size(conf['find']['template'])
+        n.calculate_log_size(config.find['template'])
         if n.is_enough_space():
-            n.get_log_files(conf['out-dir'])
-            n.create_archive_logs(conf['find']['template'],
-                                  conf['logs-archive'],
-                                  conf['compress-timeout'])
-            n.add_logs_archive(conf['out-dir'], nodes.lkey,
-                               conf['logs-archive'], 120)
-            n.compress_archive(conf['logs-archive'], conf['compress-timeout'])
+            n.get_log_files(config.outdir)
+            n.create_archive_logs(config.find['template'],
+                                  config.logs_archive,
+                                  config.compress_timeout)
+            n.add_logs_archive(config.outdir, nodes.lkey,
+                               config.logs_archive, 120)
+            n.compress_archive(config.logs_archive, config.compress_timeout)
 
     n.print_nodes()
     return 0

@@ -239,20 +239,20 @@ class Nodes(object):
     """Class nodes """
 
     def __init__(self, cluster, extended, conf, destdir, filename=None):
-        self.dirname = conf['rqdir'].rstrip('/')
+        self.dirname = conf.rqdir.rstrip('/')
         if (not os.path.exists(self.dirname)):
             logging.error("directory %s doesn't exist" % (self.dirname))
             sys.exit(1)
-        self.files = get_dir_structure(conf['rqdir'])[os.path.basename(self.dirname)]
-        self.fuelip = conf['fuelip']
-        self.sshopts = conf['ssh']['opts']
-        self.sshvars = conf['ssh']['vars']
-        self.timeout = conf['timeout']
+        self.files = get_dir_structure(conf.rqdir)[os.path.basename(self.dirname)]
+        self.fuelip = conf.fuelip
+        self.sshopts = conf.ssh['opts']
+        self.sshvars = conf.ssh['vars']
+        self.timeout = conf.timeout
         self.conf = conf
         self.destdir = destdir
         self.get_version()
         self.cluster = cluster
-        self.logdir = conf['logdir']
+        self.logdir = conf.logdir
         self.extended = extended
         logging.info('extended: %s' % self.extended)
         if filename is not None:
@@ -290,6 +290,8 @@ class Nodes(object):
                     ip=self.fuelip)
         self.nodes = {self.fuelip: node}
         for node in self.njdata:
+            if self.conf.hard_filter:
+                pass
             node_roles = node.get('roles')
             if not node_roles:
                 roles = ['None']
@@ -379,7 +381,7 @@ class Nodes(object):
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-            if node.status in self.conf['node-status'] and node.online:
+            if node.status in self.conf.soft_filter.status and node.online:
                 t = threading.Thread(target=node.exec_cmd,
                                      args=(label,
                                            self.sshvars,
@@ -400,7 +402,7 @@ class Nodes(object):
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-            if node.status in self.conf['node-status'] and node.online:
+            if node.status in self.conf.soft_filter.status and node.online:
                 t = threading.Thread(target=node.du_logs,
                                      args=(label,
                                            self.sshopts,
@@ -493,7 +495,7 @@ class Nodes(object):
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-            if node.status in self.conf['node-status'] and node.online:
+            if node.status in self.conf.soft_filter.status and node.online:
                 t = threading.Thread(target=node.get_files,
                                      args=(label,
                                            self.logdir,
@@ -520,7 +522,7 @@ class Nodes(object):
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-            if (node.status in self.conf['node-status'] and
+            if (node.status in self.conf.soft_filter.status and
                     node.online and str(node.node_id) != '0'):
                         t = threading.Thread(target=node.get_files,
                                              args=(label,
@@ -603,7 +605,7 @@ def main(argv=None):
                   destdir=args.dest_dir)
     # nodes.print_nodes()
     nodes.get_node_file_list()
-    nodes.calculate_log_size(conf['find']['template'])
+    nodes.calculate_log_size(conf.find['template'])
     if nodes.is_enough_space():
         nodes.get_log_files(args.out_dir)
     nodes.launch_ssh(args.out_dir)
