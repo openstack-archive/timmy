@@ -15,16 +15,17 @@ class Conf(object):
     timeout = 15
     logs_archive = '/tmp/timmy-logs.tar'
     rqdir = './rq'
+    logdir = './info'
     compress_timeout = 3600
     find = {'template': "-name '*.gz' -o -name '*.log' -o -name '*-[0-9]4'",
             'path': '/var/log/'}
 
     def __init__(self, **entries):
         self.__dict__.update(entries)
-        if self.hard_filter:
-            self.hard_filter = NodeFilter(**self.hard_filter)
-        if self.soft_filter:
-            self.soft_filter = NodeFilter(**self.soft_filter)
+        if 'hard_filter' in entries:
+            self.hard_filter = NodeFilter(**entries['hard_filter'])
+        if 'soft_filter' in entries:
+            self.soft_filter = NodeFilter(**entries['soft_filter'])
  
     @staticmethod
     def load_conf(filename):
