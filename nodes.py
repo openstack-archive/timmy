@@ -279,6 +279,27 @@ class Nodes(object):
             sys.exit(4)
         return nodes_json
 
+    def pass_hard_filter(self, node):
+        if self.conf.hard_filter:
+            if self.conf.hard_filter.status and (node.status not in self.conf.hard_filter.status):
+                logging.info("hard filter by status: excluding node-%s" % node.node_id)
+                return False
+            if isinstance(self.conf.hard_filter.online, bool) and (bool(node.online) != bool(self.conf.hard_filter.online)):
+                logging.info("hard filter by online: excluding node-%s" % node.node_id)
+                return False
+            if self.conf.hard_filter.node_ids and ((int(node.node_id) not in self.conf.hard_filter.node_ids) and (str(node.node_id) not in self.conf.hard_filter.node_ids)):
+                logging.info("hard filter by ids: excluding node-%s" % node.node_id)
+                return False
+            if self.conf.hard_filter.roles:
+                ok_roles = []
+                for role in node.roles:
+                    if role in self.conf.hard_filter.roles:
+                        ok_roles.append(role)
+                if not ok_roles:
+                    logging.info("hard filter by roles: excluding node-%s" % node.node_id)
+                    return False
+        return True
+ 
     def load_nodes(self):
         node = Node(node_id=0,
                     cluster=0,
@@ -288,10 +309,10 @@ class Nodes(object):
                     status='ready',
                     online=True,
                     ip=self.fuelip)
-        self.nodes = {self.fuelip: node}
+        self.nodes = {}
+        if self.pass_hard_filter(node):
+            self.nodes = {self.fuelip: node}
         for node in self.njdata:
-            if self.conf.hard_filter:
-                pass
             node_roles = node.get('roles')
             if not node_roles:
                 roles = ['None']
@@ -306,7 +327,10 @@ class Nodes(object):
                       'ip': node_ip}
             for key in keys:
                 params[key] = node[key]
-            self.nodes[node_ip] = Node(**params)
+            nodeobj = Node(**params)
+
+            if self.pass_hard_filter(nodeobj):
+                self.nodes[node_ip] = nodeobj
 
     def get_version(self):
         cmd = "awk -F ':' '/release/ {print \$2}' /etc/nailgun/version.yaml"
@@ -357,12 +381,12 @@ class Nodes(object):
                                          (role, node.node_id))
                             node.add_files(self.dirname, key, self.files)
                 node.exclude_non_os()
-            if key == ckey:
-                logging.info('node: %s, os: %s, key: %s, files: %s' %
-                             (node.node_id,
-                              node.os_platform,
-                              key,
-                              node.files[key]))
+                if key == ckey:
+                    logging.info('node: %s, os: %s, key: %s, files: %s' %
+                                 (node.node_id,
+                                  node.os_platform,
+                                  key,
+                                  node.files[key]))
         for key in [fkey, lkey]:
             if key in self.files.keys():
                 for node in self.nodes.values():
