@@ -77,11 +77,11 @@ def main(argv=None):
             logging.warning('Unable to obtain lock, skipping "logs"-part')
             return 1
         n.get_node_file_list()
+        n.set_template_for_find()
         n.calculate_log_size(config.find['template'])
         if n.is_enough_space():
             n.get_log_files(config.outdir)
-            n.create_archive_logs(config.find['template'],
-                                  config.logs_archive,
+            n.create_archive_logs(config.archives,
                                   config.compress_timeout)
             n.add_logs_archive(config.outdir, nodes.lkey,
                                config.logs_archive, 120)

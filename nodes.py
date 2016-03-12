@@ -134,6 +134,20 @@ class Node(object):
                 except:
                     logging.error("Can't write to file %s" % dfile)
 
+    def exec_simple_cmd(self, cmd, outfile, sshvars, sshopts, timeout=15, fake=False):
+        logging.info('node:%s(%s), exec: %s' % (self.node_id, self.ip, cmd))
+        if not fake:
+            outs, errs, code = ssh_node(ip=self.ip,
+                                        command=cmd,
+                                        sshvars=sshvars,
+                                        sshopts=sshopts,
+                                        timeout=timeout,
+                                        outputfile=outfile)
+            if code != 0:
+                logging.warning("node: %s, ip: %s, cmdfile: %s,"
+                              " code: %s, error message: %s" %
+                              (self.node_id, self.ip, cmd, code, errs))
+
     def du_logs(self, label, sshopts, odir='info', timeout=15):
         logging.info('node:%s(%s), filelist: %s' %
                      (self.node_id, self.ip, label))
@@ -197,7 +211,7 @@ class Node(object):
         logging.info('template find: %s' % template)
         cmd = ("find '%s' -type f \( %s \) -exec du -b {} +" %
                (varlogdir, str(template)))
-        logging.info('node: %s, logs du-cmd: %s' % (self.node_id, cmd))
+        logging.info('log_size_from_find: node: %s, logs du-cmd: %s' % (self.node_id, cmd))
         outs, errs, code = ssh_node(ip=self.ip,
                                     command=cmd,
                                     sshopts=sshopts,
@@ -426,7 +440,7 @@ class Nodes(object):
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-            if node.status in self.conf.soft_filter.status and node.online:
+            if node.status in self.conf.soft_filter.status and node.online and node.fltemplate:
                 t = threading.Thread(target=node.du_logs,
                                      args=(label,
                                            self.sshopts,
@@ -439,11 +453,16 @@ class Nodes(object):
         for node in self.nodes.values():
             lsize += node.logsize
         logging.info('Full log size on nodes: %s bytes' % lsize)
-        fuelnode = self.nodes[self.fuelip]
-        if fuelnode.log_size_from_find(template,
+        #fuelnode = self.nodes[self.fuelip]
+        #if fuelnode.log_size_from_find(template,
+        #                               self.sshopts,
+        #                               5) > 0:
+        #    lsize += fuelnode.logsize
+        for node in self.nodes.values():
+            if node.fltemplate and node.log_size_from_find(node.fltemplate,
                                        self.sshopts,
                                        5) > 0:
-            lsize += fuelnode.logsize
+                lsize += node.logsize
         logging.info('Full log size on nodes(with fuel): %s bytes' % lsize)
         self.alogsize = lsize / 1024
 
@@ -472,21 +491,36 @@ class Nodes(object):
         if code != 0:
             logging.error("Can't create archive %s" % (errs))
 
-    def create_archive_logs(self, template, outfile, timeout):
-        fuelnode = self.nodes[self.fuelip]
-        tstr = '--transform \\"flags=r;s|^|logs/fuel/|\\"'
-        cmd = ("find %s -type f \( %s \) -print0 "
-               "| tar --create %s --file - "
-               "--null --files-from -" %
-               (varlogdir, template, tstr))
-        outs, errs, code = ssh_node(ip=fuelnode.ip,
-                                    command=cmd,
-                                    sshopts=self.sshopts,
-                                    sshvars='',
-                                    timeout=timeout,
-                                    outputfile=outfile)
-        if code != 0:
-            logging.warning("stderr from tar: %s" % (errs))
+    def create_archive_logs(self, outdir, timeout):
+        #fuelnode = self.nodes[self.fuelip]
+        threads = []
+        for node in self.nodes.values():
+            if (self.cluster and str(self.cluster) != str(node.cluster) and
+                    node.cluster != 0):
+                continue
+
+            if node.status in self.conf.soft_filter.status and node.online and node.fltemplate:
+                tstr = ''
+                cl = 'cluster-%s' % self.cluster
+                node.archivelogsfile = os.path.join(outdir, 'node-'+str(node.node_id) + '.tar')
+                mdir(outdir)
+                if str(node.node_id) == '0':
+                    tstr = '--transform \\"flags=r;s|^|logs/fuel/|\\"'
+                cmd = ("find %s -type f \( %s \) -print0 "
+                       "| tar --create %s --file - "
+                       "--null --files-from -" %
+                       (node.flpath, node.fltemplate, tstr))
+                t = threading.Thread(target=node.exec_simple_cmd,
+                                     args=(cmd,
+                                           node.archivelogsfile,
+                                           self.sshvars,
+                                           self.sshopts,
+                                           timeout)
+                                    )
+                threads.append(t)
+                t.start()
+        for t in threads:
+            t.join()
 
     def add_logs_archive(self, directory, key, outfile, timeout):
         cmd = ("tar --append --file=%s --directory %s %s" %
@@ -504,6 +538,20 @@ class Nodes(object):
                                       timeout=timeout)
         if code != 0:
             logging.warning("Can't compress archive %s" % (errs))
+
+    def set_template_for_find(self):
+        for node in self.nodes.values():
+            node.flpath = self.conf.log_files['path']
+            node.fltemplate = self.conf.log_files['default']
+            for role in node.roles:
+                if role in self.conf.log_files['by_role'].keys():
+                    node.fltemplate = self.conf.log_files['by_role'][role]
+                    logging.info('set_template_for_find: break on role %s' %role)
+                    break
+            if (self.conf.log_files['by_node_id'] and
+                node.node_id in self.conf.log_files['by_node_id'].keys()):
+                    node.fltemplate = self.conf.log_files['by_node_id'][node.node_id]
+            logging.info('set_template_for_find: node: %s, template: %s' %(node.node_id, node.fltemplate) )
 
     def get_conf_files(self, odir=fkey, timeout=15):
         if fkey not in self.files:

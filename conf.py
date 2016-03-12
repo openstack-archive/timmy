@@ -17,6 +17,7 @@ class Conf(object):
     rqdir = './rq'
     logdir = './info'
     compress_timeout = 3600
+    archives = '/tmp/timmy/archives'
     find = {'template': "-name '*.gz' -o -name '*.log' -o -name '*-[0-9]4'",
             'path': '/var/log/'}
 

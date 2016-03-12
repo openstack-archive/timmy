@@ -11,11 +11,12 @@ timeout: 15
 find:
     template: -name '*.log'
 log_files:
-     default: -name '*.log'
-     by-role:
+    path: /var/log
+    default: -name '*.log'
+    by_role:
          compute: -name '*.log'
          controller: -name '*.log' -name '*.log' -o -name '*.log.1' -o -name '*' ! -path '/var/log/atop*'
          mongo: -name '*.log'
          ceph: -name '*.log'
-     by-node-id:
+    by_node_id:
          0: -name '*.log' -o -name '*.log.1'
