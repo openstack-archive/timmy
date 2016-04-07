@@ -19,6 +19,7 @@ import argparse
 import nodes
 import logging
 import sys
+import os
 from conf import Conf
 import flock
 
@@ -70,22 +71,25 @@ def main(argv=None):
         n.get_node_file_list()
         n.launch_ssh(config.outdir)
         n.get_conf_files(config.outdir)
-        n.create_archive_general(config.outdir, '/tmp/timmy-gen.tar.bz2', 60)
+        n.create_archive_general(config.outdir,
+                                 os.path.join(config.archives, 'general.tar.bz2'),
+                                 60)
     if args.only_logs or args.getlogs:
         lock = flock.FLock('/tmp/timmy-logs.lock')
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "logs"-part')
             return 1
         n.get_node_file_list()
-        n.set_template_for_find()
-        n.calculate_log_size(config.find['template'])
+        #n.set_template_for_find()
+        n.calculate_log_size()
         if n.is_enough_space():
-            n.get_log_files(config.outdir)
-            n.create_archive_logs(config.archives,
+            #n.get_log_files(config.outdir)
+            n.create_log_archives(config.archives,
                                   config.compress_timeout)
-            n.add_logs_archive(config.outdir, nodes.lkey,
-                               config.logs_archive, 120)
-            n.compress_archive(config.logs_archive, config.compress_timeout)
+            #n.add_logs_archive(config.outdir, nodes.lkey,
+            #                   config.logs_archive, 120)
+            #n.compress_archive(config.logs_archive, config.compress_timeout)
+            #n.compress_logs(config.compress_timeout)
 
     n.print_nodes()
     return 0

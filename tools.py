@@ -75,11 +75,11 @@ def launch_cmd(command, timeout):
 
 
 def ssh_node(ip, command, sshopts='', sshvars='', timeout=15, filename=None,
-             outputfile=None, prefix='nice -n 19 ionice -c 3'):
+             inputfile=None, outputfile=None, prefix='nice -n 19 ionice -c 3'):
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
         logging.info("skip ssh")
-        bstr = "%s timeout '%s' %s bash -c " % (
-               sshvars, timeout, prefix)
+        bstr = "%s timeout '%s' bash -c " % (
+               sshvars, timeout)
     else:
         logging.info("exec ssh")
         # base cmd str
@@ -89,7 +89,9 @@ def ssh_node(ip, command, sshopts='', sshvars='', timeout=15, filename=None,
         cmd = bstr + '"' + prefix + ' ' + command + '"'
     else:
         cmd = bstr + " '%s bash -s' < '%s'" % (prefix, filename)
-    # logging.info(cmd)
+    if inputfile is not None:
+        cmd = bstr + '"' + prefix + " " + command + '" < ' + inputfile
+        logging.info("ssh_node: inputfile selected, cmd: %s" %cmd)
     if outputfile is not None:
         cmd += ' > "' + outputfile + '"'
     outs, errs, code = launch_cmd(cmd, timeout)

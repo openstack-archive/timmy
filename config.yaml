@@ -3,20 +3,19 @@ ssh:
     vars: OPENRC=/root/openrc IPTABLES_STR="iptables -nvL"
 fuelip:  127.0.0.1
 rqdir:   ./rq
-logdir:  ./logs
-outdir: ../timmy-ng/info
 soft_filter:
     status:  ['ready']
 timeout: 15
-find:
-    template: -name '*.log'
 log_files:
     path: /var/log
-    default: -name '*.log'
-    by_role:
-         compute: -name '*.log'
-         controller: -name '*.log' -name '*.log' -o -name '*.log.1' -o -name '*' ! -path '/var/log/atop*'
-         mongo: -name '*.log'
-         ceph: -name '*.log'
-    by_node_id:
-         0: -name '*.log' -o -name '*.log.1'
+    filter:
+        default:
+            include: '\.log$'
+            exclude: 'atop-'
+        by_role:
+            compute:
+                include: '\.log$'
+            controller:
+                include: '\.log\.1$'
+        by_node_id:
+             0: '\.log$'

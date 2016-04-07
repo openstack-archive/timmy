@@ -26,6 +26,7 @@ import os
 import logging
 import sys
 import threading
+import re
 from tools import *
 
 
@@ -38,7 +39,7 @@ varlogdir = '/var/log'
 class Node(object):
 
     def __init__(self, node_id, mac, cluster, roles, os_platform,
-                 online, status, ip, flogs=False):
+                 online, status, ip):
         self.node_id = node_id
         self.mac = mac
         self.cluster = cluster
@@ -50,8 +51,7 @@ class Node(object):
         self.files = {}
         self.data = {}
         self.logsize = 0
-        # include logs from the command 'find /var/log/ ...'
-        self.flogs = flogs
+        self.flogs = {}
         self.mapcmds = {}
 
     def set_files(self, dirname, key, ds, version):
@@ -82,7 +82,7 @@ class Node(object):
                       (self.node_id, filename))
         if bname[0] == '.':
             if self.os_platform in bname:
-                logging.info('os %s in filename %s' %
+                logging.debug('os %s in filename %s' %
                              (self.os_platform, filename))
                 return True
             else:
@@ -132,9 +132,9 @@ class Node(object):
                     with open(dfile, 'w') as df:
                         df.write(outs)
                 except:
-                    logging.error("Can't write to file %s" % dfile)
+                    logging.error("exec_cmd: can't write to file %s" % dfile)
 
-    def exec_simple_cmd(self, cmd, outfile, sshvars, sshopts, timeout=15, fake=False):
+    def exec_simple_cmd(self, cmd, infile, outfile, sshvars, sshopts, timeout=15, fake=False):
         logging.info('node:%s(%s), exec: %s' % (self.node_id, self.ip, cmd))
         if not fake:
             outs, errs, code = ssh_node(ip=self.ip,
@@ -142,7 +142,8 @@ class Node(object):
                                         sshvars=sshvars,
                                         sshopts=sshopts,
                                         timeout=timeout,
-                                        outputfile=outfile)
+                                        outputfile=outfile,
+                                        inputfile=infile)
             if code != 0:
                 logging.warning("node: %s, ip: %s, cmdfile: %s,"
                               " code: %s, error message: %s" %
@@ -176,14 +177,13 @@ class Node(object):
             logging.info("node: %s, ip: %s, size: %s" %
                          (self.node_id, self.ip, self.logsize))
 
-    def get_files(self, label, logdir, sshopts, odir='info', timeout=15):
+    def get_files(self, label, sshopts, odir='info', timeout=15):
         logging.info('node:%s(%s), filelist: %s' %
                      (self.node_id, self.ip, label))
         sn = 'node-%s' % self.node_id
         cl = 'cluster-%s' % self.cluster
         ddir = os.path.join(odir, label, cl, sn)
         mdir(ddir)
-        # logging.info(self.data)
         outs, errs, code = get_files_rsync(ip=self.ip,
                                            data=self.data[label],
                                            sshopts=sshopts,
@@ -207,10 +207,27 @@ class Node(object):
             logging.debug('node: %s, key: %s, data:\n%s' %
                           (self.node_id, key, self.data[key]))
 
-    def log_size_from_find(self, template, sshopts, odir, timeout=5):
-        logging.info('template find: %s' % template)
-        cmd = ("find '%s' -type f \( %s \) -exec du -b {} +" %
-               (varlogdir, str(template)))
+    def logs_filter(self, lfilter):
+        flogs = {}
+        logging.info('logs_filter: node: %s, filter: %s' %(self.node_id, lfilter))
+        for f in self.dulogs.splitlines():
+            try:
+                if (('include' in lfilter and re.search(lfilter['include'], f)) and 
+                    ('exclude' in lfilter and not re.search(lfilter['exclude'], f))
+                   ):
+                    flogs[f.split("\t")[1]] = int(f.split("\t")[0])
+                else:
+                    logging.debug("filter %s by %s" %(f, lfilter))
+            except re.error as e:
+                logging.error('logs_include_filter: filter: %s, str: %s, re.error: %s' %
+                    (lfilter, f, str(e)))
+                sys.exit(5)
+
+        #logging.debug('logs_include_filter: %s, filter: %s' %(flogs, lfilter))
+        self.flogs.update(flogs)
+
+    def log_size_from_find(self, path, sshopts, timeout=5):
+        cmd = ("find '%s' -type f -exec du -b {} +" %(path))
         logging.info('log_size_from_find: node: %s, logs du-cmd: %s' % (self.node_id, cmd))
         outs, errs, code = ssh_node(ip=self.ip,
                                     command=cmd,
@@ -221,15 +238,10 @@ class Node(object):
             logging.error("node: %s, ip: %s, command: %s, "
                           "timeout code: %s, error message: %s" %
                           (self.node_id, self.ip, cmd, code, errs))
-            self.logsize = -1
-            return -1
-        size = 0
-        for s in outs.splitlines():
-            size += int(s.split()[0])
-        self.logsize = size
-        logging.info("log size from find: node: %s, ip: %s, size: %s bytes" %
-                     (self.node_id, self.ip, self.logsize))
-        return self.logsize
+            return False
+        self.dulogs = outs
+        logging.info('log_size_from_find: dulogs: %s' %(self.dulogs))
+        return True
 
     def print_files(self):
         for k in self.files.keys():
@@ -266,7 +278,6 @@ class Nodes(object):
         self.destdir = destdir
         self.get_version()
         self.cluster = cluster
-        self.logdir = conf.logdir
         self.extended = extended
         logging.info('extended: %s' % self.extended)
         if filename is not None:
@@ -391,7 +402,7 @@ class Nodes(object):
                     for role in node.roles:
                         if role not in roles:
                             roles.append(role)
-                            logging.info('role: %s, node: %s' %
+                            logging.debug('role: %s, node: %s' %
                                          (role, node.node_id))
                             node.add_files(self.dirname, key, self.files)
                 node.exclude_non_os()
@@ -433,36 +444,28 @@ class Nodes(object):
             t.join()
         lock.unlock()
 
-    def calculate_log_size(self, template, timeout=15):
-        label = lkey
-        threads = []
+    def filter_logs(self):
         for node in self.nodes.values():
-            if (self.cluster and str(self.cluster) != str(node.cluster) and
-                    node.cluster != 0):
-                continue
-            if node.status in self.conf.soft_filter.status and node.online and node.fltemplate:
-                t = threading.Thread(target=node.du_logs,
-                                     args=(label,
-                                           self.sshopts,
-                                           5,))
-                threads.append(t)
-                t.start()
-        for t in threads:
-            t.join()
+            node.logs_filter(self.conf.log_files['filter']['default'])
+            for role in node.roles:
+                if ('by_role' in self.conf.log_files['filter'] and
+                    role in self.conf.log_files['filter']['by_role'].keys()
+                   ):
+                   node.logs_filter(self.conf.log_files['filter']['by_role'][role])
+            logging.debug('filter logs: node-%s: filtered logs: %s' %
+                          (node.node_id, node.flogs))
+
+    def calculate_log_size(self, timeout=15):
         lsize = 0
         for node in self.nodes.values():
-            lsize += node.logsize
-        logging.info('Full log size on nodes: %s bytes' % lsize)
-        #fuelnode = self.nodes[self.fuelip]
-        #if fuelnode.log_size_from_find(template,
-        #                               self.sshopts,
-        #                               5) > 0:
-        #    lsize += fuelnode.logsize
-        for node in self.nodes.values():
-            if node.fltemplate and node.log_size_from_find(node.fltemplate,
+            if not node.log_size_from_find(self.conf.log_files['path'],
                                        self.sshopts,
-                                       5) > 0:
-                lsize += node.logsize
+                                       5):
+                logging.warning("can't get log file list from node %s" %node.node_id)
+        self.filter_logs()
+        for node in self.nodes.values():
+            for f in node.flogs:
+                lsize += node.flogs[f]
         logging.info('Full log size on nodes(with fuel): %s bytes' % lsize)
         self.alogsize = lsize / 1024
 
@@ -472,16 +475,17 @@ class Nodes(object):
             logging.error("Can't get free space: %s" % errs)
             return False
         fs = int(outs.rstrip('\n'))
-        logging.info('logsize: %s, free space: %s Kb' % (self.alogsize, fs))
+        logging.info('logsize: %s Kb, free space: %s Kb' % (self.alogsize, fs))
         if (self.alogsize*coefficient > fs):
             logging.error('Not enough space on device')
             return False
         else:
             return True
 
-    def create_archive_general(self, outdir, outfile, timeout):
-        cmd = "tar jcf '%s' %s" % (outfile, outdir)
-        logging.info(cmd)
+    def create_archive_general(self, directory, outfile, timeout):
+        cmd = "tar jcf '%s' -C %s %s" % (outfile, directory, ".")
+        mdir(self.conf.archives)
+        logging.debug("create_archive_general: cmd: %s" %cmd)
         outs, errs, code = ssh_node(ip='localhost',
                                     command=cmd,
                                     sshopts=self.sshopts,
@@ -491,27 +495,35 @@ class Nodes(object):
         if code != 0:
             logging.error("Can't create archive %s" % (errs))
 
-    def create_archive_logs(self, outdir, timeout):
-        #fuelnode = self.nodes[self.fuelip]
+    def create_log_archives(self, outdir, timeout):
         threads = []
+        txtfl = []
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
 
-            if node.status in self.conf.soft_filter.status and node.online and node.fltemplate:
+            if node.status in self.conf.soft_filter.status and node.online:
                 tstr = ''
                 cl = 'cluster-%s' % self.cluster
-                node.archivelogsfile = os.path.join(outdir, 'node-'+str(node.node_id) + '.tar')
+                node.archivelogsfile = os.path.join(outdir, 'logs-node-'+str(node.node_id) + '.tar.bz2')
                 mdir(outdir)
+                logslistfile = node.archivelogsfile + '.txt'
+                txtfl.append(logslistfile)
+                try:
+                    with open(logslistfile, 'w') as llf:
+                        for line in node.flogs:
+                            llf.write(line+"\0")
+                except:
+                    logging.error("create_archive_logs: Can't write to file %s" % logslistfile)
                 if str(node.node_id) == '0':
                     tstr = '--transform \\"flags=r;s|^|logs/fuel/|\\"'
-                cmd = ("find %s -type f \( %s \) -print0 "
-                       "| tar --create %s --file - "
+                cmd = ("tar --bzip2 --create %s --file - "
                        "--null --files-from -" %
-                       (node.flpath, node.fltemplate, tstr))
+                       (tstr))
                 t = threading.Thread(target=node.exec_simple_cmd,
                                      args=(cmd,
+                                           logslistfile,
                                            node.archivelogsfile,
                                            self.sshvars,
                                            self.sshopts,
@@ -521,6 +533,8 @@ class Nodes(object):
                 t.start()
         for t in threads:
             t.join()
+        for tfile in txtfl:
+            os.remove(tfile)
 
     def add_logs_archive(self, directory, key, outfile, timeout):
         cmd = ("tar --append --file=%s --directory %s %s" %
@@ -532,6 +546,16 @@ class Nodes(object):
         if code != 2 and code != 0:
             logging.warning("stderr from tar: %s" % (errs))
 
+    def compress_logs(self, timeout):
+        threads = []
+        for node in self.nodes.values():
+            if (self.cluster and str(self.cluster) != str(node.cluster) and
+                    node.cluster != 0):
+                continue
+
+            if node.status in self.conf.soft_filter.status and node.online:
+                self.compress_archive(node.archivelogsfile, timeout)
+
     def compress_archive(self, filename, timeout):
         cmd = 'bzip2 -f %s' % filename
         outs, errs, code = launch_cmd(command=cmd,
@@ -540,18 +564,20 @@ class Nodes(object):
             logging.warning("Can't compress archive %s" % (errs))
 
     def set_template_for_find(self):
+        '''Obsolete'''
         for node in self.nodes.values():
             node.flpath = self.conf.log_files['path']
-            node.fltemplate = self.conf.log_files['default']
+            node.fltemplate = self.conf.log_files['filter']['default']
             for role in node.roles:
-                if role in self.conf.log_files['by_role'].keys():
-                    node.fltemplate = self.conf.log_files['by_role'][role]
-                    logging.info('set_template_for_find: break on role %s' %role)
+                if role in self.conf.log_files['filter']['by_role'].keys():
+                    node.fltemplate = self.conf.log_files['filter']['by_role'][role]
+                    logging.debug('set_template_for_find: break on role %s' %role)
                     break
-            if (self.conf.log_files['by_node_id'] and
-                node.node_id in self.conf.log_files['by_node_id'].keys()):
+            if (self.conf.log_files['filter']['by_node_id'] and
+                node.node_id in self.conf.log_files['filter']['by_node_id'].keys()):
                     node.fltemplate = self.conf.log_files['by_node_id'][node.node_id]
-            logging.info('set_template_for_find: node: %s, template: %s' %(node.node_id, node.fltemplate) )
+            logging.debug('set_template_for_find: node: %s, template: %s' %
+                          (node.node_id, node.fltemplate) )
 
     def get_conf_files(self, odir=fkey, timeout=15):
         if fkey not in self.files:
@@ -570,7 +596,6 @@ class Nodes(object):
             if node.status in self.conf.soft_filter.status and node.online:
                 t = threading.Thread(target=node.get_files,
                                      args=(label,
-                                           self.logdir,
                                            self.sshopts,
                                            odir,
                                            self.timeout,))
@@ -581,10 +606,6 @@ class Nodes(object):
         lock.unlock()
 
     def get_log_files(self, odir=lkey, timeout=15):
-        # lock = flock.FLock('/tmp/timmy-logs.lock')
-        # if not lock.lock():
-        #    logging.warning('Unable to obtain lock, skipping "logs"-part')
-        #    return ''
         if lkey not in self.files:
             logging.warning("get_log_files: %s directory does not exist" %(lkey))
             return
@@ -598,7 +619,6 @@ class Nodes(object):
                     node.online and str(node.node_id) != '0'):
                         t = threading.Thread(target=node.get_files,
                                              args=(label,
-                                                   self.logdir,
                                                    self.sshopts,
                                                    odir,
                                                    self.timeout,))
@@ -606,7 +626,6 @@ class Nodes(object):
                         t.start()
         for t in threads:
             t.join()
-        # lock.unlock()
 
     def print_nodes(self):
         """print nodes"""
@@ -621,70 +640,7 @@ class Nodes(object):
 
 
 def main(argv=None):
-    if argv is None:
-        argv = sys.argv
-
-    parser = argparse.ArgumentParser(description='need to add description')
-    parser.add_argument('-a', '--dest-dir', default='/tmp/',
-                        help='directory with output archive')
-    parser.add_argument('-f', '--nodes',
-                        help='nodes file', default='nodes.json')
-    parser.add_argument('-t', '--timeout',
-                        help='timeout for command', type=int, default=15)
-    parser.add_argument('-l', '--log-dir',
-                        help='log directory', default='./logs/')
-    parser.add_argument('-o', '--ssh-vars',
-                        help='ssh variables',
-                        default=("OPENRC=/root/openrc "
-                                 "IPTABLES_STR=\"iptables -nvL\""))
-    parser.add_argument('-p', '--ssh-opts',
-                        help='ssh options',
-                        default=("-oConnectTimeout=2 "
-                                 "-oStrictHostKeyChecking=no "
-                                 "-oUserKnownHostsFile=/dev/null "
-                                 "-oLogLevel=error "
-                                 "-lroot -oBatchMode=yes"))
-    parser.add_argument('-r', '--rq-dir',
-                        help='rq directrory', default='./rq')
-    parser.add_argument('-e', '--extended', default="0",
-                        help='exec once by role cmdfiles')
-    parser.add_argument('-c', '--cluster', help='cluster id')
-    parser.add_argument('-i', '--fuel-ip',
-                        help='Fuel admin ip address', default="localhost")
-    parser.add_argument('-s', '--out-dir', default='info',
-                        help='output directory')
-    parser.add_argument('-d', '--debug',
-                        help="Print lots of debugging statements",
-                        action="store_const", dest="loglevel",
-                        const=logging.DEBUG,
-                        default=logging.WARNING,)
-    parser.add_argument('-v', '--verbose',
-                        help="Be verbose",
-                        action="store_const", dest="loglevel",
-                        const=logging.INFO,)
-
-    args = parser.parse_args(argv[1:])
-    logging.basicConfig(level=args.loglevel)
-    args.extended = args.extended == "1"
-    nodes = Nodes(filesd=args.rq_dir,
-                  logdir=args.log_dir,
-                  extended=args.extended,
-                  fuelip=args.fuel_ip,
-                  cluster=args.cluster,
-                  sshopts=args.ssh_opts,
-                  sshvars=args.ssh_vars,
-                  timeout=args.timeout,
-                  destdir=args.dest_dir)
-    # nodes.print_nodes()
-    nodes.get_node_file_list()
-    nodes.calculate_log_size(conf.find['template'])
-    if nodes.is_enough_space():
-        nodes.get_log_files(args.out_dir)
-    nodes.launch_ssh(args.out_dir)
-    nodes.get_conf_files(args.out_dir)
-
-    nodes.print_nodes()
-    return 0
+   return 0
 
 if __name__ == '__main__':
     exit(main(sys.argv))

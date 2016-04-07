@@ -11,15 +11,15 @@ class Conf(object):
            'vars': 'OPENRC=/root/openrc IPTABLES_STR="iptables -nvL"'}
     cluster = None
     fuelip = 'localhost'
-    outdir = '/tmp/timmy-gen/info'
+    outdir = '/tmp/timmy/info'
     timeout = 15
-    logs_archive = '/tmp/timmy-logs.tar'
     rqdir = './rq'
-    logdir = './info'
     compress_timeout = 3600
     archives = '/tmp/timmy/archives'
-    find = {'template': "-name '*.gz' -o -name '*.log' -o -name '*-[0-9]4'",
-            'path': '/var/log/'}
+    cmds_archive = ''
+    log_files = {}
+    log_files['filter'] = {'default': {'include': '.log', 'exclude': None}}
+    log_files['path'] = '/var/log/'
 
     def __init__(self, **entries):
         self.__dict__.update(entries)
@@ -38,6 +38,9 @@ class Conf(object):
             sys.exit(1)
         except ValueError:
             logging.error("Could not convert data")
+            sys.exit(1)
+        except yaml.parser.ParserError as e:
+            logging.error("Could not parse %s:\n%s" %(filename, str(e)))
             sys.exit(1)
         except:
             logging.error("Unexpected error: %s" % sys.exc_info()[0])
