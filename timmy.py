@@ -22,7 +22,6 @@ import sys
 import os
 from conf import Conf
 import flock
-from tools import import_subprocess
 
 
 def main(argv=None):
@@ -60,7 +59,6 @@ def main(argv=None):
             loglevel = logging.INFO
     logging.basicConfig(level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
-    import_subprocess()
     config = Conf.load_conf(args.config)
     main_arc = os.path.join(config.archives, 'general.tar.bz2')
     if args.dest_file:

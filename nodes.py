@@ -28,7 +28,6 @@ import threading
 import re
 from tools import *
 
-
 ckey = 'cmds'
 fkey = 'files'
 lkey = 'logs'
@@ -263,6 +262,7 @@ class Nodes(object):
     """Class nodes """
 
     def __init__(self, cluster, extended, conf, destdir, filename=None):
+        import_subprocess()
         self.dirname = conf.rqdir.rstrip('/')
         if (not os.path.exists(self.dirname)):
             logging.error("directory %s doesn't exist" % (self.dirname))
@@ -515,6 +515,7 @@ class Nodes(object):
                             llf.write(line+"\0")
                 except:
                     logging.error("create_archive_logs: Can't write to file %s" % logslistfile)
+                    continue
                 cmd = "tar --bzip2 --create --file - --null --files-from -"
                 t = threading.Thread(target=node.exec_simple_cmd,
                                      args=(cmd,
