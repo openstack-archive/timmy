@@ -22,6 +22,7 @@ import sys
 import os
 from conf import Conf
 import flock
+from tools import import_subprocess
 
 def main(argv=None):
     if argv is None:
@@ -61,6 +62,7 @@ def main(argv=None):
             loglevel = logging.INFO
     logging.basicConfig(level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
+    import_subprocess()
     config = Conf.load_conf(args.config)
     n = nodes.Nodes(conf=config,
                     extended=args.extended,

@@ -3,11 +3,14 @@ import logging
 import sys
 from nodefilter import NodeFilter
 
+
 class Conf(object):
     """Configuration parameters"""
     hard_filter = None
     soft_filter = NodeFilter()
-    ssh = {'opts': '-oConnectTimeout=2 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error -lroot -oBatchMode=yes',
+    ssh = {'opts': '''-oConnectTimeout=2 -oStrictHostKeyChecking=no
+                   -oUserKnownHostsFile=/dev/null -oLogLevel=error
+                   -lroot -oBatchMode=yes''',
            'vars': 'OPENRC=/root/openrc IPTABLES_STR="iptables -nvL"'}
     cluster = None
     fuelip = 'localhost'
@@ -27,7 +30,7 @@ class Conf(object):
             self.hard_filter = NodeFilter(**entries['hard_filter'])
         if 'soft_filter' in entries:
             self.soft_filter = NodeFilter(**entries['soft_filter'])
- 
+
     @staticmethod
     def load_conf(filename):
         try:
@@ -40,7 +43,7 @@ class Conf(object):
             logging.error("Could not convert data")
             sys.exit(1)
         except yaml.parser.ParserError as e:
-            logging.error("Could not parse %s:\n%s" %(filename, str(e)))
+            logging.error("Could not parse %s:\n%s" % (filename, str(e)))
             sys.exit(1)
         except:
             logging.error("Unexpected error: %s" % sys.exc_info()[0])

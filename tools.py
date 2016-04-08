@@ -21,8 +21,26 @@ tools module
 
 import os
 import logging
-import subprocess
 import sys
+
+def import_subprocess():
+    if 'subprocess' not in globals():
+        global subprocess
+        try:
+            import subprocess32 as subprocess
+            logging.info("using improved subprocess32 module\n")
+        except:
+            import subprocess
+            logging.warning(("Please upgrade the module 'subprocess' to the latest version: "
+                            "https://pypi.python.org/pypi/subprocess32/"))
+            ### set not_ok python
+            global ok_python
+            ok_python = True
+            if sys.version > (2,7,0):
+                ok_python = False
+                logging.warning('this subprocess module does not support timeouts')
+    else:
+            logging.info('subprocess is already loaded')
 
 
 def get_dir_structure(rootdir):
@@ -60,13 +78,22 @@ def launch_cmd(command, timeout):
                          shell=True,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
-    try:
-        outs, errs = p.communicate(timeout=timeout+1)
-    except subprocess.TimeoutExpired:
-        p.kill()
-        outs, errs = p.communicate()
-        logging.error("command: %s err: %s, returned: %s" %
-                      (command, errs, p.returncode))
+    if ok_python:
+        try:
+            outs, errs = p.communicate(timeout=timeout+1)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            outs, errs = p.communicate()
+            logging.error("command: %s err: %s, returned: %s" %
+                          (command, errs, p.returncode))
+    else:
+        try:
+            outs, errs = p.communicate()
+        except:
+            p.kill()
+            outs, errs = p.communicate()
+            logging.error("command: %s err: %s, returned: %s" %
+                          (command, errs, p.returncode))
     logging.debug("ssh return: err:%s\nouts:%s\ncode:%s" %
                   (errs, outs, p.returncode))
     logging.info("ssh return: err:%s\ncode:%s" %
@@ -117,13 +144,23 @@ def get_files_rsync(ip, data, sshopts, dpath, timeout=15):
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
-    try:
-        outs, errs = p.communicate(input=data, timeout=timeout+1)
-    except subprocess.TimeoutExpired:
-        p.kill()
-        outs, errs = p.communicate()
-        logging.error("ip: %s, command: %s err: %s, returned: %s" %
-                      (ip, cmd, errs, p.returncode))
+    if ok_python:
+        try:
+            outs, errs = p.communicate(input=data, timeout=timeout+1)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            outs, errs = p.communicate()
+            logging.error("ip: %s, command: %s err: %s, returned: %s" %
+                          (ip, cmd, errs, p.returncode))
+    else:
+        try:
+            outs, errs = p.communicate(input=data)
+        except:
+            p.kill()
+            outs, errs = p.communicate()
+            logging.error("ip: %s, command: %s err: %s, returned: %s" %
+                          (ip, cmd, errs, p.returncode))
+
     logging.debug("ip: %s, ssh return: err:%s\nouts:%s\ncode:%s" %
                   (ip, errs, outs, p.returncode))
     logging.info("ip: %s, ssh return: err:%s\ncode:%s" %
