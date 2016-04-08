@@ -26,15 +26,15 @@ import sys
 def import_subprocess():
     if 'subprocess' not in globals():
         global subprocess
+        global ok_python
         try:
             import subprocess32 as subprocess
             logging.info("using improved subprocess32 module\n")
+            ok_python = True
         except:
             import subprocess
             logging.warning(("Please upgrade the module 'subprocess' to the latest version: "
                             "https://pypi.python.org/pypi/subprocess32/"))
-            ### set not_ok python
-            global ok_python
             ok_python = True
             if sys.version > (2,7,0):
                 ok_python = False

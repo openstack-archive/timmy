@@ -83,7 +83,7 @@ class Node(object):
         if bname[0] == '.':
             if self.os_platform in bname:
                 logging.debug('os %s in filename %s' %
-                             (self.os_platform, filename))
+                              (self.os_platform, filename))
                 return True
             else:
                 return False
@@ -118,7 +118,7 @@ class Node(object):
                                             sshopts=sshopts,
                                             timeout=timeout,
                                             command=''
-                                           )
+                                            )
                 if code != 0:
                     logging.error("node: %s, ip: %s, cmdfile: %s,"
                                   " code: %s, error message: %s" %
@@ -146,8 +146,8 @@ class Node(object):
                                         inputfile=infile)
             if code != 0:
                 logging.warning("node: %s, ip: %s, cmdfile: %s,"
-                              " code: %s, error message: %s" %
-                              (self.node_id, self.ip, cmd, code, errs))
+                                " code: %s, error message: %s" %
+                                (self.node_id, self.ip, cmd, code, errs))
 
     def du_logs(self, label, sshopts, odir='info', timeout=15):
         logging.info('node:%s(%s), filelist: %s' %
@@ -209,25 +209,24 @@ class Node(object):
 
     def logs_filter(self, lfilter):
         flogs = {}
-        logging.info('logs_filter: node: %s, filter: %s' %(self.node_id, lfilter))
+        logging.info('logs_filter: node: %s, filter: %s' % (self.node_id, lfilter))
         for f in self.dulogs.splitlines():
             try:
-                if (('include' in lfilter and re.search(lfilter['include'], f)) and 
-                    ('exclude' in lfilter and not re.search(lfilter['exclude'], f))
-                   ):
-                    flogs[f.split("\t")[1]] = int(f.split("\t")[0])
+                if (('include' in lfilter and re.search(lfilter['include'], f)) and
+                        ('exclude' in lfilter and not re.search(lfilter['exclude'], f))):
+                    flogs[f.split("\t")[1:]] = int(f.split("\t")[0])
                 else:
-                    logging.debug("filter %s by %s" %(f, lfilter))
+                    logging.debug("filter %s by %s" % (f, lfilter))
             except re.error as e:
                 logging.error('logs_include_filter: filter: %s, str: %s, re.error: %s' %
-                    (lfilter, f, str(e)))
+                              (lfilter, f, str(e)))
                 sys.exit(5)
 
-        #logging.debug('logs_include_filter: %s, filter: %s' %(flogs, lfilter))
+        #  logging.debug('logs_include_filter: %s, filter: %s' %(flogs, lfilter))
         self.flogs.update(flogs)
 
     def log_size_from_find(self, path, sshopts, timeout=5):
-        cmd = ("find '%s' -type f -exec du -b {} +" %(path))
+        cmd = ("find '%s' -type f -exec du -b {} +" % (path))
         logging.info('log_size_from_find: node: %s, logs du-cmd: %s' % (self.node_id, cmd))
         outs, errs, code = ssh_node(ip=self.ip,
                                     command=cmd,
@@ -240,7 +239,7 @@ class Node(object):
                           (self.node_id, self.ip, cmd, code, errs))
             return False
         self.dulogs = outs
-        logging.info('log_size_from_find: dulogs: %s' %(self.dulogs))
+        logging.info('log_size_from_find: dulogs: %s' % (self.dulogs))
         return True
 
     def print_files(self):
@@ -309,7 +308,8 @@ class Nodes(object):
             if self.conf.hard_filter.status and (node.status not in self.conf.hard_filter.status):
                 logging.info("hard filter by status: excluding node-%s" % node.node_id)
                 return False
-            if isinstance(self.conf.hard_filter.online, bool) and (bool(node.online) != bool(self.conf.hard_filter.online)):
+            if (isinstance(self.conf.hard_filter.online, bool) and
+                    (bool(node.online) != bool(self.conf.hard_filter.online))):
                 logging.info("hard filter by online: excluding node-%s" % node.node_id)
                 return False
             if self.conf.hard_filter.node_ids and ((int(node.node_id) not in self.conf.hard_filter.node_ids) and (str(node.node_id) not in self.conf.hard_filter.node_ids)):
