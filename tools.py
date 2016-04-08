@@ -23,6 +23,7 @@ import os
 import logging
 import sys
 
+
 def import_subprocess():
     if 'subprocess' not in globals():
         global subprocess
@@ -36,7 +37,7 @@ def import_subprocess():
             logging.warning(("Please upgrade the module 'subprocess' to the latest version: "
                             "https://pypi.python.org/pypi/subprocess32/"))
             ok_python = True
-            if sys.version_info > (2,7,0):
+            if sys.version_info > (2, 7, 0):
                 ok_python = False
                 logging.warning('this subprocess module does not support timeouts')
     else:
@@ -118,7 +119,7 @@ def ssh_node(ip, command, sshopts='', sshvars='', timeout=15, filename=None,
         cmd = bstr + " '%s bash -s' < '%s'" % (prefix, filename)
     if inputfile is not None:
         cmd = bstr + '"' + prefix + " " + command + '" < ' + inputfile
-        logging.info("ssh_node: inputfile selected, cmd: %s" %cmd)
+        logging.info("ssh_node: inputfile selected, cmd: %s" % cmd)
     if outputfile is not None:
         cmd += ' > "' + outputfile + '"'
     outs, errs, code = launch_cmd(cmd, timeout)

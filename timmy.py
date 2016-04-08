@@ -24,6 +24,7 @@ from conf import Conf
 import flock
 from tools import import_subprocess
 
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -35,14 +36,11 @@ def main(argv=None):
                         help='config file')
     parser.add_argument('-o', '--dest-file', default='/tmp/',
                         help='output archive file')
-    # The following parameter has not been implemented yet.
-    parser.add_argument('-f', '--nodes',
-                        help='nodes file', default='nodes.json')
     parser.add_argument('-e', '--extended', action='store_true',
                         help='exec once by role cmdfiles')
     parser.add_argument('-c', '--cluster', help='cluster id')
     parser.add_argument('-l', '--logs',
-                        help='collect logs from fuel node',
+                        help='collect logs from nodes',
                         action='store_true', dest='getlogs')
     parser.add_argument('--only-logs',
                         action='store_true',
@@ -64,17 +62,20 @@ def main(argv=None):
                         format='%(asctime)s %(levelname)s %(message)s')
     import_subprocess()
     config = Conf.load_conf(args.config)
+    main_arc = os.path.join(config.archives, 'general.tar.bz2')
+    if args.dest_file:
+        main_arc = args.dest_file
     n = nodes.Nodes(conf=config,
                     extended=args.extended,
                     cluster=args.cluster,
-                    destdir=args.dest_file)
-    # nodes.print_nodes()
+                    destdir=config.archives)
+    #  nodes.print_nodes()
     if not args.only_logs:
         n.get_node_file_list()
         n.launch_ssh(config.outdir)
         n.get_conf_files(config.outdir)
         n.create_archive_general(config.outdir,
-                                 os.path.join(config.archives, 'general.tar.bz2'),
+                                 main_arc,
                                  60)
     if args.only_logs or args.getlogs:
         lock = flock.FLock('/tmp/timmy-logs.lock')
@@ -82,16 +83,16 @@ def main(argv=None):
             logging.warning('Unable to obtain lock, skipping "logs"-part')
             return 1
         n.get_node_file_list()
-        #n.set_template_for_find()
+        #  n.set_template_for_find()
         n.calculate_log_size()
         if n.is_enough_space():
-            #n.get_log_files(config.outdir)
+            #  n.get_log_files(config.outdir)
             n.create_log_archives(config.archives,
                                   config.compress_timeout)
-            #n.add_logs_archive(config.outdir, nodes.lkey,
+            #  n.add_logs_archive(config.outdir, nodes.lkey,
             #                   config.logs_archive, 120)
-            #n.compress_archive(config.logs_archive, config.compress_timeout)
-            #n.compress_logs(config.compress_timeout)
+            #  n.compress_archive(config.logs_archive, config.compress_timeout)
+            #  n.compress_logs(config.compress_timeout)
 
     n.print_nodes()
     return 0

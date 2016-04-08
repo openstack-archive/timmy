@@ -19,7 +19,6 @@
 main module
 """
 
-import argparse
 import flock
 import json
 import os
@@ -214,7 +213,7 @@ class Node(object):
             try:
                 if (('include' in lfilter and re.search(lfilter['include'], f)) and
                         ('exclude' in lfilter and not re.search(lfilter['exclude'], f))):
-                    flogs[f.split("\t")[1:]] = int(f.split("\t")[0])
+                    flogs[f.split("\t")[1]] = int(f.split("\t")[0])
                 else:
                     logging.debug("filter %s by %s" % (f, lfilter))
             except re.error as e:
@@ -312,7 +311,9 @@ class Nodes(object):
                     (bool(node.online) != bool(self.conf.hard_filter.online))):
                 logging.info("hard filter by online: excluding node-%s" % node.node_id)
                 return False
-            if self.conf.hard_filter.node_ids and ((int(node.node_id) not in self.conf.hard_filter.node_ids) and (str(node.node_id) not in self.conf.hard_filter.node_ids)):
+            if (self.conf.hard_filter.node_ids and
+                    ((int(node.node_id) not in self.conf.hard_filter.node_ids) and
+                     (str(node.node_id) not in self.conf.hard_filter.node_ids))):
                 logging.info("hard filter by ids: excluding node-%s" % node.node_id)
                 return False
             if self.conf.hard_filter.roles:
@@ -324,7 +325,7 @@ class Nodes(object):
                     logging.info("hard filter by roles: excluding node-%s" % node.node_id)
                     return False
         return True
- 
+
     def load_nodes(self):
         node = Node(node_id=0,
                     cluster=0,
@@ -377,7 +378,7 @@ class Nodes(object):
             # skip master
             if node.node_id == 0:
                 node.release = self.version
-            if (node.node_id != 0) and ( node.status == 'ready'):
+            if (node.node_id != 0) and (node.status == 'ready'):
                 release, err, code = ssh_node(ip=node.ip,
                                               command=cmd,
                                               sshopts=self.sshopts,
@@ -385,7 +386,8 @@ class Nodes(object):
                                               timeout=self.timeout,
                                               filename=None)
                 if code != 0:
-                    logging.warning("get_release: node: %s: Can't get node release" % (node.node_id))
+                    logging.warning("get_release: node: %s: Can't get node release" %
+                                    (node.node_id))
                     node.release = self.version
                     continue
                 node.release = release.strip('\n "\'')
@@ -403,7 +405,7 @@ class Nodes(object):
                         if role not in roles:
                             roles.append(role)
                             logging.debug('role: %s, node: %s' %
-                                         (role, node.node_id))
+                                          (role, node.node_id))
                             node.add_files(self.dirname, key, self.files)
                 node.exclude_non_os()
                 if key == ckey:
@@ -449,9 +451,8 @@ class Nodes(object):
             node.logs_filter(self.conf.log_files['filter']['default'])
             for role in node.roles:
                 if ('by_role' in self.conf.log_files['filter'] and
-                    role in self.conf.log_files['filter']['by_role'].keys()
-                   ):
-                   node.logs_filter(self.conf.log_files['filter']['by_role'][role])
+                        role in self.conf.log_files['filter']['by_role'].keys()):
+                    node.logs_filter(self.conf.log_files['filter']['by_role'][role])
             logging.debug('filter logs: node-%s: filtered logs: %s' %
                           (node.node_id, node.flogs))
 
@@ -459,9 +460,9 @@ class Nodes(object):
         lsize = 0
         for node in self.nodes.values():
             if not node.log_size_from_find(self.conf.log_files['path'],
-                                       self.sshopts,
-                                       5):
-                logging.warning("can't get log file list from node %s" %node.node_id)
+                                           self.sshopts,
+                                           5):
+                logging.warning("can't get log file list from node %s" % node.node_id)
         self.filter_logs()
         for node in self.nodes.values():
             for f in node.flogs:
@@ -485,13 +486,12 @@ class Nodes(object):
     def create_archive_general(self, directory, outfile, timeout):
         cmd = "tar jcf '%s' -C %s %s" % (outfile, directory, ".")
         mdir(self.conf.archives)
-        logging.debug("create_archive_general: cmd: %s" %cmd)
+        logging.debug("create_archive_general: cmd: %s" % cmd)
         outs, errs, code = ssh_node(ip='localhost',
                                     command=cmd,
                                     sshopts=self.sshopts,
                                     sshvars='',
-                                    timeout=timeout,
-                                    outputfile=outfile)
+                                    timeout=timeout)
         if code != 0:
             logging.error("Can't create archive %s" % (errs))
 
@@ -504,9 +504,8 @@ class Nodes(object):
                 continue
 
             if node.status in self.conf.soft_filter.status and node.online:
-                tstr = ''
-                cl = 'cluster-%s' % self.cluster
-                node.archivelogsfile = os.path.join(outdir, 'logs-node-'+str(node.node_id) + '.tar.bz2')
+                node.archivelogsfile = os.path.join(outdir,
+                                                    'logs-node-'+str(node.node_id) + '.tar.bz2')
                 mdir(outdir)
                 logslistfile = node.archivelogsfile + '.txt'
                 txtfl.append(logslistfile)
@@ -516,11 +515,7 @@ class Nodes(object):
                             llf.write(line+"\0")
                 except:
                     logging.error("create_archive_logs: Can't write to file %s" % logslistfile)
-                if str(node.node_id) == '0':
-                    tstr = '--transform \\"flags=r;s|^|logs/fuel/|\\"'
-                cmd = ("tar --bzip2 --create %s --file - "
-                       "--null --files-from -" %
-                       (tstr))
+                cmd = "tar --bzip2 --create --file - --null --files-from -"
                 t = threading.Thread(target=node.exec_simple_cmd,
                                      args=(cmd,
                                            logslistfile,
@@ -528,7 +523,7 @@ class Nodes(object):
                                            self.sshvars,
                                            self.sshopts,
                                            timeout)
-                                    )
+                                     )
                 threads.append(t)
                 t.start()
         for t in threads:
@@ -547,7 +542,6 @@ class Nodes(object):
             logging.warning("stderr from tar: %s" % (errs))
 
     def compress_logs(self, timeout):
-        threads = []
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
@@ -571,17 +565,17 @@ class Nodes(object):
             for role in node.roles:
                 if role in self.conf.log_files['filter']['by_role'].keys():
                     node.fltemplate = self.conf.log_files['filter']['by_role'][role]
-                    logging.debug('set_template_for_find: break on role %s' %role)
+                    logging.debug('set_template_for_find: break on role %s' % role)
                     break
             if (self.conf.log_files['filter']['by_node_id'] and
-                node.node_id in self.conf.log_files['filter']['by_node_id'].keys()):
-                    node.fltemplate = self.conf.log_files['by_node_id'][node.node_id]
+                    node.node_id in self.conf.log_files['filter']['by_node_id'].keys()):
+                node.fltemplate = self.conf.log_files['by_node_id'][node.node_id]
             logging.debug('set_template_for_find: node: %s, template: %s' %
-                          (node.node_id, node.fltemplate) )
+                          (node.node_id, node.fltemplate))
 
     def get_conf_files(self, odir=fkey, timeout=15):
         if fkey not in self.files:
-            logging.warning("get_conf_files: %s directory does not exist" %(fkey))
+            logging.warning("get_conf_files: %s directory does not exist" % fkey)
             return
         lock = flock.FLock('/tmp/timmy-files.lock')
         if not lock.lock():
@@ -607,7 +601,7 @@ class Nodes(object):
 
     def get_log_files(self, odir=lkey, timeout=15):
         if lkey not in self.files:
-            logging.warning("get_log_files: %s directory does not exist" %(lkey))
+            logging.warning("get_log_files: %s directory does not exist" % lkey)
             return
         label = lkey
         threads = []
@@ -640,7 +634,7 @@ class Nodes(object):
 
 
 def main(argv=None):
-   return 0
+    return 0
 
 if __name__ == '__main__':
     exit(main(sys.argv))
