@@ -34,7 +34,7 @@ def main(argv=None):
                                                   ' collection tool'))
     parser.add_argument('--config', default='config.yaml',
                         help='config file')
-    parser.add_argument('-o', '--dest-file', default='/tmp/',
+    parser.add_argument('-o', '--dest-file',
                         help='output archive file')
     parser.add_argument('-e', '--extended', action='store_true',
                         help='exec once by role cmdfiles')
