@@ -36,7 +36,7 @@ def import_subprocess():
             logging.warning(("Please upgrade the module 'subprocess' to the latest version: "
                             "https://pypi.python.org/pypi/subprocess32/"))
             ok_python = True
-            if sys.version > (2,7,0):
+            if sys.version_info > (2,7,0):
                 ok_python = False
                 logging.warning('this subprocess module does not support timeouts')
     else:
