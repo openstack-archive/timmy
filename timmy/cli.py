@@ -16,12 +16,13 @@
 #    under the License.
 
 import argparse
-import nodes
+import timmy
+from timmy import nodes
 import logging
 import sys
 import os
-from conf import Conf
-import flock
+from timmy.conf import Conf
+from timmy import flock
 
 
 def main(argv=None):

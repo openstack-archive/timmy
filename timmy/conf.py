@@ -37,16 +37,16 @@ class Conf(object):
             with open(filename, 'r') as f:
                 conf = yaml.load(f)
         except IOError as e:
-            logging.error("I/O error(%s): %s" % (e.errno, e.strerror))
+            logging.error("load_conf: I/O error(%s): %s" % (e.errno, e.strerror))
             sys.exit(1)
         except ValueError:
-            logging.error("Could not convert data")
+            logging.error("load_conf: Could not convert data")
             sys.exit(1)
         except yaml.parser.ParserError as e:
-            logging.error("Could not parse %s:\n%s" % (filename, str(e)))
+            logging.error("load_conf: Could not parse %s:\n%s" % (filename, str(e)))
             sys.exit(1)
         except:
-            logging.error("Unexpected error: %s" % sys.exc_info()[0])
+            logging.error("load_conf: Unexpected error: %s" % sys.exc_info()[0])
             sys.exit(1)
         logging.info(conf)
         return Conf(**conf)
