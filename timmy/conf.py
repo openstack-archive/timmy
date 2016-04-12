@@ -16,7 +16,7 @@ class Conf(object):
     fuelip = 'localhost'
     outdir = '/tmp/timmy/info'
     timeout = 15
-    rqdir = './rq'
+    rqdir = '/usr/share/timmy/rq'
     compress_timeout = 3600
     archives = '/tmp/timmy/archives'
     cmds_archive = ''
