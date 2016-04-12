@@ -49,9 +49,6 @@ class Conf(object):
         except:
             logging.error("load_conf: Unexpected error: %s" % sys.exc_info()[0])
             sys.exit(1)
-        finally:
-            logging.error("load_conf: exiting...")
-            sys.exit(1)
 
 
 if __name__ == '__main__':
