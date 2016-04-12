@@ -32,7 +32,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
                                                   ' collection tool'))
-    parser.add_argument('--config', default='config.yaml',
+    parser.add_argument('--config',
                         help='config file')
     parser.add_argument('-o', '--dest-file',
                         help='output archive file')
@@ -60,7 +60,9 @@ def main(argv=None):
             loglevel = logging.INFO
     logging.basicConfig(level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
-    config = Conf.load_conf(args.config)
+    config = Conf()
+    if args.config:
+        config = Conf.load_conf(args.config)
     main_arc = os.path.join(config.archives, 'general.tar.bz2')
     if args.dest_file:
         main_arc = args.dest_file

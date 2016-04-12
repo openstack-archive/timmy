@@ -36,6 +36,7 @@ class Conf(object):
         try:
             with open(filename, 'r') as f:
                 conf = yaml.load(f)
+            return Conf(**conf)
         except IOError as e:
             logging.error("load_conf: I/O error(%s): %s" % (e.errno, e.strerror))
             sys.exit(1)
@@ -48,8 +49,9 @@ class Conf(object):
         except:
             logging.error("load_conf: Unexpected error: %s" % sys.exc_info()[0])
             sys.exit(1)
-        logging.info(conf)
-        return Conf(**conf)
+        finally:
+            logging.error("load_conf: exiting...")
+            sys.exit(1)
 
 
 if __name__ == '__main__':
