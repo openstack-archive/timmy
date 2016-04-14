@@ -45,6 +45,8 @@ def main(argv=None):
     parser.add_argument('--only-logs',
                         action='store_true',
                         help='Collect only logs from fuel-node')
+    parser.add_argument('--log-file',
+                        help='timmy log file')
     parser.add_argument('-d', '--debug',
                         help="print lots of debugging statements, implies -v",
                         action="store_true")
@@ -58,7 +60,13 @@ def main(argv=None):
             loglevel = logging.DEBUG
         else:
             loglevel = logging.INFO
-    logging.basicConfig(level=loglevel,
+    if args.log_file:
+       logfile = args.log_file
+    else:
+       logfile = None
+    logging.basicConfig(
+                        filename=logfile,
+                        level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
     config = Conf()
     if args.config:
