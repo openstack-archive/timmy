@@ -229,7 +229,6 @@ class Node(object):
                     if re.search(lfilter['exclude'], f):
                         rflogs.append(f)
                         logging.info('logs_exclude_filter: %s' % f)
-                        #flogs[f.split("\t")[1]] = int(f.split("\t")[0])
                 except re.error as e:
                     logging.error('logs_include_filter: filter: %s, str: %s, re.error: %s' %
                                   (lfilter, f, str(e)))
@@ -462,23 +461,31 @@ class Nodes(object):
 
     def filter_logs(self):
         for node in self.nodes.values():
-            node.logs_filter(self.conf.log_files['filter']['default'])
-            for role in node.roles:
-                if ('by_role' in self.conf.log_files['filter'] and
-                        role in self.conf.log_files['filter']['by_role'].keys()):
-                    logging.info('filter_logs: node:%s apply role: %s' % 
-                                 (node.node_id, role))
-                    node.logs_filter(self.conf.log_files['filter']['by_role'][role])
-            logging.debug('filter logs: node-%s: filtered logs: %s' %
-                          (node.node_id, node.flogs))
+            if (self.cluster and str(self.cluster) != str(node.cluster) and
+                    node.cluster != 0):
+                continue
+            if node.status in self.conf.soft_filter.status and node.online:
+                node.logs_filter(self.conf.log_files['filter']['default'])
+                for role in node.roles:
+                    if ('by_role' in self.conf.log_files['filter'] and
+                            role in self.conf.log_files['filter']['by_role'].keys()):
+                        logging.info('filter_logs: node:%s apply role: %s' %
+                                     (node.node_id, role))
+                        node.logs_filter(self.conf.log_files['filter']['by_role'][role])
+                logging.debug('filter logs: node-%s: filtered logs: %s' %
+                              (node.node_id, node.flogs))
 
     def calculate_log_size(self, timeout=15):
         lsize = 0
         for node in self.nodes.values():
-            if not node.log_size_from_find(self.conf.log_files['path'],
-                                           self.sshopts,
-                                           5):
-                logging.warning("can't get log file list from node %s" % node.node_id)
+            if (self.cluster and str(self.cluster) != str(node.cluster) and
+                    node.cluster != 0):
+                continue
+            if node.status in self.conf.soft_filter.status and node.online:
+                if not node.log_size_from_find(self.conf.log_files['path'],
+                                               self.sshopts,
+                                               5):
+                    logging.warning("can't get log file list from node %s" % node.node_id)
         self.filter_logs()
         for node in self.nodes.values():
             for f in node.flogs:

@@ -79,9 +79,10 @@ def main(argv=None):
                                  main_arc,
                                  60)
     if args.only_logs or args.getlogs:
-        lock = flock.FLock('/tmp/timmy-logs.lock')
+        lf = '/tmp/timmy-logs.lock'
+        lock = flock.FLock(lf)
         if not lock.lock():
-            logging.warning('Unable to obtain lock, skipping "logs"-part')
+            logging.warning('Unable to obtain lock %s, skipping "logs"-part' % lf)
             return 1
         n.get_node_file_list()
         #  n.set_template_for_find()
