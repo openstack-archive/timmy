@@ -208,20 +208,34 @@ class Node(object):
     def logs_filter(self, lfilter):
         flogs = {}
         logging.info('logs_filter: node: %s, filter: %s' % (self.node_id, lfilter))
-        for f in self.dulogs.splitlines():
-            try:
-                if (('include' in lfilter and re.search(lfilter['include'], f)) and
-                        ('exclude' in lfilter and not re.search(lfilter['exclude'], f))):
-                    flogs[f.split("\t")[1]] = int(f.split("\t")[0])
-                else:
-                    logging.debug("filter %s by %s" % (f, lfilter))
-            except re.error as e:
-                logging.error('logs_include_filter: filter: %s, str: %s, re.error: %s' %
-                              (lfilter, f, str(e)))
-                sys.exit(5)
+        if 'include' in lfilter and lfilter['include'] is not None:
+            for f in self.dulogs.splitlines():
+                try:
+                    if ('include' in lfilter and re.search(lfilter['include'], f)):
+                        flogs[f.split("\t")[1]] = int(f.split("\t")[0])
+                    else:
+                        logging.debug("filter %s by %s" % (f, lfilter))
+                except re.error as e:
+                    logging.error('logs_include_filter: filter: %s, str: %s, re.error: %s' %
+                                  (lfilter, f, str(e)))
+                    sys.exit(5)
 
-        #  logging.debug('logs_include_filter: %s, filter: %s' %(flogs, lfilter))
         self.flogs.update(flogs)
+
+        rflogs = []
+        if 'exclude' in lfilter and lfilter['exclude'] is not None:
+            for f in self.flogs:
+                try:
+                    if re.search(lfilter['exclude'], f):
+                        rflogs.append(f)
+                        logging.info('logs_exclude_filter: %s' % f)
+                        #flogs[f.split("\t")[1]] = int(f.split("\t")[0])
+                except re.error as e:
+                    logging.error('logs_include_filter: filter: %s, str: %s, re.error: %s' %
+                                  (lfilter, f, str(e)))
+                    sys.exit(5)
+        for f in rflogs:
+            self.flogs.pop(f, None)
 
     def log_size_from_find(self, path, sshopts, timeout=5):
         cmd = ("find '%s' -type f -exec du -b {} +" % (path))
@@ -452,6 +466,8 @@ class Nodes(object):
             for role in node.roles:
                 if ('by_role' in self.conf.log_files['filter'] and
                         role in self.conf.log_files['filter']['by_role'].keys()):
+                    logging.info('filter_logs: node:%s apply role: %s' % 
+                                 (node.node_id, role))
                     node.logs_filter(self.conf.log_files['filter']['by_role'][role])
             logging.debug('filter logs: node-%s: filtered logs: %s' %
                           (node.node_id, node.flogs))

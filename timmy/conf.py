@@ -21,7 +21,7 @@ class Conf(object):
     archives = '/tmp/timmy/archives'
     cmds_archive = ''
     log_files = {}
-    log_files['filter'] = {'default': {'include': '.log', 'exclude': None}}
+    log_files['filter'] = {'default': {'include': "(.)*", 'exclude': None}}
     log_files['path'] = '/var/log/'
 
     def __init__(self, **entries):
