@@ -10,13 +10,8 @@ log_files:
     path: /var/log
     filter:
         default:
-            include: '\.log$'
-            exclude: 'atop-'
-        by_role:
-            compute:
-                include: '\.log$'
-            controller:
-                include: '\.log\.1$'
+            include: '(.)*'
+            exclude: 'atop-|atop_'
         by_node_id:
              0:
                  include: '(.)*'

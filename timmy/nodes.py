@@ -288,7 +288,7 @@ class Node(object):
         if not byrole:
             if 'default' in filterconf:
                 logging.info('logs_filter: apply default exclude filter')
-                self.apply_exclude_filter(filterconf[brstr])
+                self.apply_exclude_filter(filterconf['default'])
 
     def log_size_from_find(self, path, sshopts, timeout=5):
         cmd = ("find '%s' -type f -exec du -b {} +" % (path))
