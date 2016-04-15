@@ -520,12 +520,6 @@ class Nodes(object):
                 continue
             if node.status in self.conf.soft_filter.status and node.online:
                 node.logs_filter(self.conf.log_files['filter'])
-                #for role in node.roles:
-                #    if ('by_role' in self.conf.log_files['filter'] and
-                #            role in self.conf.log_files['filter']['by_role'].keys()):
-                #        logging.info('filter_logs: node:%s apply role: %s' %
-                #                     (node.node_id, role))
-                #        node.logs_filter(self.conf.log_files['filter']['by_role'][role])
                 logging.debug('filter logs: node-%s: filtered logs: %s' %
                               (node.node_id, node.flogs))
 
