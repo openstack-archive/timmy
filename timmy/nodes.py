@@ -205,9 +205,9 @@ class Node(object):
             logging.debug('node: %s, key: %s, data:\n%s' %
                           (self.node_id, key, self.data[key]))
 
-    def logs_filter(self, lfilter):
+    def apply_include_filter(self, lfilter):
+        logging.info('apply_include_filter: node: %s, filter: %s' % (self.node_id, lfilter))
         flogs = {}
-        logging.info('logs_filter: node: %s, filter: %s' % (self.node_id, lfilter))
         if 'include' in lfilter and lfilter['include'] is not None:
             for f in self.dulogs.splitlines():
                 try:
@@ -220,9 +220,16 @@ class Node(object):
                                   (lfilter, f, str(e)))
                     sys.exit(5)
 
-        self.flogs.update(flogs)
+            self.flogs.update(flogs)
+            return True
+        else:
+            return False
 
+    def apply_exclude_filter(self, lfilter):
+        logging.info('apply_exclude_filter: node: %s, filter: %s' % (self.node_id, lfilter))
         rflogs = []
+        if 'exclude' in lfilter and lfilter['exclude'] is None:
+            return True
         if 'exclude' in lfilter and lfilter['exclude'] is not None:
             for f in self.flogs:
                 try:
@@ -234,7 +241,54 @@ class Node(object):
                                   (lfilter, f, str(e)))
                     sys.exit(5)
         for f in rflogs:
+            logging.info('apply_exclude_filter: node: %s remove file: %s from log list' % (self.node_id, f ))
             self.flogs.pop(f, None)
+            return True
+        else:
+            return False
+
+    def logs_filter(self, filterconf):
+        brstr = 'by_role'
+        flogs = {}
+        logging.info('logs_filter: node: %s, filter: %s' % (self.node_id, filterconf))
+        bynodeidinc = False
+        bynodeidexc = False
+        #  need to check the following logic:
+        #if 'by_node_id' in filterconf and self.node_id in filterconf['by_node_id']:
+        #    if self.apply_include_filter(filterconf['by_node_id'][self.node_id]):
+        #        bynodeidinc = True
+        #    if self.apply_exclude_filter(filterconf['by_node_id'][self.node_id]):
+        #        bynodeidexc = True
+        #if bynodeidinc:
+        #    return
+        #if bynodeidexc:
+        #    return
+        byrole = False
+        if brstr in filterconf:
+            for role in self.roles:
+                if role in filterconf[brstr].keys():
+                    logging.info('logs_filter: apply filter for role %s' % role)
+                    byrole = True
+                    if self.apply_include_filter(filterconf[brstr][role]):
+                        byrole = True
+        if not byrole:
+            if 'default' in filterconf:
+                self.apply_include_filter(filterconf['default'])
+            else:
+                #  unexpected
+                logging.warning('default log filter is not defined')
+                self.flogs = {}
+        byrole = False
+        if brstr in filterconf:
+            for role in self.roles:
+                if role in filterconf[brstr].keys():
+                    logging.info('logs_filter: apply filter for role %s' % role)
+                    if self.apply_exclude_filter(filterconf[brstr][role]):
+                        byrole = True
+        if not byrole:
+            if 'default' in filterconf:
+                logging.info('logs_filter: apply default exclude filter')
+                self.apply_exclude_filter(filterconf[brstr])
 
     def log_size_from_find(self, path, sshopts, timeout=5):
         cmd = ("find '%s' -type f -exec du -b {} +" % (path))
@@ -465,13 +519,13 @@ class Nodes(object):
                     node.cluster != 0):
                 continue
             if node.status in self.conf.soft_filter.status and node.online:
-                node.logs_filter(self.conf.log_files['filter']['default'])
-                for role in node.roles:
-                    if ('by_role' in self.conf.log_files['filter'] and
-                            role in self.conf.log_files['filter']['by_role'].keys()):
-                        logging.info('filter_logs: node:%s apply role: %s' %
-                                     (node.node_id, role))
-                        node.logs_filter(self.conf.log_files['filter']['by_role'][role])
+                node.logs_filter(self.conf.log_files['filter'])
+                #for role in node.roles:
+                #    if ('by_role' in self.conf.log_files['filter'] and
+                #            role in self.conf.log_files['filter']['by_role'].keys()):
+                #        logging.info('filter_logs: node:%s apply role: %s' %
+                #                     (node.node_id, role))
+                #        node.logs_filter(self.conf.log_files['filter']['by_role'][role])
                 logging.debug('filter logs: node-%s: filtered logs: %s' %
                               (node.node_id, node.flogs))
 
