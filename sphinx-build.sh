@@ -18,3 +18,4 @@
 
 sphinx-build -b html doc/source/ doc/build/
 rm -f "./*.pyc"
+rm -f "./timmy/*.pyc"

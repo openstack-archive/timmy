@@ -11,6 +11,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   specification
    configuration
    usage
 
@@ -21,5 +22,4 @@ Indices and tables
 ..
   * :ref:`genindex`
   * :ref:`modindex`
-* :ref:`search`
-
+  * :ref:`search`

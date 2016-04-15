@@ -269,8 +269,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   (master_doc, 'timmy', u'timmy Documentation',
-   author, 'timmy', 'One line description of project.',
-   'Miscellaneous'),
+   author, 'timmy', 'Small tool for MOS',
+   ''),
 ]
 
 # Documents to append as an appendix to all manuals.

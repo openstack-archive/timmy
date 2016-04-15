@@ -10,4 +10,7 @@ Specification
 * Commands (from ./cmds directory) are separated by roles (detected automatically) by the symlinks. So the command list may depend on release, roles and OS, there also can be commands that run everywhere. Also there are commands that are executed *only on one node* by its *role*, first encountered.
 * Human-readable format output of 'fuel node list'
 * Modular: possible to create a special package that contains only some required commands.
-* some archives are being created - *general* and *logs-**
+* some archives are being created - *general.tar.bz2* and *logs-***
+
+Back to :doc:`Index </index>`.
+
