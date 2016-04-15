@@ -493,7 +493,7 @@ class Nodes(object):
         logging.info('Full log size on nodes(with fuel): %s bytes' % lsize)
         self.alogsize = lsize / 1024
 
-    def is_enough_space(self, coefficient=2.2):
+    def is_enough_space(self, coefficient=1.2):
         outs, errs, code = free_space(self.destdir, timeout=1)
         if code != 0:
             logging.error("Can't get free space: %s" % errs)
