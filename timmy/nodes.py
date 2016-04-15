@@ -240,9 +240,9 @@ class Node(object):
                     logging.error('logs_include_filter: filter: %s, str: %s, re.error: %s' %
                                   (lfilter, f, str(e)))
                     sys.exit(5)
-        for f in rflogs:
-            logging.info('apply_exclude_filter: node: %s remove file: %s from log list' % (self.node_id, f ))
-            self.flogs.pop(f, None)
+            for f in rflogs:
+                logging.debug('apply_exclude_filter: node: %s remove file: %s from log list' % (self.node_id, f ))
+                self.flogs.pop(f, None)
             return True
         else:
             return False
@@ -254,15 +254,15 @@ class Node(object):
         bynodeidinc = False
         bynodeidexc = False
         #  need to check the following logic:
-        #if 'by_node_id' in filterconf and self.node_id in filterconf['by_node_id']:
-        #    if self.apply_include_filter(filterconf['by_node_id'][self.node_id]):
-        #        bynodeidinc = True
-        #    if self.apply_exclude_filter(filterconf['by_node_id'][self.node_id]):
-        #        bynodeidexc = True
-        #if bynodeidinc:
-        #    return
-        #if bynodeidexc:
-        #    return
+        if 'by_node_id' in filterconf and self.node_id in filterconf['by_node_id']:
+            if self.apply_include_filter(filterconf['by_node_id'][self.node_id]):
+                bynodeidinc = True
+            if self.apply_exclude_filter(filterconf['by_node_id'][self.node_id]):
+                bynodeidexc = True
+        if bynodeidinc:
+            return
+        if bynodeidexc:
+            return
         byrole = False
         if brstr in filterconf:
             for role in self.roles:

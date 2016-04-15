@@ -23,6 +23,10 @@ class Conf(object):
     log_files = {}
     log_files['filter'] = {'default': {'include': "(.)*", 'exclude': None}}
     log_files['path'] = '/var/log/'
+    log_files['filter'] = {'by_node_id':
+                               {0:
+                                   {'include': "(.)*",
+                                    'exclude': '^/var/log/remote/|^/var/log/docker\-logs/remote/'}}}
 
     def __init__(self, **entries):
         self.__dict__.update(entries)
