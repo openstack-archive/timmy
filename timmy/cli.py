@@ -77,7 +77,7 @@ def main(argv=None):
     n = nodes.Nodes(conf=config,
                     extended=args.extended,
                     cluster=args.cluster,
-                    destdir=config.archives)
+                    )
     #  nodes.print_nodes()
     if not args.only_logs:
         n.get_node_file_list()
@@ -89,21 +89,15 @@ def main(argv=None):
     if args.only_logs or args.getlogs:
         lf = '/tmp/timmy-logs.lock'
         lock = flock.FLock(lf)
-        if not lock.lock():
+        if lock.lock():
+            n.get_node_file_list()
+            n.calculate_log_size()
+            if n.is_enough_space(config.archives):
+               n.create_log_archives(config.archives,
+                                      config.compress_timeout)
+            lock.unlock()
+        else:
             logging.warning('Unable to obtain lock %s, skipping "logs"-part' % lf)
-            return 1
-        n.get_node_file_list()
-        #  n.set_template_for_find()
-        n.calculate_log_size()
-        if n.is_enough_space():
-            #  n.get_log_files(config.outdir)
-            n.create_log_archives(config.archives,
-                                  config.compress_timeout)
-            #  n.add_logs_archive(config.outdir, nodes.lkey,
-            #                   config.logs_archive, 120)
-            #  n.compress_archive(config.logs_archive, config.compress_timeout)
-            #  n.compress_logs(config.compress_timeout)
-
     n.print_nodes()
     return 0
 

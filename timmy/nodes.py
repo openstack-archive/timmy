@@ -328,7 +328,7 @@ class Node(object):
 class Nodes(object):
     """Class nodes """
 
-    def __init__(self, cluster, extended, conf, destdir, filename=None):
+    def __init__(self, cluster, extended, conf, filename=None):
         import_subprocess()
         self.dirname = conf.rqdir.rstrip('/')
         if (not os.path.exists(self.dirname)):
@@ -340,7 +340,6 @@ class Nodes(object):
         self.sshvars = conf.ssh['vars']
         self.timeout = conf.timeout
         self.conf = conf
-        self.destdir = destdir
         self.get_version()
         self.cluster = cluster
         self.extended = extended
@@ -543,12 +542,17 @@ class Nodes(object):
         logging.info('Full log size on nodes(with fuel): %s bytes' % lsize)
         self.alogsize = lsize / 1024
 
-    def is_enough_space(self, coefficient=1.2):
-        outs, errs, code = free_space(self.destdir, timeout=1)
+    def is_enough_space(self, directory, coefficient=1.2):
+        mdir(directory)
+        outs, errs, code = free_space(directory, timeout=1)
         if code != 0:
             logging.error("Can't get free space: %s" % errs)
             return False
-        fs = int(outs.rstrip('\n'))
+        try:
+            fs = int(outs.rstrip('\n'))
+        except:
+            logging.error("is_enough_space: can't get free space\nouts: %s" % outs)
+            return False
         logging.info('logsize: %s Kb, free space: %s Kb' % (self.alogsize, fs))
         if (self.alogsize*coefficient > fs):
             logging.error('Not enough space on device')
@@ -603,7 +607,10 @@ class Nodes(object):
         for t in threads:
             t.join()
         for tfile in txtfl:
-            os.remove(tfile)
+            try:
+                os.remove(tfile)
+            except:
+                logging.error("create_log_archives: can't delete file %s" % tfile)
 
     def add_logs_archive(self, directory, key, outfile, timeout):
         cmd = ("tar --append --file=%s --directory %s %s" %
