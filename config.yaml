@@ -6,6 +6,7 @@ rqdir:   ./rq
 soft_filter:
     status:  ['ready']
 timeout: 15
+compress_timeout: 3600
 log_files:
     path: /var/log
     filter:
