@@ -11,8 +11,5 @@ log_files:
     filter:
         default:
             include: '(.)*'
-            exclude: 'atop-|atop_'
-        by_node_id:
-             0:
-                 include: '(.)*'
-                 exclude: '^/var/log/remote/|^/var/log/docker\-logs/remote/'
+            exclude: '[-_]\d{8}$|atop[-_]|\.gz$'
+

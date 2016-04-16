@@ -538,6 +538,8 @@ class Nodes(object):
         for node in self.nodes.values():
             for f in node.flogs:
                 lsize += node.flogs[f]
+            for fl in sorted(node.flogs.items(), key=lambda x: x[1]):
+                logging.debug(fl)
         logging.info('Full log size on nodes(with fuel): %s bytes' % lsize)
         self.alogsize = lsize / 1024
 
