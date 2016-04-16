@@ -5,7 +5,7 @@ import os
 
 rqfiles = [('/usr/share/timmy/' + root, [os.path.join(root, f) for f in files])
                for root, dirs, files in os.walk('rq')]
-rqfiles.append(('/usr/share/timmy/configs', ['config.yaml', 'example-config.yaml']))
+rqfiles.append(('/usr/share/timmy/configs', ['config.yaml']))
 
 setup(name='timmy',
       version='0.1',
