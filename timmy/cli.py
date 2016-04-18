@@ -47,6 +47,9 @@ def main(argv=None):
                         help='Collect only logs from fuel-node')
     parser.add_argument('--log-file',
                         help='timmy log file')
+    parser.add_argument('--fake-logs',
+                        help="Do not collect logs, only calculate size",
+                        action="store_true")
     parser.add_argument('-d', '--debug',
                         help="print lots of debugging statements, implies -v",
                         action="store_true")
@@ -93,8 +96,9 @@ def main(argv=None):
             n.get_node_file_list()
             n.calculate_log_size()
             if n.is_enough_space(config.archives):
-               n.create_log_archives(config.archives,
-                                      config.compress_timeout)
+               if not args.fake_logs:
+                   n.create_log_archives(config.archives,
+                                         config.compress_timeout)
             lock.unlock()
         else:
             logging.warning('Unable to obtain lock %s, skipping "logs"-part' % lf)
