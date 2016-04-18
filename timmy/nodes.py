@@ -575,7 +575,9 @@ class Nodes(object):
         if code != 0:
             logging.error("Can't create archive %s" % (errs))
 
-    def create_log_archives(self, outdir, timeout):
+    def create_log_archives(self, outdir, timeout, fake=False):
+        if fake:
+            return
         threads = []
         txtfl = []
         for node in self.nodes.values():

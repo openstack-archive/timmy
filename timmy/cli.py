@@ -96,9 +96,9 @@ def main(argv=None):
             n.get_node_file_list()
             n.calculate_log_size()
             if n.is_enough_space(config.archives):
-               if not args.fake_logs:
-                   n.create_log_archives(config.archives,
-                                         config.compress_timeout)
+                n.create_log_archives(config.archives,
+                                      config.compress_timeout,
+                                      fake=args.fake_logs)
             lock.unlock()
         else:
             logging.warning('Unable to obtain lock %s, skipping "logs"-part' % lf)
