@@ -335,6 +335,9 @@ class Nodes(object):
             logging.error("directory %s doesn't exist" % (self.dirname))
             sys.exit(1)
         self.files = get_dir_structure(conf.rqdir)[os.path.basename(self.dirname)]
+        if (conf.fuelip is None) or (conf.fuelip == ""):
+            logging.error('Nodes: looks like fuelip is not set(%s)' % conf.fuelip)
+            sys.exit(7)
         self.fuelip = conf.fuelip
         self.sshopts = conf.ssh['opts']
         self.sshvars = conf.ssh['vars']
