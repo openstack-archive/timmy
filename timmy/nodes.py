@@ -358,6 +358,16 @@ class Nodes(object):
             self.njdata = json.loads(self.get_nodes())
         self.load_nodes()
 
+    def __str__ (self):
+        s = "#node-id, cluster, admin-ip, mac, os, roles, online, status\n"
+        for node in sorted(self.nodes.values(), key=lambda x: x.node_id):
+            if (self.cluster and (str(self.cluster) != str(node.cluster)) and
+                    node.cluster != 0):
+                s += "#%s\n" % str(node)
+            else:
+                s += "%s\n" % str(node)
+        return s
+
     def get_nodes(self):
         fuel_node_cmd = 'fuel node list --json'
         nodes_json, err, code = ssh_node(ip=self.fuelip,
@@ -577,6 +587,7 @@ class Nodes(object):
 
     def create_log_archives(self, outdir, timeout, fake=False):
         if fake:
+            logging.info('create_log_archives: skip creating archives(fake:%s)' % fake)
             return
         threads = []
         txtfl = []

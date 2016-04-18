@@ -81,7 +81,6 @@ def main(argv=None):
                     extended=args.extended,
                     cluster=args.cluster,
                     )
-    #  nodes.print_nodes()
     if not args.only_logs:
         n.get_node_file_list()
         n.launch_ssh(config.outdir)
@@ -102,7 +101,8 @@ def main(argv=None):
             lock.unlock()
         else:
             logging.warning('Unable to obtain lock %s, skipping "logs"-part' % lf)
-    n.print_nodes()
+    logging.info("Nodes:\n%s" % n)
+    print(n)
     return 0
 
 if __name__ == '__main__':
