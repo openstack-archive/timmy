@@ -611,7 +611,7 @@ class Nodes(object):
             return
         threads = []
         txtfl = []
-        speed = find_adm_interface_speed(speed)
+        speed = self.find_adm_interface_speed(speed)
         if len(self.nodes) > maxthreads:
             speed = int(speed * 0.9 / maxthreads)
         else:
