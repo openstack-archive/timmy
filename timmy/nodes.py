@@ -507,7 +507,7 @@ class Nodes(object):
             return ''
         label = ckey
         threads = []
-        sem = threading.BoundedSemaphore(value=2)
+        sem = threading.BoundedSemaphore(value=100)
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
@@ -590,21 +590,36 @@ class Nodes(object):
         if code != 0:
             logging.error("Can't create archive %s" % (errs))
 
+    def find_adm_interface_speed(self, defspeed):
+        '''Returns interface speed through which logs will be dowloaded'''
+        for node in self.nodes.values():
+            if not (node.ip == 'localhost' or node.ip.startswith('127.')):
+                cmd = "cat /sys/class/net/$(/sbin/ip -o route get %s | cut -d' ' -f3)/speed" % node.ip
+                out, err, code = launch_cmd(cmd)
+                if code != 0:
+                   logging.error("can't get interface speed: error message: %s" % err)
+                   return defspeed
+                try:
+                    speed = int(out)
+                except:
+                    speed = defspeed
+                return speed
+
     def create_log_archives(self, outdir, timeout, fake=False, maxthreads=10, speed=100):
         if fake:
             logging.info('create_log_archives: skip creating archives(fake:%s)' % fake)
             return
         threads = []
         txtfl = []
-        try:
-            int(speed)
-        except:
-            logging.error("create_log_archives: can't convert to int %s" % speed)
-            return
+        speed = find_adm_interface_speed(speed)
+        if len(self.nodes) > maxthreads:
+            speed = int(speed * 0.9 / maxthreads)
+        else:
+            speed = int(speed * 0.9 / len(self.nodes))
         pythonslowpipe =  'import sys\n'
         pythonslowpipe += 'import time\n'
         pythonslowpipe += 'while 1:\n'
-        pythonslowpipe += '  a = sys.stdin.read(10*%s)\n' % speed
+        pythonslowpipe += '  a = sys.stdin.read(int(1250*%s))\n' % speed
         pythonslowpipe += '  if a:\n'
         pythonslowpipe += '    sys.stdout.write(a)\n'
         pythonslowpipe += '    time.sleep(0.01)\n'
