@@ -595,7 +595,7 @@ class Nodes(object):
         for node in self.nodes.values():
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
                 cmd = "cat /sys/class/net/$(/sbin/ip -o route get %s | cut -d' ' -f3)/speed" % node.ip
-                out, err, code = launch_cmd(cmd)
+                out, err, code = launch_cmd(cmd, self.timeout)
                 if code != 0:
                    logging.error("can't get interface speed: error message: %s" % err)
                    return defspeed
