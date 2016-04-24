@@ -507,18 +507,23 @@ class Nodes(object):
             return ''
         label = ckey
         threads = []
+        sem = threading.BoundedSemaphore(value=2)
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
             if node.status in self.conf.soft_filter.status and node.online:
-                t = threading.Thread(target=node.exec_cmd,
-                                     args=(label,
+                sem.acquire(True)
+                t = threading.Thread(target=semaphore_release,
+                                     args=(sem,
+                                           node.exec_cmd,
+                                           node.node_id,
+                                           [label,
                                            self.sshvars,
                                            self.sshopts,
                                            odir,
                                            self.timeout,
-                                           fake))
+                                           fake]))
                 threads.append(t)
                 t.start()
         for t in threads:
@@ -585,18 +590,34 @@ class Nodes(object):
         if code != 0:
             logging.error("Can't create archive %s" % (errs))
 
-    def create_log_archives(self, outdir, timeout, fake=False):
+    def create_log_archives(self, outdir, timeout, fake=False, maxthreads=10, speed=100):
         if fake:
             logging.info('create_log_archives: skip creating archives(fake:%s)' % fake)
             return
         threads = []
         txtfl = []
+        try:
+            int(speed)
+        except:
+            logging.error("create_log_archives: can't convert to int %s" % speed)
+            return
+        pythonslowpipe =  'import sys\n'
+        pythonslowpipe += 'import time\n'
+        pythonslowpipe += 'while 1:\n'
+        pythonslowpipe += '  a = sys.stdin.read(10*%s)\n' % speed
+        pythonslowpipe += '  if a:\n'
+        pythonslowpipe += '    sys.stdout.write(a)\n'
+        pythonslowpipe += '    time.sleep(0.01)\n'
+        pythonslowpipe += '  else:\n'
+        pythonslowpipe += '    break\n'
+        sem = threading.BoundedSemaphore(value=maxthreads)
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
 
             if node.status in self.conf.soft_filter.status and node.online:
+                sem.acquire(True)
                 node.archivelogsfile = os.path.join(outdir,
                                                     'logs-node-'+str(node.node_id) + '.tar.bz2')
                 mdir(outdir)
@@ -609,14 +630,17 @@ class Nodes(object):
                 except:
                     logging.error("create_archive_logs: Can't write to file %s" % logslistfile)
                     continue
-                cmd = "tar --bzip2 --create --file - --null --files-from -"
-                t = threading.Thread(target=node.exec_simple_cmd,
-                                     args=(cmd,
+                cmd = "tar --bzip2 --create --file - --null --files-from - | python -c '%s'" % pythonslowpipe
+                t = threading.Thread(target=semaphore_release,
+                                     args=(sem,
+                                           node.exec_simple_cmd,
+                                           node.node_id,
+                                           [cmd,
                                            logslistfile,
                                            node.archivelogsfile,
                                            self.sshvars,
                                            self.sshopts,
-                                           timeout)
+                                           timeout])
                                      )
                 threads.append(t)
                 t.start()

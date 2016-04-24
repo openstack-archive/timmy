@@ -43,6 +43,17 @@ def import_subprocess():
     else:
             logging.info('subprocess is already loaded')
 
+def semaphore_release(sema, func, node_id, params):
+    logging.info('start ssh node: %s' % node_id)
+    try:
+        result = func(*params)
+    except:
+        logging.error("failed to launch: %s on node %s" % node_id)
+    finally:
+        sema.release()
+    logging.info('finish ssh node: %s' % node_id)
+    return result
+
 
 def get_dir_structure(rootdir):
     """
