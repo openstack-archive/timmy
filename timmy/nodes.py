@@ -634,7 +634,7 @@ class Nodes(object):
             if node.status in self.conf.soft_filter.status and node.online:
                 sem.acquire(True)
                 node.archivelogsfile = os.path.join(outdir,
-                                                    'logs-node-'+str(node.node_id) + '.tar.bz2')
+                                                    'logs-node-'+str(node.node_id) + '.tar.gz')
                 mdir(outdir)
                 logslistfile = node.archivelogsfile + '.txt'
                 txtfl.append(logslistfile)
@@ -645,7 +645,10 @@ class Nodes(object):
                 except:
                     logging.error("create_archive_logs: Can't write to file %s" % logslistfile)
                     continue
-                cmd = "tar --bzip2 --create --file - --null --files-from - | python -c '%s'" % pythonslowpipe
+                if node.ip == 'localhost' or node.ip.startswith('127.'):
+                    cmd = "tar --gzip --create --file - --null --files-from -"
+                else:
+                    cmd = "tar --gzip --create --file - --null --files-from - | python -c '%s'" % pythonslowpipe
                 t = threading.Thread(target=semaphore_release,
                                      args=(sem,
                                            node.exec_simple_cmd,
@@ -659,8 +662,21 @@ class Nodes(object):
                                      )
                 threads.append(t)
                 t.start()
-        for t in threads:
-            t.join()
+        while True:
+            try:
+                tt = []
+                for t in threads:
+                    if t is not None and t.isAlive():
+                        t.join(1)
+                    else:
+                       tt.append(t)
+                if len(threads) == len(tt):
+                    break
+            except KeyboardInterrupt:
+                #sys.exit(9)
+                killall_children(self.timeout)
+                raise KeyboardInterrupt()
+
         for tfile in txtfl:
             try:
                 os.remove(tfile)
@@ -693,22 +709,6 @@ class Nodes(object):
         if code != 0:
             logging.warning("Can't compress archive %s" % (errs))
 
-    def set_template_for_find(self):
-        '''Obsolete'''
-        for node in self.nodes.values():
-            node.flpath = self.conf.log_files['path']
-            node.fltemplate = self.conf.log_files['filter']['default']
-            for role in node.roles:
-                if role in self.conf.log_files['filter']['by_role'].keys():
-                    node.fltemplate = self.conf.log_files['filter']['by_role'][role]
-                    logging.debug('set_template_for_find: break on role %s' % role)
-                    break
-            if (self.conf.log_files['filter']['by_node_id'] and
-                    node.node_id in self.conf.log_files['filter']['by_node_id'].keys()):
-                node.fltemplate = self.conf.log_files['by_node_id'][node.node_id]
-            logging.debug('set_template_for_find: node: %s, template: %s' %
-                          (node.node_id, node.fltemplate))
-
     def get_conf_files(self, odir=fkey, timeout=15):
         if fkey not in self.files:
             logging.warning("get_conf_files: %s directory does not exist" % fkey)
@@ -734,28 +734,6 @@ class Nodes(object):
         for t in threads:
             t.join()
         lock.unlock()
-
-    def get_log_files(self, odir=lkey, timeout=15):
-        if lkey not in self.files:
-            logging.warning("get_log_files: %s directory does not exist" % lkey)
-            return
-        label = lkey
-        threads = []
-        for node in self.nodes.values():
-            if (self.cluster and str(self.cluster) != str(node.cluster) and
-                    node.cluster != 0):
-                continue
-            if (node.status in self.conf.soft_filter.status and
-                    node.online and str(node.node_id) != '0'):
-                        t = threading.Thread(target=node.get_files,
-                                             args=(label,
-                                                   self.sshopts,
-                                                   odir,
-                                                   self.timeout,))
-                        threads.append(t)
-                        t.start()
-        for t in threads:
-            t.join()
 
     def print_nodes(self):
         """print nodes"""

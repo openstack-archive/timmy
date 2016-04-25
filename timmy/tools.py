@@ -136,6 +136,33 @@ def ssh_node(ip, command, sshopts='', sshvars='', timeout=15, filename=None,
     outs, errs, code = launch_cmd(cmd, timeout)
     return outs, errs, code
 
+def killall_children(timeout):
+    cmd = 'ps -o pid --ppid %d --noheaders' % os.getpid()
+    out, errs, code = launch_cmd(cmd, timeout)
+    if code != 0:
+        logging.error("can't get pids")
+    else:
+        ppids = set(out.split())
+        pkill = []
+        haschildren = True
+        while haschildren:
+            parentspids = []
+            haschildren = False
+            for proc in ppids:
+                cmd = 'ps -o pid --ppid %s --noheaders' % proc
+                out, errs, code = launch_cmd(cmd, timeout)
+                if code != 0:
+                    pkill.append(proc)
+                else:
+                    parentspids += out.split()
+                    haschildren = True
+            ppids = parentspids
+        logging.info(pkill)
+        for p in pkill:
+            try:
+                os.kill(int(p), 2)
+            except:
+                logging.warning('could not kill %s' % p)
 
 def get_files_rsync(ip, data, sshopts, dpath, timeout=15):
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
