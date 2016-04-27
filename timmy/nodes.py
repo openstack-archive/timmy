@@ -683,32 +683,6 @@ class Nodes(object):
             except:
                 logging.error("create_log_archives: can't delete file %s" % tfile)
 
-    def add_logs_archive(self, directory, key, outfile, timeout):
-        cmd = ("tar --append --file=%s --directory %s %s" %
-               (outfile, directory, key))
-        outs, errs, code = ssh_node(ip='localhost', command=cmd,
-                                    sshopts=self.sshopts,
-                                    sshvars='',
-                                    timeout=timeout)
-        if code != 2 and code != 0:
-            logging.warning("stderr from tar: %s" % (errs))
-
-    def compress_logs(self, timeout):
-        for node in self.nodes.values():
-            if (self.cluster and str(self.cluster) != str(node.cluster) and
-                    node.cluster != 0):
-                continue
-
-            if node.status in self.conf.soft_filter.status and node.online:
-                self.compress_archive(node.archivelogsfile, timeout)
-
-    def compress_archive(self, filename, timeout):
-        cmd = 'bzip2 -f %s' % filename
-        outs, errs, code = launch_cmd(command=cmd,
-                                      timeout=timeout)
-        if code != 0:
-            logging.warning("Can't compress archive %s" % (errs))
-
     def get_conf_files(self, odir=fkey, timeout=15):
         if fkey not in self.files:
             logging.warning("get_conf_files: %s directory does not exist" % fkey)
@@ -734,17 +708,6 @@ class Nodes(object):
         for t in threads:
             t.join()
         lock.unlock()
-
-    def print_nodes(self):
-        """print nodes"""
-        print('#node-id, cluster, admin-ip, mac, os, roles, online, status')
-        for node in sorted(self.nodes.values(), key=lambda x: x.node_id):
-            if (self.cluster and
-                    (str(self.cluster) != str(node.cluster)) and
-                    node.cluster != 0):
-                print("#"+str(node))
-            else:
-                print(str(node))
 
 
 def main(argv=None):
