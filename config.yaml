@@ -6,8 +6,8 @@ ssh_opts:
     - -lroot
     - -oBatchMode=yes
 env_vars:
-    - OPENRC=/root/openrc
-    - IPTABLES_STR="iptables -nvL"
+    OPENRC: '/root/openrc'
+    IPTABLES_STR: 'iptables -nvL'
 fuelip:  127.0.0.1
 rqdir: ./rq
 soft_filter:
@@ -20,4 +20,13 @@ log_files:
         default:
             include: '(.)*'
             exclude: '[-_]\d{8}$|atop[-_]|\.gz$'
-
+# by_role:
+#     controller:
+#         env_vars:
+#             OPENRC: '/root/openrc'
+#             IPTABLES_STR: 'iptables -S'
+# by_node_id:
+#     3:
+#         env_vars:
+#             OPENRC: '/root/openrc'
+#             IPTABLES_STR: 'iptables -L'

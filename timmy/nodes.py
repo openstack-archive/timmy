@@ -36,6 +36,8 @@ varlogdir = '/var/log'
 
 class Node(object):
 
+    conf_fields = ['ssh_opts', 'env_vars', 'log_files']
+
     def __init__(self, node_id, mac, cluster, roles, os_platform,
                  online, status, ip, conf):
         self.node_id = node_id
@@ -53,23 +55,25 @@ class Node(object):
         self.mapcmds = {}
         self.set_conf(conf)
 
+    def override_conf(self, conf):
+        for field in Node.conf_fields:
+            for role in self.roles:
+                try:
+                    setattr(self, field, conf.by_role[role][field])
+                except:
+                    pass
+            try:
+                setattr(self, field, conf.by_node_id[self.node_id][field])
+            except:
+                pass
+
     def set_conf(self, conf):
         logging.info(conf.ssh_opts)
-        self.ssh_opts = " ".join(conf.ssh_opts)
-        self.env_vars = " ".join(conf.env_vars)
+        self.ssh_opts = conf.ssh_opts
+        self.env_vars = conf.env_vars
         self.log_files = conf.log_files
         self.timeout = conf.timeout
-        try:
-            conf.by_node_id
-        except:
-            return
-        if self.node_id in conf.by_node_id:
-            if 'ssh_opts' in conf.by_node_id[self.node_id]:
-                self.ssh_opts = " ".join(conf.by_node_id[self.node_id]['ssh_opts'])
-            if 'env_vars' in conf.by_node_id[self.node_id]:
-                self.env_vars = " ".join(conf.by_node_id[self.node_id]['env_vars'])
-            if 'log_files' in conf.by_node_id[self.node_id]:
-                self.log_files = conf.by_node_id[self.node_id]['log_files']
+        self.override_conf(conf)
 
     def set_files(self, dirname, key, ds, version):
         files = []

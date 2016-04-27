@@ -115,8 +115,10 @@ def launch_cmd(command, timeout):
 
 def ssh_node(ip, command, ssh_opts=[], env_vars=[], timeout=15, filename=None,
              inputfile=None, outputfile=None, prefix='nice -n 19 ionice -c 3'):
-    #ssh_opts = " ".join(ssh_opts)
-    #env_vars = " ".join(env_vars)
+    if type(ssh_opts) is list:
+        ssh_opts = ' '.join(ssh_opts)
+    if type(env_vars) is dict:
+        env_vars = ' '.join(['%s="%s"' % (x, y) for x, y in env_vars.items()])
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
         logging.info("skip ssh")
         bstr = "%s timeout '%s' bash -c " % (
@@ -167,6 +169,8 @@ def killall_children(timeout):
                 logging.warning('could not kill %s' % p)
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
+    if type(ssh_opts) is list:
+        ssh_opts = ' '.join(ssh_opts)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
         logging.info("skip ssh rsync")
         cmd = ("timeout '%s' rsync -avzr --files-from=- / '%s'"
