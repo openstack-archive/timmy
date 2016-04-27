@@ -8,10 +8,10 @@ class Conf(object):
     """Configuration parameters"""
     hard_filter = None
     soft_filter = NodeFilter()
-    ssh = {'opts': ('-oConnectTimeout=2 -oStrictHostKeyChecking=no '
-                    '-oUserKnownHostsFile=/dev/null -oLogLevel=error '
-                    '-lroot -oBatchMode=yes'),
-           'vars': 'OPENRC=/root/openrc IPTABLES_STR="iptables -nvL"'}
+    ssh_opts = ['-oConnectTimeout=2', '-oStrictHostKeyChecking=no',
+                '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
+                '-lroot', '-oBatchMode=yes']
+    env_vars = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
     cluster = None
     fuelip = 'localhost'
     outdir = '/tmp/timmy/info'

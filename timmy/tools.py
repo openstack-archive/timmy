@@ -113,17 +113,19 @@ def launch_cmd(command, timeout):
     return outs, errs, p.returncode
 
 
-def ssh_node(ip, command, sshopts='', sshvars='', timeout=15, filename=None,
+def ssh_node(ip, command, ssh_opts=[], env_vars=[], timeout=15, filename=None,
              inputfile=None, outputfile=None, prefix='nice -n 19 ionice -c 3'):
+    #ssh_opts = " ".join(ssh_opts)
+    #env_vars = " ".join(env_vars)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
         logging.info("skip ssh")
         bstr = "%s timeout '%s' bash -c " % (
-               sshvars, timeout)
+               env_vars, timeout)
     else:
         logging.info("exec ssh")
         # base cmd str
         bstr = "timeout '%s' ssh -t -T %s '%s' '%s' " % (
-               timeout, sshopts, ip, sshvars)
+               timeout, ssh_opts, ip, env_vars)
     if filename is None:
         cmd = bstr + '"' + prefix + ' ' + command + '"'
     else:
@@ -164,7 +166,7 @@ def killall_children(timeout):
             except:
                 logging.warning('could not kill %s' % p)
 
-def get_files_rsync(ip, data, sshopts, dpath, timeout=15):
+def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
         logging.info("skip ssh rsync")
         cmd = ("timeout '%s' rsync -avzr --files-from=- / '%s'"
@@ -174,7 +176,7 @@ def get_files_rsync(ip, data, sshopts, dpath, timeout=15):
         cmd = ("timeout '%s' rsync -avzr -e 'ssh %s"
                " -oCompression=no' --files-from=- '%s':/ '%s'"
                " --progress --partial --delete-before"
-               ) % (timeout, sshopts, ip, dpath)
+               ) % (timeout, ssh_opts, ip, dpath)
     logging.debug("command:%s\ndata:\n%s" % (cmd, data))
     if data == '':
         return cmd, '', 127

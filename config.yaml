@@ -1,8 +1,15 @@
-ssh:
-    opts: -oConnectTimeout=2 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error -lroot -oBatchMode=yes
-    vars: OPENRC=/root/openrc IPTABLES_STR="iptables -nvL"
+ssh_opts:
+    - -oConnectTimeout=2
+    - -oStrictHostKeyChecking=no
+    - -oUserKnownHostsFile=/dev/null
+    - -oLogLevel=error
+    - -lroot
+    - -oBatchMode=yes
+env_vars:
+    - OPENRC=/root/openrc
+    - IPTABLES_STR="iptables -nvL"
 fuelip:  127.0.0.1
-rqdir:   ./rq
+rqdir: ./rq
 soft_filter:
     status:  ['ready']
 timeout: 15
