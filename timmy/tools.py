@@ -137,7 +137,8 @@ def ssh_node(ip, command, ssh_opts=[], env_vars=[], timeout=15, filename=None,
         logging.info("ssh_node: inputfile selected, cmd: %s" % cmd)
     if outputfile is not None:
         cmd += ' > "' + outputfile + '"'
-    cmd = "trap 'kill $pid' 15;" + cmd + '&:; pid=$!; wait $!'
+    cmd = ("trap 'kill $pid' 15; " + 
+          "trap 'kill $pid' 2; " + cmd + '&:; pid=$!; wait $!')
     outs, errs, code = launch_cmd(cmd, timeout)
     return outs, errs, code
 
