@@ -46,8 +46,15 @@ def interrupt_wrapper(f):
             f(*args, **kwargs)
         except KeyboardInterrupt:
             logging.warning('Interrupted, exiting.')
-
+            exit(0)
     return wrapper
+
+
+class RunItem():
+    def __init__(self, target, args):
+        self.target = target
+        self.args = args
+        self.process = None
 
 
 class SemaphoreProcess(multiprocessing.Process):
@@ -56,16 +63,26 @@ class SemaphoreProcess(multiprocessing.Process):
         self.semaphore = semaphore
         self.target = target
         self.args = args
+
     def run(self):
         try:
-           self.target(**self.args)
+            self.target(**self.args)
         finally:
-            try:
-                logging.info('finished task: %s' % self.args['cmd'])
-            except:
-                pass
+            logging.debug('finished call: %s' % self.target)
             self.semaphore.release()
 
+
+def run_batch(item_list, maxthreads):
+    semaphore = multiprocessing.BoundedSemaphore(maxthreads)
+    for run_item in item_list:
+        semaphore.acquire(True)
+        p = SemaphoreProcess(target=run_item.target,
+                             semaphore=semaphore,
+                             args=run_item.args)
+        run_item.process = p
+        p.start()
+    for run_item in item_list:
+        run_item.process.join()
 
 def get_dir_structure(rootdir):
     """

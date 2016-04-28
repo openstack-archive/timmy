@@ -540,23 +540,16 @@ class Nodes(object):
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
             return ''
         label = ckey
-        procs = []
-        semaphore = multiprocessing.BoundedSemaphore(100)
+        run_items = []
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
             if node.status in self.conf.soft_filter.status and node.online:
-                semaphore.acquire(True)
-                p = SemaphoreProcess(target=node.exec_cmd,
-                                     semaphore=semaphore,
-                                     args={'label': label,
-                                           'odir': odir,
-                                           'fake': fake})
-                procs.append(p)
-                p.start()
-        for p in procs:
-            p.join()
+                run_items.append(RunItem(target=node.exec_cmd,
+                                         args={'label': label,                                                                     'odir': odir,
+                                               'fake': fake}))
+        run_batch(run_items, 100)
         lock.unlock()
 
     def filter_logs(self):
@@ -633,7 +626,6 @@ class Nodes(object):
         if fake:
             logging.info('create_log_archives: skip creating archives(fake:%s)' % fake)
             return
-        procs = []
         txtfl = []
         speed = self.find_adm_interface_speed(speed)
         if len(self.nodes) > maxthreads:
@@ -641,7 +633,7 @@ class Nodes(object):
         else:
             speed = int(speed * 0.9 / len(self.nodes))
         pythonslowpipe = slowpipe % speed
-        semaphore = multiprocessing.BoundedSemaphore(maxthreads)
+        run_items = []
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
@@ -663,17 +655,12 @@ class Nodes(object):
                     cmd = "tar --gzip --create --file - --null --files-from -"
                 else:
                     cmd = "tar --gzip --create --file - --null --files-from - | python -c '%s'" % pythonslowpipe
-                semaphore.acquire(True)
-                p = SemaphoreProcess(target=node.exec_simple_cmd,
-                                     semaphore=semaphore,
-                                     args={'cmd': cmd,
-                                           'infile': logslistfile,
-                                           'outfile': node.archivelogsfile,
-                                           'timeout': timeout})
-                procs.append(p)
-                p.start()
-        for p in procs:
-            p.join()
+                run_items.append(RunItem(target=node.exec_simple_cmd,
+                                         args={'cmd': cmd,
+                                               'infile': logslistfile,
+                                               'outfile': node.archivelogsfile,
+                                               'timeout': timeout}))
+        run_batch(run_items, maxthreads)
         for tfile in txtfl:
             try:
                 os.remove(tfile)
@@ -689,22 +676,16 @@ class Nodes(object):
             logging.warning('Unable to obtain lock, skipping "files"-part')
             return ''
         label = fkey
-        procs = []
-        semaphore = multiprocessing.BoundedSemaphore(10)
+        run_items = []
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
             if node.status in self.conf.soft_filter.status and node.online:
-                semaphore.acquire(True)
-                p = SemaphoreProcess(target=node.get_files,
-                                     semaphore=semaphore,
-                                     args={'label': label,
-                                           'odir': odir})
-                procs.append(p)
-                p.start()
-        for p in procs:
-            p.join()
+                run_items.append(RunItem(target=node.get_files,
+                                         args={'label': label,
+                                               'odir': odir}))
+        run_batch(run_items, 10)
         lock.unlock()
 
 
