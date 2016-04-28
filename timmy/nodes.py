@@ -640,15 +640,7 @@ class Nodes(object):
             speed = int(speed * 0.9 / maxthreads)
         else:
             speed = int(speed * 0.9 / len(self.nodes))
-        pythonslowpipe =  'import sys\n'
-        pythonslowpipe += 'import time\n'
-        pythonslowpipe += 'while 1:\n'
-        pythonslowpipe += '  a = sys.stdin.read(int(1250*%s))\n' % speed
-        pythonslowpipe += '  if a:\n'
-        pythonslowpipe += '    sys.stdout.write(a)\n'
-        pythonslowpipe += '    time.sleep(0.01)\n'
-        pythonslowpipe += '  else:\n'
-        pythonslowpipe += '    break\n'
+        pythonslowpipe = slowpipe % speed
         semaphore = multiprocessing.BoundedSemaphore(maxthreads)
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and

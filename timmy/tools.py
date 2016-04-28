@@ -27,6 +27,19 @@ import multiprocessing
 import subprocess
 
 
+slowpipe = '''
+import sys
+import time
+while 1:
+    a = sys.stdin.read(int(1250*%s))
+    if a:
+        sys.stdout.write(a)
+        time.sleep(0.01)
+    else:
+        break
+'''
+
+
 def interrupt_wrapper(f):
     def wrapper(*args, **kwargs):
         try:
