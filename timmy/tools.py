@@ -22,37 +22,32 @@ tools module
 import os
 import logging
 import sys
+import threading
+import multiprocessing
+import subprocess
 
 
-def import_subprocess():
-    if 'subprocess' not in globals():
-        global subprocess
-        global ok_python
+def interrupt_wrapper(f):
+    def wrapper(*args, **kwargs):
         try:
-            import subprocess32 as subprocess
-            logging.info("using improved subprocess32 module\n")
-            ok_python = True
-        except:
-            import subprocess
-            logging.warning(("Please upgrade the module 'subprocess' to the latest version: "
-                            "https://pypi.python.org/pypi/subprocess32/"))
-            ok_python = True
-            if sys.version_info > (2, 7, 0):
-                ok_python = False
-                logging.warning('this subprocess module does not support timeouts')
-    else:
-            logging.info('subprocess is already loaded')
+            f(*args, **kwargs)
+        except KeyboardInterrupt:
+            logging.warning('Interrupted, exiting.')
 
-def semaphore_release(sema, func, node_id, params):
-    logging.info('start ssh node: %s' % node_id)
-    try:
-        result = func(*params)
-    except:
-        logging.error("failed to launch: %s on node %s" % node_id)
-    finally:
-        sema.release()
-    logging.info('finish ssh node: %s' % node_id)
-    return result
+    return wrapper
+
+
+class SemaphoreProcess(multiprocessing.Process):
+    def __init__(self, semaphore, target, args):
+        multiprocessing.Process.__init__(self)
+        self.semaphore = semaphore
+        self.target = target
+        self.args = args
+    def run(self):
+        try:
+           self.target(**self.args)
+        finally:
+           self.semaphore.release()
 
 
 def get_dir_structure(rootdir):
@@ -85,27 +80,32 @@ def mdir(directory):
 
 
 def launch_cmd(command, timeout):
+    def _timeout_terminate(pid):
+        try:
+            os.kill(pid, 15)
+            logging.error("launch_cmd: pid %d killed by timeout" % pid)
+        except:
+            pass
+
     logging.info('launch_cmd: command %s' % command)
     p = subprocess.Popen(command,
                          shell=True,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
-    if ok_python:
-        try:
-            outs, errs = p.communicate(timeout=timeout+1)
-        except subprocess.TimeoutExpired:
+    timeout_killer = None
+    try:
+        timeout_killer = threading.Timer(timeout, _timeout_terminate, [p.pid])
+        timeout_killer.start()
+        outs, errs = p.communicate()
+    except:
+        if p and not p.poll():
             p.kill()
-            outs, errs = p.communicate()
-            logging.error("command: %s err: %s, returned: %s" %
-                          (command, errs, p.returncode))
-    else:
-        try:
-            outs, errs = p.communicate()
-        except:
-            p.kill()
-            outs, errs = p.communicate()
-            logging.error("command: %s err: %s, returned: %s" %
-                          (command, errs, p.returncode))
+        outs, errs = p.communicate()
+        logging.error("command: %s err: %s, returned: %s" %
+                      (command, errs, p.returncode))
+    finally:
+        if timeout_killer:
+            timeout_killer.cancel()
     logging.debug("ssh return: err:%s\nouts:%s\ncode:%s" %
                   (errs, outs, p.returncode))
     logging.info("ssh return: err:%s\ncode:%s" %
@@ -117,8 +117,8 @@ def ssh_node(ip, command, ssh_opts=[], env_vars=[], timeout=15, filename=None,
              inputfile=None, outputfile=None, prefix='nice -n 19 ionice -c 3'):
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
-    if type(env_vars) is dict:
-        env_vars = ' '.join(['%s="%s"' % (x, y) for x, y in env_vars.items()])
+    if type(env_vars) is list:
+        env_vars = ' '.join(env_vars)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
         logging.info("skip ssh")
         bstr = "%s timeout '%s' bash -c " % (
@@ -137,6 +137,7 @@ def ssh_node(ip, command, ssh_opts=[], env_vars=[], timeout=15, filename=None,
         logging.info("ssh_node: inputfile selected, cmd: %s" % cmd)
     if outputfile is not None:
         cmd += ' > "' + outputfile + '"'
+    cmd = "trap 'kill $pid' 15;" + cmd + '&:; pid=$!; wait $!'
     outs, errs, code = launch_cmd(cmd, timeout)
     return outs, errs, code
 
@@ -189,22 +190,13 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
-    if ok_python:
-        try:
-            outs, errs = p.communicate(input=data, timeout=timeout+1)
-        except subprocess.TimeoutExpired:
-            p.kill()
-            outs, errs = p.communicate()
-            logging.error("ip: %s, command: %s err: %s, returned: %s" %
-                          (ip, cmd, errs, p.returncode))
-    else:
-        try:
-            outs, errs = p.communicate(input=data)
-        except:
-            p.kill()
-            outs, errs = p.communicate()
-            logging.error("ip: %s, command: %s err: %s, returned: %s" %
-                          (ip, cmd, errs, p.returncode))
+    try:
+        outs, errs = p.communicate(input=data)
+    except:
+        p.kill()
+        outs, errs = p.communicate()
+        logging.error("ip: %s, command: %s err: %s, returned: %s" %
+                      (ip, cmd, errs, p.returncode))
 
     logging.debug("ip: %s, ssh return: err:%s\nouts:%s\ncode:%s" %
                   (ip, errs, outs, p.returncode))

@@ -23,8 +23,10 @@ import sys
 import os
 from timmy.conf import Conf
 from timmy import flock
+from timmy.tools import interrupt_wrapper
 
 
+@interrupt_wrapper
 def main(argv=None):
     if argv is None:
         argv = sys.argv

@@ -24,7 +24,7 @@ import json
 import os
 import logging
 import sys
-import threading
+import multiprocessing
 import re
 from tools import *
 
@@ -198,7 +198,7 @@ class Node(object):
             logging.info("node: %s, ip: %s, size: %s" %
                          (self.node_id, self.ip, self.logsize))
 
-    def get_files(self, label, sshopts, odir='info', timeout=15):
+    def get_files(self, label, odir='info', timeout=15):
         logging.info('node:%s(%s), filelist: %s' %
                      (self.node_id, self.ip, label))
         sn = 'node-%s' % self.node_id
@@ -353,7 +353,6 @@ class Nodes(object):
     """Class nodes """
 
     def __init__(self, cluster, extended, conf, filename=None):
-        import_subprocess()
         self.dirname = conf.rqdir.rstrip('/')
         if (not os.path.exists(self.dirname)):
             logging.error("directory %s doesn't exist" % (self.dirname))
@@ -541,25 +540,23 @@ class Nodes(object):
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
             return ''
         label = ckey
-        threads = []
-        sem = threading.BoundedSemaphore(value=100)
+        procs = []
+        semaphore = multiprocessing.BoundedSemaphore(100)
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
             if node.status in self.conf.soft_filter.status and node.online:
-                sem.acquire(True)
-                t = threading.Thread(target=semaphore_release,
-                                     args=(sem,
-                                           node.exec_cmd,
-                                           node.node_id,
-                                           [label,
-                                           odir,
-                                           fake]))
-                threads.append(t)
-                t.start()
-        for t in threads:
-            t.join()
+                semaphore.acquire(True)
+                p = SemaphoreProcess(target=node.exec_cmd,
+                                     semaphore=semaphore,
+                                     args={'label': label,
+                                           'odir': odir,
+                                           'fake': fake})
+                procs.append(p)
+                p.start()
+        for p in procs:
+            p.join()
         lock.unlock()
 
     def filter_logs(self):
@@ -636,7 +633,7 @@ class Nodes(object):
         if fake:
             logging.info('create_log_archives: skip creating archives(fake:%s)' % fake)
             return
-        threads = []
+        procs = []
         txtfl = []
         speed = self.find_adm_interface_speed(speed)
         if len(self.nodes) > maxthreads:
@@ -652,14 +649,12 @@ class Nodes(object):
         pythonslowpipe += '    time.sleep(0.01)\n'
         pythonslowpipe += '  else:\n'
         pythonslowpipe += '    break\n'
-        sem = threading.BoundedSemaphore(value=maxthreads)
+        semaphore = threading.BoundedSemaphore(maxthreads)
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
-
             if node.status in self.conf.soft_filter.status and node.online:
-                sem.acquire(True)
                 node.archivelogsfile = os.path.join(outdir,
                                                     'logs-node-'+str(node.node_id) + '.tar.gz')
                 mdir(outdir)
@@ -676,33 +671,17 @@ class Nodes(object):
                     cmd = "tar --gzip --create --file - --null --files-from -"
                 else:
                     cmd = "tar --gzip --create --file - --null --files-from - | python -c '%s'" % pythonslowpipe
-                t = threading.Thread(target=semaphore_release,
-                                     args=(sem,
-                                           node.exec_simple_cmd,
-                                           node.node_id,
-                                           [cmd,
-                                           logslistfile,
-                                           node.archivelogsfile,
-                                           timeout]
-                                           )
-                                     )
-                threads.append(t)
-                t.start()
-        while True:
-            try:
-                tt = []
-                for t in threads:
-                    if t is not None and t.isAlive():
-                        t.join(1)
-                    else:
-                       tt.append(t)
-                if len(threads) == len(tt):
-                    break
-            except KeyboardInterrupt:
-                #sys.exit(9)
-                killall_children(self.timeout)
-                raise KeyboardInterrupt()
-
+                semaphore.acquire(True)
+                p = SemaphoreProcess(target=node.exec_simple_cmd,
+                                     semaphore=semaphore,
+                                     args={'cmd': cmd,
+                                           'infile': logslistfile,
+                                           'outfile': node.archivelogsfile,
+                                           'timeout': timeout})
+                procs.append(p)
+                p.start()
+        for p in procs:
+            p.join()
         for tfile in txtfl:
             try:
                 os.remove(tfile)
@@ -718,19 +697,22 @@ class Nodes(object):
             logging.warning('Unable to obtain lock, skipping "files"-part')
             return ''
         label = fkey
-        threads = []
+        procs = []
+        semaphore = multiprocessing.BoundedSemaphore(10)
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
                 continue
             if node.status in self.conf.soft_filter.status and node.online:
-                t = threading.Thread(target=node.get_files,
-                                     args=(label,
-                                           odir,))
-                threads.append(t)
-                t.start()
-        for t in threads:
-            t.join()
+                semaphore.acquire(True)
+                p = SemaphoreProcess(target=node.get_files,
+                                     semaphore=semaphore,
+                                     args={'label': label,
+                                           'odir': odir})
+                procs.append(p)
+                p.start()
+        for p in procs:
+            p.join()
         lock.unlock()
 
 
