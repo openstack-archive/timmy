@@ -47,7 +47,11 @@ class SemaphoreProcess(multiprocessing.Process):
         try:
            self.target(**self.args)
         finally:
-           self.semaphore.release()
+            try:
+                logging.info('finished task: %s' % self.args['cmd'])
+            except:
+                pass
+            self.semaphore.release()
 
 
 def get_dir_structure(rootdir):

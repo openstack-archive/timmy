@@ -649,7 +649,7 @@ class Nodes(object):
         pythonslowpipe += '    time.sleep(0.01)\n'
         pythonslowpipe += '  else:\n'
         pythonslowpipe += '    break\n'
-        semaphore = threading.BoundedSemaphore(maxthreads)
+        semaphore = multiprocessing.BoundedSemaphore(maxthreads)
         for node in self.nodes.values():
             if (self.cluster and str(self.cluster) != str(node.cluster) and
                     node.cluster != 0):
