@@ -44,6 +44,8 @@ def main(argv=None):
     parser.add_argument('-l', '--logs',
                         help='collect logs from nodes',
                         action='store_true', dest='getlogs')
+    parser.add_argument('-L', '--logs-maxthreads', type=int, default=100,
+                        help="maximum simultaneous log collection operations")
     parser.add_argument('--only-logs',
                         action='store_true',
                         help='Collect only logs from fuel-node')
@@ -99,6 +101,7 @@ def main(argv=None):
             if n.is_enough_space(config.archives):
                 n.create_log_archives(config.archives,
                                       config.compress_timeout,
+                                      maxthreads=args.logs_maxthreads,
                                       fake=args.fake_logs)
             lock.unlock()
         else:
