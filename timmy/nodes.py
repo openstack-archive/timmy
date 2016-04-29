@@ -264,7 +264,7 @@ class Node(object):
                                   (lfilter, f, str(e)))
                     sys.exit(5)
             for f in rflogs:
-                logging.debug('apply_exclude_filter: node: %s remove file: %s from log list' % (self.node_id, f ))
+                logging.debug('exclude_filter: node: %s remove: %s' % (self.node_id, f))
                 self.flogs.pop(f, None)
             return True
         else:
@@ -272,7 +272,6 @@ class Node(object):
 
     def logs_filter(self, filterconf):
         brstr = 'by_role'
-        flogs = {}
         logging.info('logs_filter: node: %s, filter: %s' % (self.node_id, filterconf))
         bynodeidinc = False
         bynodeidexc = False
@@ -378,8 +377,7 @@ class Nodes(object):
         self.load_nodes(conf)
         self.get_version()
 
-
-    def __str__ (self):
+    def __str__(self):
         s = "#node-id, cluster, admin-ip, mac, os, roles, online, status\n"
         for node in sorted(self.nodes.values(), key=lambda x: x.node_id):
             if (self.cluster and (str(self.cluster) != str(node.cluster)) and
@@ -389,7 +387,7 @@ class Nodes(object):
                 s += "%s\n" % str(node)
         return s
 
-    def get_nodes(self,conf):
+    def get_nodes(self, conf):
         fuel_node_cmd = 'fuel node list --json'
         fuelnode = Node(node_id=0,
                         cluster=0,
@@ -471,7 +469,6 @@ class Nodes(object):
 
     def get_version(self):
         cmd = "awk -F ':' '/release/ {print \$2}' /etc/nailgun/version.yaml"
-        logging.info('get_version:%s' %self.conf.ssh_opts)
         fuelnode = self.nodes[self.fuelip]
         release, err, code = ssh_node(ip=fuelnode.ip,
                                       command=cmd,
@@ -555,16 +552,16 @@ class Nodes(object):
         run_items = []
         for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
             run_items.append(RunItem(target=node.exec_cmd,
-                                         args={'label': label,
-                                               'odir': odir,
-                                               'fake': fake}))
+                                     args={'label': label,
+                                           'odir': odir,
+                                           'fake': fake}))
         run_batch(run_items, 100)
         lock.unlock()
 
     def calculate_log_size(self, timeout=15):
         lsize = 0
         for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
-            if not node.log_size_from_find(self.conf.log_files['path'],5):
+            if not node.log_size_from_find(self.conf.log_files['path'], 5):
                 logging.warning("can't get log file list from node %s" % node.node_id)
             else:
                 node.logs_filter(self.conf.log_files['filter'])
@@ -608,11 +605,12 @@ class Nodes(object):
         '''Returns interface speed through which logs will be dowloaded'''
         for node in self.nodes.values():
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
-                cmd = "cat /sys/class/net/$(/sbin/ip -o route get %s | cut -d' ' -f3)/speed" % node.ip
+                cmd = ("cat /sys/class/net/$(/sbin/ip -o route get %s | cut -d' ' -f3)/speed" %
+                       node.ip)
                 out, err, code = launch_cmd(cmd, node.timeout)
                 if code != 0:
-                   logging.error("can't get interface speed: error message: %s" % err)
-                   return defspeed
+                    logging.error("can't get interface speed: error message: %s" % err)
+                    return defspeed
                 try:
                     speed = int(out)
                 except:
@@ -633,7 +631,7 @@ class Nodes(object):
         run_items = []
         for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
             node.archivelogsfile = os.path.join(outdir,
-                                                'logs-node-%s.tar.gz' % 
+                                                'logs-node-%s.tar.gz' %
                                                 str(node.node_id))
             mdir(outdir)
             logslistfile = node.archivelogsfile + '.txt'

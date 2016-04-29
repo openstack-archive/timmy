@@ -90,6 +90,7 @@ def run_batch(item_list, maxthreads):
                 run_item.process.terminate()
         raise KeyboardInterrupt()
 
+
 def get_dir_structure(rootdir):
     """
     Creates a nested dictionary that represents the folder structure of rootdir
@@ -179,10 +180,11 @@ def ssh_node(ip, command, ssh_opts=[], env_vars=[], timeout=15, filename=None,
         logging.info("ssh_node: inputfile selected, cmd: %s" % cmd)
     if outputfile is not None:
         cmd += ' > "' + outputfile + '"'
-    cmd = ("trap 'kill $pid' 15; " + 
-          "trap 'kill $pid' 2; " + cmd + '&:; pid=$!; wait $!')
+    cmd = ("trap 'kill $pid' 15; " +
+           "trap 'kill $pid' 2; " + cmd + '&:; pid=$!; wait $!')
     outs, errs, code = launch_cmd(cmd, timeout)
     return outs, errs, code
+
 
 def killall_children(timeout):
     cmd = 'ps -o pid --ppid %d --noheaders' % os.getpid()
@@ -211,6 +213,7 @@ def killall_children(timeout):
                 os.kill(int(p), 2)
             except:
                 logging.warning('could not kill %s' % p)
+
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
     if type(ssh_opts) is list:

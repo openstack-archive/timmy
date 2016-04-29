@@ -68,11 +68,10 @@ def main(argv=None):
         else:
             loglevel = logging.INFO
     if args.log_file:
-       logfile = args.log_file
+        logfile = args.log_file
     else:
-       logfile = None
-    logging.basicConfig(
-                        filename=logfile,
+        logfile = None
+    logging.basicConfig(filename=logfile,
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
     config = Conf()
