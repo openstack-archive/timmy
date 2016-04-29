@@ -46,7 +46,6 @@ def interrupt_wrapper(f):
             f(*args, **kwargs)
         except KeyboardInterrupt:
             logging.warning('Interrupted, exiting.')
-            exit(0)
     return wrapper
 
 
@@ -74,15 +73,22 @@ class SemaphoreProcess(multiprocessing.Process):
 
 def run_batch(item_list, maxthreads):
     semaphore = multiprocessing.BoundedSemaphore(maxthreads)
-    for run_item in item_list:
-        semaphore.acquire(True)
-        p = SemaphoreProcess(target=run_item.target,
-                             semaphore=semaphore,
-                             args=run_item.args)
-        run_item.process = p
-        p.start()
-    for run_item in item_list:
-        run_item.process.join()
+    try:
+        for run_item in item_list:
+            semaphore.acquire(True)
+            p = SemaphoreProcess(target=run_item.target,
+                                 semaphore=semaphore,
+                                 args=run_item.args)
+            run_item.process = p
+            p.start()
+        for run_item in item_list:
+            run_item.process.join()
+            run_item.process = None
+    except KeyboardInterrupt:
+        for run_item in item_list:
+            if run_item.process:
+                run_item.process.terminate()
+        raise KeyboardInterrupt()
 
 def get_dir_structure(rootdir):
     """
@@ -132,8 +138,10 @@ def launch_cmd(command, timeout):
         timeout_killer.start()
         outs, errs = p.communicate()
     except:
-        if p and not p.poll():
+        try:
             p.kill()
+        except:
+            pass
         outs, errs = p.communicate()
         logging.error("command: %s err: %s, returned: %s" %
                       (command, errs, p.returncode))
