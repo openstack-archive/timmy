@@ -548,15 +548,17 @@ class Nodes(object):
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
             return ''
-        label = ckey
-        run_items = []
-        for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
-            run_items.append(RunItem(target=node.exec_cmd,
-                                     args={'label': label,
-                                           'odir': odir,
-                                           'fake': fake}))
-        run_batch(run_items, 100)
-        lock.unlock()
+        try:
+            label = ckey
+            run_items = []
+            for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
+                run_items.append(RunItem(target=node.exec_cmd,
+                                         args={'label': label,
+                                               'odir': odir,
+                                               'fake': fake}))
+            run_batch(run_items, 100)
+        finally:
+            lock.unlock()
 
     def calculate_log_size(self, timeout=15):
         lsize = 0
@@ -623,10 +625,7 @@ class Nodes(object):
             return
         txtfl = []
         speed = self.find_adm_interface_speed(speed)
-        if len(self.nodes) > maxthreads:
-            speed = int(speed * 0.9 / maxthreads)
-        else:
-            speed = int(speed * 0.9 / len(self.nodes))
+        speed = int(speed * 0.9 / min(maxthreads, len(self.nodes)))
         pythonslowpipe = slowpipe % speed
         run_items = []
         for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
@@ -669,14 +668,16 @@ class Nodes(object):
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "files"-part')
             return ''
-        label = fkey
-        run_items = []
-        for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
-            run_items.append(RunItem(target=node.get_files,
-                                     args={'label': label,
-                                           'odir': odir}))
-        run_batch(run_items, 10)
-        lock.unlock()
+        try:
+            label = fkey
+            run_items = []
+            for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
+                run_items.append(RunItem(target=node.get_files,
+                                         args={'label': label,
+                                               'odir': odir}))
+            run_batch(run_items, 10)
+        finally:
+            lock.unlock()
 
 
 def main(argv=None):
