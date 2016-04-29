@@ -534,6 +534,19 @@ class Nodes(object):
         for node in self.nodes.values():
             logging.debug('%s' % node.files[ckey])
 
+    def exec_filter(self, node):
+        f = self.conf.soft_filter
+        if f:
+            result = (((not f.status) or (node.status in f.status))
+                      and ((not f.roles) or (node.role in f.roles))
+                      and ((not f.node_ids) or (node.node_id in f.node_ids)))
+        else:
+            result = True
+        result = result and (((self.cluster and node.cluster != 0
+                    and str(self.cluster) == str(node.cluster))
+                   or not self.cluster) and node.online)
+        return result
+
     def launch_ssh(self, odir='info', timeout=15, fake=False):
         lock = flock.FLock('/tmp/timmy-cmds.lock')
         if not lock.lock():
@@ -541,42 +554,27 @@ class Nodes(object):
             return ''
         label = ckey
         run_items = []
-        for node in self.nodes.values():
-            if (self.cluster and str(self.cluster) != str(node.cluster) and
-                    node.cluster != 0):
-                continue
-            if node.status in self.conf.soft_filter.status and node.online:
-                run_items.append(RunItem(target=node.exec_cmd,
-                                         args={'label': label,                                                                     'odir': odir,
+        for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
+            run_items.append(RunItem(target=node.exec_cmd,
+                                         args={'label': label,
+                                               'odir': odir,
                                                'fake': fake}))
         run_batch(run_items, 100)
         lock.unlock()
 
-    def filter_logs(self):
-        for node in self.nodes.values():
-            if (self.cluster and str(self.cluster) != str(node.cluster) and
-                    node.cluster != 0):
-                continue
-            if node.status in self.conf.soft_filter.status and node.online:
+    def calculate_log_size(self, timeout=15):
+        lsize = 0
+        for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
+            if not node.log_size_from_find(self.conf.log_files['path'],5):
+                logging.warning("can't get log file list from node %s" % node.node_id)
+            else:
                 node.logs_filter(self.conf.log_files['filter'])
                 logging.debug('filter logs: node-%s: filtered logs: %s' %
                               (node.node_id, node.flogs))
-
-    def calculate_log_size(self, timeout=15):
-        lsize = 0
-        for node in self.nodes.values():
-            if (self.cluster and str(self.cluster) != str(node.cluster) and
-                    node.cluster != 0):
-                continue
-            if node.status in self.conf.soft_filter.status and node.online:
-                if not node.log_size_from_find(self.conf.log_files['path'],5):
-                    logging.warning("can't get log file list from node %s" % node.node_id)
-        self.filter_logs()
-        for node in self.nodes.values():
-            for f in node.flogs:
-                lsize += node.flogs[f]
-            for fl in sorted(node.flogs.items(), key=lambda x: x[1]):
-                logging.debug(fl)
+                for f in node.flogs:
+                    lsize += node.flogs[f]
+                for fl in sorted(node.flogs.items(), key=lambda x: x[1]):
+                    logging.debug(fl)
         logging.info('Full log size on nodes(with fuel): %s bytes' % lsize)
         self.alogsize = lsize / 1024
 
@@ -634,32 +632,31 @@ class Nodes(object):
             speed = int(speed * 0.9 / len(self.nodes))
         pythonslowpipe = slowpipe % speed
         run_items = []
-        for node in self.nodes.values():
-            if (self.cluster and str(self.cluster) != str(node.cluster) and
-                    node.cluster != 0):
+        for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
+            node.archivelogsfile = os.path.join(outdir,
+                                                'logs-node-%s.tar.gz' % 
+                                                str(node.node_id))
+            mdir(outdir)
+            logslistfile = node.archivelogsfile + '.txt'
+            txtfl.append(logslistfile)
+            try:
+                with open(logslistfile, 'w') as llf:
+                    for line in node.flogs:
+                        llf.write(line+"\0")
+            except:
+                logging.error("create_archive_logs: Can't write to file %s" %
+                              logslistfile)
                 continue
-            if node.status in self.conf.soft_filter.status and node.online:
-                node.archivelogsfile = os.path.join(outdir,
-                                                    'logs-node-'+str(node.node_id) + '.tar.gz')
-                mdir(outdir)
-                logslistfile = node.archivelogsfile + '.txt'
-                txtfl.append(logslistfile)
-                try:
-                    with open(logslistfile, 'w') as llf:
-                        for line in node.flogs:
-                            llf.write(line+"\0")
-                except:
-                    logging.error("create_archive_logs: Can't write to file %s" % logslistfile)
-                    continue
-                if node.ip == 'localhost' or node.ip.startswith('127.'):
-                    cmd = "tar --gzip --create --file - --null --files-from -"
-                else:
-                    cmd = "tar --gzip --create --file - --null --files-from - | python -c '%s'" % pythonslowpipe
-                run_items.append(RunItem(target=node.exec_simple_cmd,
-                                         args={'cmd': cmd,
-                                               'infile': logslistfile,
-                                               'outfile': node.archivelogsfile,
-                                               'timeout': timeout}))
+            if node.ip == 'localhost' or node.ip.startswith('127.'):
+                cmd = "tar --gzip --create --file - --null --files-from -"
+            else:
+                cmd = ("tar --gzip --create --file - --null --files-from -"
+                       "| python -c '%s'") % pythonslowpipe
+            run_items.append(RunItem(target=node.exec_simple_cmd,
+                                     args={'cmd': cmd,
+                                           'infile': logslistfile,
+                                           'outfile': node.archivelogsfile,
+                                           'timeout': timeout}))
         run_batch(run_items, maxthreads)
         for tfile in txtfl:
             try:
@@ -677,14 +674,10 @@ class Nodes(object):
             return ''
         label = fkey
         run_items = []
-        for node in self.nodes.values():
-            if (self.cluster and str(self.cluster) != str(node.cluster) and
-                    node.cluster != 0):
-                continue
-            if node.status in self.conf.soft_filter.status and node.online:
-                run_items.append(RunItem(target=node.get_files,
-                                         args={'label': label,
-                                               'odir': odir}))
+        for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
+            run_items.append(RunItem(target=node.get_files,
+                                     args={'label': label,
+                                           'odir': odir}))
         run_batch(run_items, 10)
         lock.unlock()
 
