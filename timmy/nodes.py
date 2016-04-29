@@ -542,10 +542,9 @@ class Nodes(object):
                       and ((not f.node_ids) or (node.node_id in f.node_ids)))
         else:
             result = True
-        result = result and (((self.cluster and node.cluster != 0
-                    and str(self.cluster) == str(node.cluster))
-                   or not self.cluster) and node.online)
-        return result
+        return result and (((self.cluster and node.cluster != 0
+                           and str(self.cluster) == str(node.cluster))
+                           or not self.cluster) and node.online)
 
     def launch_ssh(self, odir='info', timeout=15, fake=False):
         lock = flock.FLock('/tmp/timmy-cmds.lock')
