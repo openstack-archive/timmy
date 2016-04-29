@@ -49,7 +49,7 @@ def main(argv=None):
     parser.add_argument('--only-logs',
                         action='store_true',
                         help='Collect only logs from fuel-node')
-    parser.add_argument('--log-file',
+    parser.add_argument('--log-file', default=None,
                         help='timmy log file')
     parser.add_argument('--fake-logs',
                         help="Do not collect logs, only calculate size",
@@ -67,11 +67,7 @@ def main(argv=None):
             loglevel = logging.DEBUG
         else:
             loglevel = logging.INFO
-    if args.log_file:
-        logfile = args.log_file
-    else:
-        logfile = None
-    logging.basicConfig(filename=logfile,
+    logging.basicConfig(filename=args.log_file,
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
     config = Conf()
