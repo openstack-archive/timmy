@@ -21,7 +21,8 @@ class Conf(object):
     archives = '/tmp/timmy/archives'
     cmds_archive = ''
     log_path = '/var/log'
-    log_filter = {'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
+    log_filter = {'include': None,
+                  'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
 
     def __init__(self, **entries):
         self.__dict__.update(entries)

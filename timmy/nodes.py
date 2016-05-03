@@ -36,7 +36,8 @@ varlogdir = '/var/log'
 
 class Node(object):
 
-    conf_fields = ['ssh_opts', 'env_vars', 'log_path', 'log_filter']
+    override_by_id = ['ssh_opts', 'env_vars', 'log_path', 'log_filter']
+    aggregate_by_role = ['log_path', 'log_filter']
 
     def __init__(self, node_id, mac, cluster, roles, os_platform,
                  online, status, ip, conf):
@@ -57,13 +58,13 @@ class Node(object):
         self.set_conf(conf)
 
     def override_conf(self, conf):
-        for field in Node.conf_fields:
+        for field in Node.aggregate_by_role:
             for role in self.roles:
                 try:
-                    setattr(self, field, conf.by_role[role][field])
-                    break
+                    getattr(self, field).append(conf.by_role[self.role][field])
                 except:
                     pass
+        for field in Node.override_by_id:
             try:
                 setattr(self, field, conf.by_node_id[self.node_id][field])
             except:
@@ -72,8 +73,8 @@ class Node(object):
     def set_conf(self, conf):
         self.ssh_opts = conf.ssh_opts
         self.env_vars = conf.env_vars
-        self.log_path = conf.log_path
-        self.log_filter = conf.log_filter
+        self.log_path = list([conf.log_path])
+        self.log_filter = list([conf.log_filter])
         self.timeout = conf.timeout
         self.override_conf(conf)
 
@@ -231,44 +232,38 @@ class Node(object):
                           (self.node_id, key, self.data[key]))
 
     def logs_filter(self):
-        re_in = None
-        re_ex = None
-        if 'include' in self.log_filter:
-            re_in = self.log_filter['include']
-        if 'exclude' in self.log_filter:
-            re_ex = self.log_filter['exclude']
-        filter_step_1 = {}
-        filter_step_2 = {}
-        for f, size in self.logs.items():
-            if re_in:
-                if re.search(re_in, f):
-                    filter_step_1[f] = size
-        for f, size in filter_step_1.items():
-            if re_ex:
-                if not re.search(re_ex, f):
-                    filter_step_2[f] = size
-        self.logs = filter_step_2
+        result = {}
+        for re_pair in self.log_filter:
+            for f, s in self.logs.items():
+                if (('include' not in re_pair or re.search(re_pair['include'], f)) and
+                        ('exclude' not in re_pair or not re.search(re_pair['exclude'], f))):
+                    result[f] = s
+        self.logs = result
 
-    def logs_populate(self, path, sshopts, timeout=5):
-        cmd = ("find '%s' -type f -exec du -b {} +" % (path))
-        logging.info('logs_populate: node: %s, logs du-cmd: %s' %
-                     (self.node_id, cmd))
-        outs, errs, code = ssh_node(ip=self.ip,
-                                    command=cmd,
-                                    ssh_opts=self.ssh_opts,
-                                    env_vars='',
-                                    timeout=timeout)
-        if code == 124:
-            logging.error("node: %s, ip: %s, command: %s, "
-                          "timeout code: %s, error message: %s" %
-                          (self.node_id, self.ip, cmd, code, errs))
-            return False
-        for line in outs.split('\n'):
-            if '\t' in line:
-                size, filename = line.split('\t')
-                self.logs[filename] = int(size)
-        logging.debug('logs_populate: logs: %s' % (self.logs))
-        return True
+    def logs_populate(self, timeout=5):
+        got_logs = False
+        for path in self.log_path:
+	    cmd = ("find '%s' -type f -exec du -b {} +" % (path))
+	    logging.info('logs_populate: node: %s, logs du-cmd: %s' %
+			 (self.node_id, cmd))
+	    outs, errs, code = ssh_node(ip=self.ip,
+					command=cmd,
+					ssh_opts=self.ssh_opts,
+					env_vars='',
+					timeout=timeout)
+	    if code == 124:
+		logging.error("node: %s, ip: %s, command: %s, "
+			      "timeout code: %s, error message: %s" %
+			      (self.node_id, self.ip, cmd, code, errs))
+		break
+            if len(outs):
+                got_logs = True
+	    for line in outs.split('\n'):
+		if '\t' in line:
+		    size, filename = line.split('\t')
+		    self.logs[filename] = int(size)
+	    logging.debug('logs_populate: logs: %s' % (self.logs))
+        return got_logs
 
     def print_files(self):
         for k in self.files.keys():
@@ -503,7 +498,7 @@ class Nodes(object):
     def calculate_log_size(self, timeout=15):
         total_size = 0
         for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
-            if not node.logs_populate(self.conf.log_path, 5):
+            if not node.logs_populate(5):
                 logging.warning("can't get log file list from node %s" %
                                 node.node_id)
             else:
