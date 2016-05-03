@@ -434,7 +434,7 @@ class Nodes(object):
             if (node.node_id != 0) and (node.status == 'ready'):
                 release, err, code = tools.ssh_node(ip=node.ip,
                                                     command=cmd,
-                                                    ssh_opts=node.sshopts,
+                                                    ssh_opts=node.ssh_opts,
                                                     timeout=node.timeout)
                 if code != 0:
                     logging.warning("get_release: node: %s: %s" %
