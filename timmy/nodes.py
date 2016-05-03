@@ -152,7 +152,6 @@ class Node(object):
                                  (self.node_id, self.ip, os.path.basename(f)))
             logging.info('outfile: %s' % dfile)
             self.mapcmds[os.path.basename(f)] = dfile
-            print(self.mapcmds)
             if not fake:
                 try:
                     with open(dfile, 'w') as df:
