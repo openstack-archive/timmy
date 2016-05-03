@@ -16,7 +16,6 @@
 #    under the License.
 
 import argparse
-import timmy
 from timmy import nodes
 import logging
 import sys
@@ -95,14 +94,15 @@ def main(argv=None):
                 n.get_node_file_list()
                 n.calculate_log_size()
                 if n.is_enough_space(config.archives):
-                    n.create_log_archives(config.archives,
-                                          config.compress_timeout,
-                                          maxthreads=args.logs_maxthreads,
-                                          fake=args.fake_logs)
+                    n.archive_logs(config.archives,
+                                   config.compress_timeout,
+                                   maxthreads=args.logs_maxthreads,
+                                   fake=args.fake_logs)
             finally:
                 lock.unlock()
         else:
-            logging.warning('Unable to obtain lock %s, skipping "logs"-part' % lf)
+            logging.warning('Unable to obtain lock %s, skipping "logs"-part' %
+                            lf)
     logging.info("Nodes:\n%s" % n)
     print(n)
     return 0

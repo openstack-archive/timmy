@@ -21,7 +21,7 @@ class Conf(object):
     archives = '/tmp/timmy/archives'
     cmds_archive = ''
     log_path = '/var/log'
-    log_filter = {'include': None,
+    log_filter = {'include': '',
                   'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
 
     def __init__(self, **entries):
@@ -38,16 +38,19 @@ class Conf(object):
                 conf = yaml.load(f)
             return Conf(**conf)
         except IOError as e:
-            logging.error("load_conf: I/O error(%s): %s" % (e.errno, e.strerror))
+            logging.error("load_conf: I/O error(%s): %s" %
+                          (e.errno, e.strerror))
             sys.exit(1)
         except ValueError:
             logging.error("load_conf: Could not convert data")
             sys.exit(1)
         except yaml.parser.ParserError as e:
-            logging.error("load_conf: Could not parse %s:\n%s" % (filename, str(e)))
+            logging.error("load_conf: Could not parse %s:\n%s" %
+                          (filename, str(e)))
             sys.exit(1)
         except:
-            logging.error("load_conf: Unexpected error: %s" % sys.exc_info()[0])
+            logging.error("load_conf: Unexpected error: %s" %
+                          sys.exc_info()[0])
             sys.exit(1)
 
 
