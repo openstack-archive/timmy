@@ -36,7 +36,7 @@ varlogdir = '/var/log'
 
 class Node(object):
 
-    conf_fields = ['ssh_opts', 'env_vars', 'log_files']
+    conf_fields = ['ssh_opts', 'env_vars', 'log_path', 'log_filter']
 
     def __init__(self, node_id, mac, cluster, roles, os_platform,
                  online, status, ip, conf):
@@ -53,6 +53,7 @@ class Node(object):
         self.logsize = 0
         self.flogs = {}
         self.mapcmds = {}
+        self.logs = {}
         self.set_conf(conf)
 
     def override_conf(self, conf):
@@ -60,6 +61,7 @@ class Node(object):
             for role in self.roles:
                 try:
                     setattr(self, field, conf.by_role[role][field])
+                    break
                 except:
                     pass
             try:
@@ -68,10 +70,10 @@ class Node(object):
                 pass
 
     def set_conf(self, conf):
-        logging.info(conf.ssh_opts)
         self.ssh_opts = conf.ssh_opts
         self.env_vars = conf.env_vars
-        self.log_files = conf.log_files
+        self.log_path = conf.log_path
+        self.log_filter = conf.log_filter
         self.timeout = conf.timeout
         self.override_conf(conf)
 
@@ -228,93 +230,29 @@ class Node(object):
             logging.debug('node: %s, key: %s, data:\n%s' %
                           (self.node_id, key, self.data[key]))
 
-    def apply_include_filter(self, lfilter):
-        logging.info('apply_include_filter: node: %s, filter: %s' % (self.node_id, lfilter))
-        flogs = {}
-        if 'include' in lfilter and lfilter['include'] is not None:
-            for f in self.dulogs.splitlines():
-                try:
-                    if ('include' in lfilter and re.search(lfilter['include'], f)):
-                        flogs[f.split("\t")[1]] = int(f.split("\t")[0])
-                    else:
-                        logging.debug("filter %s by %s" % (f, lfilter))
-                except re.error as e:
-                    logging.error('logs_include_filter: filter: %s, str: %s, re.error: %s' %
-                                  (lfilter, f, str(e)))
-                    sys.exit(5)
+    def logs_filter(self):
+        re_in = None
+        re_ex = None
+        if 'include' in self.log_filter:
+            re_in = self.log_filter['include']
+        if 'exclude' in self.log_filter:
+            re_ex = self.log_filter['exclude']
+        filter_step_1 = {}
+        filter_step_2 = {}
+        for f, size in self.logs.items():
+            if re_in:
+                if re.search(re_in, f):
+                    filter_step_1[f] = size
+        for f, size in filter_step_1.items():
+            if re_ex:
+                if not re.search(re_ex, f):
+                    filter_step_2[f] = size
+        self.logs = filter_step_2
 
-            self.flogs.update(flogs)
-            return True
-        else:
-            return False
-
-    def apply_exclude_filter(self, lfilter):
-        logging.info('apply_exclude_filter: node: %s, filter: %s' % (self.node_id, lfilter))
-        rflogs = []
-        if 'exclude' in lfilter and lfilter['exclude'] is None:
-            return True
-        if 'exclude' in lfilter and lfilter['exclude'] is not None:
-            for f in self.flogs:
-                try:
-                    if re.search(lfilter['exclude'], f):
-                        rflogs.append(f)
-                        logging.info('logs_exclude_filter: %s' % f)
-                except re.error as e:
-                    logging.error('logs_include_filter: filter: %s, str: %s, re.error: %s' %
-                                  (lfilter, f, str(e)))
-                    sys.exit(5)
-            for f in rflogs:
-                logging.debug('exclude_filter: node: %s remove: %s' % (self.node_id, f))
-                self.flogs.pop(f, None)
-            return True
-        else:
-            return False
-
-    def logs_filter(self, filterconf):
-        brstr = 'by_role'
-        logging.info('logs_filter: node: %s, filter: %s' % (self.node_id, filterconf))
-        bynodeidinc = False
-        bynodeidexc = False
-        #  need to check the following logic:
-        if 'by_node_id' in filterconf and self.node_id in filterconf['by_node_id']:
-            if self.apply_include_filter(filterconf['by_node_id'][self.node_id]):
-                bynodeidinc = True
-            if self.apply_exclude_filter(filterconf['by_node_id'][self.node_id]):
-                bynodeidexc = True
-        if bynodeidinc:
-            return
-        if bynodeidexc:
-            return
-        byrole = False
-        if brstr in filterconf:
-            for role in self.roles:
-                if role in filterconf[brstr].keys():
-                    logging.info('logs_filter: apply filter for role %s' % role)
-                    byrole = True
-                    if self.apply_include_filter(filterconf[brstr][role]):
-                        byrole = True
-        if not byrole:
-            if 'default' in filterconf:
-                self.apply_include_filter(filterconf['default'])
-            else:
-                #  unexpected
-                logging.warning('default log filter is not defined')
-                self.flogs = {}
-        byrole = False
-        if brstr in filterconf:
-            for role in self.roles:
-                if role in filterconf[brstr].keys():
-                    logging.info('logs_filter: apply filter for role %s' % role)
-                    if self.apply_exclude_filter(filterconf[brstr][role]):
-                        byrole = True
-        if not byrole:
-            if 'default' in filterconf:
-                logging.info('logs_filter: apply default exclude filter')
-                self.apply_exclude_filter(filterconf['default'])
-
-    def log_size_from_find(self, path, sshopts, timeout=5):
+    def logs_populate(self, path, sshopts, timeout=5):
         cmd = ("find '%s' -type f -exec du -b {} +" % (path))
-        logging.info('log_size_from_find: node: %s, logs du-cmd: %s' % (self.node_id, cmd))
+        logging.info('logs_populate: node: %s, logs du-cmd: %s' %
+                     (self.node_id, cmd))
         outs, errs, code = ssh_node(ip=self.ip,
                                     command=cmd,
                                     ssh_opts=self.ssh_opts,
@@ -324,10 +262,12 @@ class Node(object):
             logging.error("node: %s, ip: %s, command: %s, "
                           "timeout code: %s, error message: %s" %
                           (self.node_id, self.ip, cmd, code, errs))
-            self.dulogs = ""
             return False
-        self.dulogs = outs
-        logging.info('log_size_from_find: dulogs: %s' % (self.dulogs))
+        for line in outs.split('\n'):
+            if '\t' in line:
+                size, filename = line.split('\t')
+                self.logs[filename] = int(size)
+        logging.debug('logs_populate: logs: %s' % (self.logs))
         return True
 
     def print_files(self):
@@ -561,20 +501,19 @@ class Nodes(object):
             lock.unlock()
 
     def calculate_log_size(self, timeout=15):
-        lsize = 0
+        total_size = 0
         for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
-            if not node.log_size_from_find(self.conf.log_files['path'], 5):
-                logging.warning("can't get log file list from node %s" % node.node_id)
+            if not node.logs_populate(self.conf.log_path, 5):
+                logging.warning("can't get log file list from node %s" %
+                                node.node_id)
             else:
-                node.logs_filter(self.conf.log_files['filter'])
+                node.logs_filter()
                 logging.debug('filter logs: node-%s: filtered logs: %s' %
-                              (node.node_id, node.flogs))
-                for f in node.flogs:
-                    lsize += node.flogs[f]
-                for fl in sorted(node.flogs.items(), key=lambda x: x[1]):
-                    logging.debug(fl)
-        logging.info('Full log size on nodes(with fuel): %s bytes' % lsize)
-        self.alogsize = lsize / 1024
+                              (node.node_id, node.logs))
+                total_size += sum(node.logs.values())
+        logging.info('Full log size on nodes(with fuel): %s bytes' %
+                     total_size)
+        self.alogsize = total_size / 1024
 
     def is_enough_space(self, directory, coefficient=1.2):
         mdir(directory)
@@ -637,8 +576,8 @@ class Nodes(object):
             txtfl.append(logslistfile)
             try:
                 with open(logslistfile, 'w') as llf:
-                    for line in node.flogs:
-                        llf.write(line+"\0")
+                    for filename in node.logs:
+                        llf.write(filename+"\0")
             except:
                 logging.error("create_archive_logs: Can't write to file %s" %
                               logslistfile)
