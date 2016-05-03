@@ -16,7 +16,7 @@ timeout: 15
 compress_timeout: 3600
 log_path: '/var/log'
 log_filter:
-    include: 'messages'
+    include: '(.)*'
     exclude: '[-_]\d{8}$|atop[-_]|\.gz$'
 # by_role:
 #     contrail:
