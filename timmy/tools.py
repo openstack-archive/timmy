@@ -23,7 +23,7 @@ import os
 import logging
 import sys
 import threading
-import multiprocessing
+from multiprocessing import Process, Queue, BoundedSemaphore
 import subprocess
 
 
@@ -50,40 +50,52 @@ def interrupt_wrapper(f):
 
 
 class RunItem():
-    def __init__(self, target, args):
+    def __init__(self, target, args, key=None):
         self.target = target
         self.args = args
         self.process = None
+        self.queue = None
+        self.key = key
 
-
-class SemaphoreProcess(multiprocessing.Process):
-    def __init__(self, semaphore, target, args):
-        multiprocessing.Process.__init__(self)
+class SemaphoreProcess(Process):
+    def __init__(self, semaphore, target, args, queue=None):
+        Process.__init__(self)
         self.semaphore = semaphore
         self.target = target
         self.args = args
+        self.queue = queue
 
     def run(self):
         try:
-            self.target(**self.args)
+            self.queue.put_nowait(self.target(**self.args))
         finally:
             logging.debug('finished call: %s' % self.target)
             self.semaphore.release()
 
 
-def run_batch(item_list, maxthreads):
-    semaphore = multiprocessing.BoundedSemaphore(maxthreads)
+def run_batch(item_list, maxthreads, dict_result=False):
+    semaphore = BoundedSemaphore(maxthreads)
     try:
         for run_item in item_list:
             semaphore.acquire(True)
+            run_item.queue = Queue()
             p = SemaphoreProcess(target=run_item.target,
                                  semaphore=semaphore,
-                                 args=run_item.args)
+                                 args=run_item.args,
+                                 queue=run_item.queue)
             run_item.process = p
             p.start()
         for run_item in item_list:
+            run_item.result = run_item.queue.get()
             run_item.process.join()
             run_item.process = None
+        if dict_result:
+            result = {}
+            for run_item in item_list:
+                result[run_item.key] = run_item.result
+            return result
+        else:
+            return [run_item.result for run_item in item_list]
     except KeyboardInterrupt:
         for run_item in item_list:
             if run_item.process:

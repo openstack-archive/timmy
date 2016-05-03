@@ -152,12 +152,14 @@ class Node(object):
                                  (self.node_id, self.ip, os.path.basename(f)))
             logging.info('outfile: %s' % dfile)
             self.mapcmds[os.path.basename(f)] = dfile
+            print(self.mapcmds)
             if not fake:
                 try:
                     with open(dfile, 'w') as df:
                         df.write(outs)
                 except:
                     logging.error("exec_cmd: can't write to file %s" % dfile)
+        return self
 
     def exec_simple_cmd(self, cmd, infile, outfile, timeout=15, fake=False):
         logging.info('node:%s(%s), exec: %s' % (self.node_id, self.ip, cmd))
@@ -491,17 +493,17 @@ class Nodes(object):
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
             return ''
-        try:
-            label = ckey
-            run_items = []
-            for n in [n for n in self.nodes.values() if self.exec_filter(n)]:
-                run_items.append(tools.RunItem(target=n.exec_cmd,
+        label = ckey
+        run_items = []
+        for key, node in self.nodes.items():
+            if self.exec_filter(node):
+                run_items.append(tools.RunItem(target=node.exec_cmd,
                                                args={'label': label,
                                                      'odir': odir,
-                                                     'fake': fake}))
-            tools.run_batch(run_items, 100)
-        finally:
-            lock.unlock()
+                                                     'fake': fake},
+                                               key=key))
+        self.nodes = tools.run_batch(run_items, 100, dict_result=True)
+        lock.unlock()
 
     def calculate_log_size(self, timeout=15):
         total_size = 0
