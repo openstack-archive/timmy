@@ -1,23 +1,29 @@
 ssh_opts:
-    - -oConnectTimeout=2
-    - -oStrictHostKeyChecking=no
-    - -oUserKnownHostsFile=/dev/null
-    - -oLogLevel=error
-    - -lroot
-    - -oBatchMode=yes
+    - '-oConnectTimeout=2'
+    - '-oStrictHostKeyChecking=no'
+    - '-oUserKnownHostsFile=/dev/null'
+    - '-oLogLevel=error'
+    - '-lroot'
+    - '-oBatchMode=yes'
 env_vars:
-    - OPENRC=/root/openrc
-    - IPTABLES_STR="iptables -nvL"
-fuelip:  127.0.0.1
-rqdir: ./rq
+    - 'OPENRC=/root/openrc'
+    - 'IPTABLES_STR="iptables -nvL"'
+fuelip:  '127.0.0.1'
+rqdir: './rq'
 soft_filter:
     status:  ['ready']
 timeout: 15
 compress_timeout: 3600
-log_files:
-    path: /var/log
-    filter:
-        default:
-            include: '(.)*'
-            exclude: '[-_]\d{8}$|atop[-_]|\.gz$'
-
+log_path: '/var/log'
+log_filter:
+    include: '(.)*'
+    exclude: '[-_]\d{8}$|atop[-_]|\.gz$'
+# by_role:
+#     contrail:
+#         log_filter:
+#             include: 'contrail'
+# by_node_id:
+#     3:
+#         env_vars:
+#             OPENRC: '/root/openrc'
+#             IPTABLES_STR: 'iptables -L'

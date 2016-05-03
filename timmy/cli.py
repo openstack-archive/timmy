@@ -16,15 +16,16 @@
 #    under the License.
 
 import argparse
-import timmy
 from timmy import nodes
 import logging
 import sys
 import os
 from timmy.conf import Conf
 from timmy import flock
+from timmy.tools import interrupt_wrapper
 
 
+@interrupt_wrapper
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -42,10 +43,12 @@ def main(argv=None):
     parser.add_argument('-l', '--logs',
                         help='collect logs from nodes',
                         action='store_true', dest='getlogs')
+    parser.add_argument('-L', '--logs-maxthreads', type=int, default=100,
+                        help="maximum simultaneous log collection operations")
     parser.add_argument('--only-logs',
                         action='store_true',
                         help='Collect only logs from fuel-node')
-    parser.add_argument('--log-file',
+    parser.add_argument('--log-file', default=None,
                         help='timmy log file')
     parser.add_argument('--fake-logs',
                         help="Do not collect logs, only calculate size",
@@ -63,12 +66,7 @@ def main(argv=None):
             loglevel = logging.DEBUG
         else:
             loglevel = logging.INFO
-    if args.log_file:
-       logfile = args.log_file
-    else:
-       logfile = None
-    logging.basicConfig(
-                        filename=logfile,
+    logging.basicConfig(filename=args.log_file,
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
     config = Conf()
@@ -92,15 +90,19 @@ def main(argv=None):
         lf = '/tmp/timmy-logs.lock'
         lock = flock.FLock(lf)
         if lock.lock():
-            n.get_node_file_list()
-            n.calculate_log_size()
-            if n.is_enough_space(config.archives):
-                n.create_log_archives(config.archives,
-                                      config.compress_timeout,
-                                      fake=args.fake_logs)
-            lock.unlock()
+            try:
+                n.get_node_file_list()
+                n.calculate_log_size()
+                if n.is_enough_space(config.archives):
+                    n.archive_logs(config.archives,
+                                   config.compress_timeout,
+                                   maxthreads=args.logs_maxthreads,
+                                   fake=args.fake_logs)
+            finally:
+                lock.unlock()
         else:
-            logging.warning('Unable to obtain lock %s, skipping "logs"-part' % lf)
+            logging.warning('Unable to obtain lock %s, skipping "logs"-part' %
+                            lf)
     logging.info("Nodes:\n%s" % n)
     print(n)
     return 0
