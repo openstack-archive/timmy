@@ -501,8 +501,10 @@ class Nodes(object):
                                                      'odir': odir,
                                                      'fake': fake},
                                                key=key))
-        self.nodes = tools.run_batch(run_items, 100, dict_result=True)
-        lock.unlock()
+        try:
+            self.nodes = tools.run_batch(run_items, 100, dict_result=True)
+        finally:
+            lock.unlock()
 
     def calculate_log_size(self, timeout=15):
         total_size = 0

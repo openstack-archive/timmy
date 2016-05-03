@@ -67,7 +67,9 @@ class SemaphoreProcess(Process):
 
     def run(self):
         try:
-            self.queue.put_nowait(self.target(**self.args))
+            result = self.target(**self.args)
+            if self.queue:
+                self.queue.put_nowait(result)
         finally:
             logging.debug('finished call: %s' % self.target)
             self.semaphore.release()
