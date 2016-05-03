@@ -478,14 +478,14 @@ class Nodes(object):
     def exec_filter(self, node):
         f = self.conf.soft_filter
         if f:
-            result = (((not f.status) or (node.status in f.status))
-                      and ((not f.roles) or (node.role in f.roles))
-                      and ((not f.node_ids) or (node.node_id in f.node_ids)))
+            result = (((not f.status) or (node.status in f.status)) and
+                      ((not f.roles) or (node.role in f.roles)) and
+                      ((not f.node_ids) or (node.node_id in f.node_ids)))
         else:
             result = True
-        return result and (((self.cluster and node.cluster != 0
-                           and str(self.cluster) == str(node.cluster))
-                           or not self.cluster) and node.online)
+        return result and (((self.cluster and node.cluster != 0 and
+                             str(self.cluster) == str(node.cluster)) or not
+                            self.cluster) and node.online)
 
     def launch_ssh(self, odir='info', timeout=15, fake=False):
         lock = flock.FLock('/tmp/timmy-cmds.lock')
@@ -495,8 +495,8 @@ class Nodes(object):
         try:
             label = ckey
             run_items = []
-            for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
-                run_items.append(tools.RunItem(target=node.exec_cmd,
+            for n in [n for n in self.nodes.values() if self.exec_filter(n)]:
+                run_items.append(tools.RunItem(target=n.exec_cmd,
                                                args={'label': label,
                                                      'odir': odir,
                                                      'fake': fake}))
@@ -616,8 +616,8 @@ class Nodes(object):
         try:
             label = fkey
             run_items = []
-            for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
-                run_items.append(tools.RunItem(target=node.get_files,
+            for n in [n for n in self.nodes.values() if self.exec_filter(n)]:
+                run_items.append(tools.RunItem(target=n.get_files,
                                                args={'label': label,
                                                      'odir': odir}))
             tools.run_batch(run_items, 10)
