@@ -428,22 +428,21 @@ class Nodes(object):
     def get_release(self):
         cmd = "awk -F ':' '/fuel_version/ {print \$2}' /etc/astute.yaml"
         for node in self.nodes.values():
-            # skip master
             if node.node_id == 0:
+                # skip master
                 node.release = self.version
             if (node.node_id != 0) and (node.status == 'ready'):
                 release, err, code = tools.ssh_node(ip=node.ip,
                                                     command=cmd,
-                                                    sshopts=self.sshopts,
-                                                    sshvars='',
-                                                    timeout=self.timeout,
-                                                    filename=None)
+                                                    ssh_opts=node.sshopts,
+                                                    timeout=node.timeout)
                 if code != 0:
                     logging.warning("get_release: node: %s: %s" %
                                     (node.node_id, "Can't get node release"))
-                    node.release = self.version
+                    node.release = None
                     continue
-                node.release = release.strip('\n "\'')
+                else:
+                    node.release = release.strip('\n "\'')
                 logging.info("get_release: node: %s, release: %s" %
                              (node.node_id, node.release))
 
