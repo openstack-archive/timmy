@@ -60,12 +60,16 @@ class Node(object):
         for field in Node.aggregate_by_role:
             for role in self.roles:
                 try:
-                    getattr(self, field).append(conf.by_role[self.role][field])
+                    override = conf.by_role[self.role][field]
+                    getattr(self, field).append(override)
                 except:
                     pass
         for field in Node.override_by_id:
             try:
-                setattr(self, field, conf.by_node_id[self.node_id][field])
+                override = conf.by_node_id[self.node_id][field]
+                if field in Node.aggregate_by_role:
+                    override = [override]
+                setattr(self, field, override)
             except:
                 pass
 

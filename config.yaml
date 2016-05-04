@@ -25,5 +25,7 @@ log_filter:
 # by_node_id:
 #     3:
 #         env_vars:
-#             OPENRC: '/root/openrc'
-#             IPTABLES_STR: 'iptables -L'
+#             - 'OPENRC=/root/openrc'
+#             - 'IPTABLES_STR="iptables -S"'
+#         log_filter:
+#             include: 'messages'
