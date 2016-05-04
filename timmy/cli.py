@@ -40,6 +40,8 @@ def main(argv=None):
     parser.add_argument('-e', '--extended', action='store_true',
                         help='exec once by role cmdfiles')
     parser.add_argument('-c', '--cluster', help='cluster id')
+    parser.add_argument('-m', '--maxthreads', type=int, default=100,
+                        help="maximum simultaneous operations for commands")
     parser.add_argument('-l', '--logs',
                         help='collect logs from nodes',
                         action='store_true', dest='getlogs')
@@ -81,8 +83,8 @@ def main(argv=None):
                     )
     if not args.only_logs:
         n.get_node_file_list()
-        n.launch_ssh(config.outdir)
-        n.get_conf_files(config.outdir)
+        n.launch_ssh(config.outdir, args.maxthreads)
+        n.get_conf_files(config.outdir, args.maxthreads)
         n.create_archive_general(config.outdir,
                                  main_arc,
                                  60)
@@ -90,14 +92,14 @@ def main(argv=None):
         lf = '/tmp/timmy-logs.lock'
         lock = flock.FLock(lf)
         if lock.lock():
-           n.get_node_file_list()
-           n.calculate_log_size()
-           if n.is_enough_space(config.archives):
-               n.archive_logs(config.archives,
-                              config.compress_timeout,
-                              maxthreads=args.logs_maxthreads,
-                              fake=args.fake_logs)
-           lock.unlock()
+            # n.get_node_file_list()
+            n.calculate_log_size(args.maxthreads)
+            if n.is_enough_space(config.archives):
+                n.archive_logs(config.archives,
+                               config.compress_timeout,
+                               maxthreads=args.logs_maxthreads,
+                               fake=args.fake_logs)
+            lock.unlock()
         else:
             logging.warning('Unable to obtain lock %s, skipping "logs"-part' %
                             lf)

@@ -221,7 +221,7 @@ class Node(object):
         self.logs = result
 
     def logs_populate(self, timeout=5):
-        got_logs = False
+        self.got_logs = False
         for path in self.log_path:
             cmd = ("find '%s' -type f -exec du -b {} +" % (path))
             logging.info('logs_populate: node: %s, logs du-cmd: %s' %
@@ -237,13 +237,13 @@ class Node(object):
                               (self.node_id, self.ip, cmd, code, errs))
                 break
             if len(outs):
-                got_logs = True
+                self.got_logs = True
             for line in outs.split('\n'):
                 if '\t' in line:
                     size, filename = line.split('\t')
                     self.logs[filename] = int(size)
             logging.debug('logs_populate: logs: %s' % (self.logs))
-        return got_logs
+        return self
 
     def print_files(self):
         for k in self.files.keys():
@@ -463,7 +463,7 @@ class NodeManager(object):
                              str(self.cluster) == str(node.cluster)) or not
                             self.cluster) and node.online)
 
-    def launch_ssh(self, odir='info', timeout=15, fake=False):
+    def launch_ssh(self, odir='info', timeout=15, fake=False, maxthreads=100):
         lock = flock.FLock('/tmp/timmy-cmds.lock')
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
@@ -477,19 +477,21 @@ class NodeManager(object):
                                                      'odir': odir,
                                                      'fake': fake},
                                                key=key))
-        self.nodes = tools.run_batch(run_items, 100, dict_result=True)
+        self.nodes = tools.run_batch(run_items, maxthreads, dict_result=True)
         lock.unlock()
 
-    def calculate_log_size(self, timeout=15):
+    def calculate_log_size(self, timeout=15, maxthreads=100):
         total_size = 0
-        for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
-            if not node.logs_populate(5):
-                logging.warning("can't get log file list from node %s" %
-                                node.node_id)
-            else:
+        run_items = []
+        for key, node in self.nodes.items():
+            if self.exec_filter(node):
+                run_items.append(tools.RunItem(target=node.logs_populate,
+                                               args={'timeout': timeout},
+                                               key=key))
+        self.nodes = tools.run_batch(run_items, maxthreads, dict_result=True)
+        for key, node in self.nodes.items():
+            if self.exec_filter(node) and node.got_logs:
                 node.logs_filter()
-                logging.debug('filter logs: node-%s: filtered logs: %s' %
-                              (node.node_id, node.logs))
                 total_size += sum(node.logs.values())
         logging.info('Full log size on nodes(with fuel): %s bytes' %
                      total_size)
@@ -564,7 +566,8 @@ class NodeManager(object):
                 logging.error("create_archive_logs: Can't write to file %s" %
                               logslistfile)
                 continue
-            cmd = "tar --gzip --create --file - --null --files-from -"
+            cmd = ("tar --gzip --create --warning=no-file-changed "
+                   " --file - --null --files-from -")
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
                 cmd = ' '.join([cmd, "| python -c '%s'" % pythonslowpipe])
             args = {'cmd': cmd,

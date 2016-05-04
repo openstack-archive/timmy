@@ -57,6 +57,7 @@ class RunItem():
         self.queue = None
         self.key = key
 
+
 class SemaphoreProcess(Process):
     def __init__(self, semaphore, target, args, queue=None):
         Process.__init__(self)
