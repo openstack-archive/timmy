@@ -226,7 +226,12 @@ class Node(object):
     def logs_populate(self, timeout=5):
         self.got_logs = False
         for item in self.logs:
-            cmd = ("find '%s' -type f -exec du -b {} +" % item['path'])
+            if 'start' in item:
+                start = ' -newermt \\"$(date -d \'%s\')\\"' % item['start']
+            else:
+                start = ''
+            cmd = ("find '%s' -type f%s -exec du -b {} +" % (item['path'],
+                                                             start))
             logging.info('logs_populate: node: %s, logs du-cmd: %s' %
                          (self.node_id, cmd))
             outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -242,11 +247,11 @@ class Node(object):
             if len(outs):
                 self.got_logs = True
                 item['files'] = {}
-            for line in outs.split('\n'):
-                if '\t' in line:
-                    size, filename = line.split('\t')
-                    item['files'][filename] = int(size)
-            logging.debug('logs_populate: logs: %s' % (item['files']))
+                for line in outs.split('\n'):
+                    if '\t' in line:
+                        size, filename = line.split('\t')
+                        item['files'][filename] = int(size)
+                logging.debug('logs_populate: logs: %s' % (item['files']))
         return self
 
     def logs_dict(self):

@@ -16,7 +16,6 @@ timeout: 15
 compress_timeout: 3600
 logs:
     path: '/var/log'
-    include: 'kern.log'
     exclude: '[-_]\d{8}$|atop[-_]|\.gz$'
 # by_role:
 #     compute:
@@ -34,4 +33,4 @@ logs:
 #             - 'IPTABLES_STR="iptables -S"'
 #         logs:
 #             path: '/var/log'
-#             include: 'messages'
+#             start: '2016-05-04 22:00'
