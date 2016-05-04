@@ -14,18 +14,24 @@ soft_filter:
     status:  ['ready']
 timeout: 15
 compress_timeout: 3600
-log_path: '/var/log'
-log_filter:
-    include: '(.)*'
+logs:
+    path: '/var/log'
+    include: 'kern.log'
     exclude: '[-_]\d{8}$|atop[-_]|\.gz$'
 # by_role:
-#     contrail:
-#         log_filter:
-#             include: 'contrail'
+#     compute:
+#         logs:
+#             path: '/var/log'
+#             include: 'compute'
+#     ceph-osd:
+#         logs:
+#             path: '/var/log'
+#             include: 'ceph'
 # by_node_id:
-#     3:
+#     1:
 #         env_vars:
 #             - 'OPENRC=/root/openrc'
 #             - 'IPTABLES_STR="iptables -S"'
-#         log_filter:
+#         logs:
+#             path: '/var/log'
 #             include: 'messages'

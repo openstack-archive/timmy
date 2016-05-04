@@ -20,9 +20,8 @@ class Conf(object):
     compress_timeout = 3600
     archives = '/tmp/timmy/archives'
     cmds_archive = ''
-    log_path = '/var/log'
-    log_filter = {'include': '',
-                  'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
+    logs = { 'path': '/var/log',
+             'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
 
     def __init__(self, **entries):
         self.__dict__.update(entries)

@@ -35,8 +35,7 @@ varlogdir = '/var/log'
 
 class Node(object):
 
-    override_by_id = ['ssh_opts', 'env_vars', 'log_path', 'log_filter']
-    aggregate_by_role = ['log_path', 'log_filter']
+    conf_appendable = ['logs']
 
     def __init__(self, node_id, mac, cluster, roles, os_platform,
                  online, status, ip, conf):
@@ -53,31 +52,33 @@ class Node(object):
         self.logsize = 0
         self.flogs = {}
         self.mapcmds = {}
-        self.logs = {}
+        self.overridden = {}
         self.set_conf(conf)
 
     def override_conf(self, conf):
-        for field in Node.aggregate_by_role:
-            for role in self.roles:
-                try:
-                    override = conf.by_role[self.role][field]
-                    getattr(self, field).append(override)
-                except:
-                    pass
-        for field in Node.override_by_id:
-            try:
-                override = conf.by_node_id[self.node_id][field]
-                if field in Node.aggregate_by_role:
-                    override = [override]
-                setattr(self, field, override)
-            except:
-                pass
+
+        def apply_conf(subconf, replace=False):
+            for field, value in subconf.items():
+                if field in Node.conf_appendable:
+                    if field not in self.overridden or replace:
+                        setattr(self, field, [value])
+                        self.overridden[field] = True
+                    else:
+                        getattr(self, field).append(value)
+                else:
+                    setattr(self, field, value)
+
+        if hasattr(conf, 'by_role'):
+            for role, subconf in conf.by_role.items():
+                if role in self.roles:
+                    apply_conf(subconf)
+        if hasattr(conf, 'by_node_id') and self.node_id in conf.by_node_id:
+            apply_conf(conf.by_node_id[self.node_id], replace=True)
 
     def set_conf(self, conf):
         self.ssh_opts = conf.ssh_opts
         self.env_vars = conf.env_vars
-        self.log_path = list([conf.log_path])
-        self.log_filter = list([conf.log_filter])
+        self.logs = [conf.logs]
         self.timeout = conf.timeout
         self.override_conf(conf)
 
@@ -210,20 +211,22 @@ class Node(object):
                           (self.node_id, key, self.data[key]))
 
     def logs_filter(self):
-        result = {}
-        for re_pair in self.log_filter:
-            for f, s in self.logs.items():
-                if (('include' not in re_pair or
-                     re.search(re_pair['include'], f)) and
-                        ('exclude' not in re_pair or
-                         not re.search(re_pair['exclude'], f))):
+        for item in self.logs:
+            if 'files' not in item:
+                continue
+            result = {} 
+            for f, s in item['files'].items():
+                if (('include' not in item or
+                     re.search(item['include'], f)) and
+                        ('exclude' not in item or
+                         not re.search(item['exclude'], f))):
                     result[f] = s
-        self.logs = result
+            item['files'] = result
 
     def logs_populate(self, timeout=5):
         self.got_logs = False
-        for path in self.log_path:
-            cmd = ("find '%s' -type f -exec du -b {} +" % (path))
+        for item in self.logs:
+            cmd = ("find '%s' -type f -exec du -b {} +" % item['path'])
             logging.info('logs_populate: node: %s, logs du-cmd: %s' %
                          (self.node_id, cmd))
             outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -238,12 +241,24 @@ class Node(object):
                 break
             if len(outs):
                 self.got_logs = True
+                item['files'] = {}
             for line in outs.split('\n'):
                 if '\t' in line:
                     size, filename = line.split('\t')
-                    self.logs[filename] = int(size)
-            logging.debug('logs_populate: logs: %s' % (self.logs))
+                    item['files'][filename] = int(size)
+            logging.debug('logs_populate: logs: %s' % (item['files']))
         return self
+
+    def logs_dict(self):
+        result = {}
+        for item in self.logs:
+            if 'files' in item:
+                for f, s in item['files'].items():
+                    if f in result:
+                        result[f] = max(result[f], s)
+                    else:
+                        result[f] = s
+        return result
 
     def print_files(self):
         for k in self.files.keys():
@@ -490,9 +505,9 @@ class NodeManager(object):
                                                key=key))
         self.nodes = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key, node in self.nodes.items():
-            if self.exec_filter(node) and node.got_logs:
+            if node.got_logs:
                 node.logs_filter()
-                total_size += sum(node.logs.values())
+                total_size += sum(node.logs_dict().values())
         logging.info('Full log size on nodes(with fuel): %s bytes' %
                      total_size)
         self.alogsize = total_size / 1024
@@ -560,7 +575,7 @@ class NodeManager(object):
             txtfl.append(logslistfile)
             try:
                 with open(logslistfile, 'w') as llf:
-                    for filename in node.logs:
+                    for filename in node.logs_dict():
                         llf.write(filename+"\0")
             except:
                 logging.error("create_archive_logs: Can't write to file %s" %
