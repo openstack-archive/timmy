@@ -291,7 +291,7 @@ class Node(object):
         return templ.format(my_id, self, ','.join(self.roles))
 
 
-class Nodes(object):
+class NodeManager(object):
     """Class nodes """
 
     def __init__(self, cluster, extended, conf, filename=None):
