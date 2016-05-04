@@ -16,7 +16,7 @@
 #    under the License.
 
 import argparse
-from timmy import nodes
+from timmy.nodes import NodeManager
 import logging
 import sys
 import os
@@ -75,7 +75,7 @@ def main(argv=None):
     main_arc = os.path.join(config.archives, 'general.tar.bz2')
     if args.dest_file:
         main_arc = args.dest_file
-    n = nodes.Nodes(conf=config,
+    n = NodeManager(conf=config,
                     extended=args.extended,
                     cluster=args.cluster,
                     )
@@ -90,16 +90,14 @@ def main(argv=None):
         lf = '/tmp/timmy-logs.lock'
         lock = flock.FLock(lf)
         if lock.lock():
-            try:
-                n.get_node_file_list()
-                n.calculate_log_size()
-                if n.is_enough_space(config.archives):
-                    n.archive_logs(config.archives,
-                                   config.compress_timeout,
-                                   maxthreads=args.logs_maxthreads,
-                                   fake=args.fake_logs)
-            finally:
-                lock.unlock()
+           n.get_node_file_list()
+           n.calculate_log_size()
+           if n.is_enough_space(config.archives):
+               n.archive_logs(config.archives,
+                              config.compress_timeout,
+                              maxthreads=args.logs_maxthreads,
+                              fake=args.fake_logs)
+           lock.unlock()
         else:
             logging.warning('Unable to obtain lock %s, skipping "logs"-part' %
                             lf)

@@ -70,12 +70,22 @@ class SemaphoreProcess(Process):
             result = self.target(**self.args)
             if self.queue:
                 self.queue.put_nowait(result)
+        except Exception as error:
+            logging.exception(error)
+            if self.queue:
+                self.queue.put_nowait(error)
         finally:
             logging.debug('finished call: %s' % self.target)
             self.semaphore.release()
+            logging.debug('semaphore released')
 
 
 def run_batch(item_list, maxthreads, dict_result=False):
+    def cleanup():
+        logging.debug('cleanup processes')
+        for run_item in item_list:
+            if run_item.process:
+                run_item.process.terminate()
     semaphore = BoundedSemaphore(maxthreads)
     try:
         for run_item in item_list:
@@ -89,6 +99,10 @@ def run_batch(item_list, maxthreads, dict_result=False):
             p.start()
         for run_item in item_list:
             run_item.result = run_item.queue.get()
+            if isinstance(run_item.result, Exception):
+                logging.error('%s, exiting' % run_item.result)
+                cleanup()
+                sys.exit(42)
             run_item.process.join()
             run_item.process = None
         if dict_result:
@@ -99,9 +113,7 @@ def run_batch(item_list, maxthreads, dict_result=False):
         else:
             return [run_item.result for run_item in item_list]
     except KeyboardInterrupt:
-        for run_item in item_list:
-            if run_item.process:
-                run_item.process.terminate()
+        cleanup()
         raise KeyboardInterrupt()
 
 
@@ -198,35 +210,6 @@ def ssh_node(ip, command, ssh_opts=[], env_vars=[], timeout=15, filename=None,
            "trap 'kill $pid' 2; " + cmd + '&:; pid=$!; wait $!')
     outs, errs, code = launch_cmd(cmd, timeout)
     return outs, errs, code
-
-
-def killall_children(timeout):
-    cmd = 'ps -o pid --ppid %d --noheaders' % os.getpid()
-    out, errs, code = launch_cmd(cmd, timeout)
-    if code != 0:
-        logging.error("can't get pids")
-    else:
-        ppids = set(out.split())
-        pkill = []
-        haschildren = True
-        while haschildren:
-            parentspids = []
-            haschildren = False
-            for proc in ppids:
-                cmd = 'ps -o pid --ppid %s --noheaders' % proc
-                out, errs, code = launch_cmd(cmd, timeout)
-                if code != 0:
-                    pkill.append(proc)
-                else:
-                    parentspids += out.split()
-                    haschildren = True
-            ppids = parentspids
-        logging.info(pkill)
-        for p in pkill:
-            try:
-                os.kill(int(p), 2)
-            except:
-                logging.warning('could not kill %s' % p)
 
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):

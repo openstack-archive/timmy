@@ -179,34 +179,6 @@ class Node(object):
                                 " code: %s, error message: %s" %
                                 (self.node_id, self.ip, cmd, code, errs))
 
-    def du_logs(self, label, sshopts, odir='info', timeout=15):
-        logging.info('node:%s(%s), filelist: %s' %
-                     (self.node_id, self.ip, label))
-        cmd = 'du -b %s' % self.data[label].replace('\n', ' ')
-        logging.info('node: %s, logs du-cmd: %s' % (self.node_id, cmd))
-        outs, errs, code = tools.ssh_node(ip=self.ip,
-                                          command=cmd,
-                                          sshopts=sshopts,
-                                          sshvars='',
-                                          timeout=timeout)
-        if code != 0:
-            logging.warning("node: %s, ip: %s, cmdfile: %s, "
-                            "code: %s, error message: %s" %
-                            (self.node_id, self.ip, label, code, errs))
-        if code == 124:
-            logging.error("node: %s, ip: %s, command: %s, "
-                          "timeout code: %s, error message: %s" %
-                          (self.node_id, self.ip, label, code, errs))
-            # mark node as offline
-            self.online = False
-        if self.online:
-            size = 0
-            for s in outs.splitlines():
-                size += int(s.split()[0])
-            self.logsize = size
-            logging.info("node: %s, ip: %s, size: %s" %
-                         (self.node_id, self.ip, self.logsize))
-
     def get_files(self, label, odir='info', timeout=15):
         logging.info('node:%s(%s), filelist: %s' %
                      (self.node_id, self.ip, label))
@@ -505,10 +477,8 @@ class NodeManager(object):
                                                      'odir': odir,
                                                      'fake': fake},
                                                key=key))
-        try:
-            self.nodes = tools.run_batch(run_items, 100, dict_result=True)
-        finally:
-            lock.unlock()
+        self.nodes = tools.run_batch(run_items, 100, dict_result=True)
+        lock.unlock()
 
     def calculate_log_size(self, timeout=15):
         total_size = 0
@@ -619,16 +589,14 @@ class NodeManager(object):
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "files"-part')
             return ''
-        try:
-            label = fkey
-            run_items = []
-            for n in [n for n in self.nodes.values() if self.exec_filter(n)]:
-                run_items.append(tools.RunItem(target=n.get_files,
-                                               args={'label': label,
-                                                     'odir': odir}))
-            tools.run_batch(run_items, 10)
-        finally:
-            lock.unlock()
+        label = fkey
+        run_items = []
+        for n in [n for n in self.nodes.values() if self.exec_filter(n)]:
+            run_items.append(tools.RunItem(target=n.get_files,
+                                           args={'label': label,
+                                                 'odir': odir}))
+        tools.run_batch(run_items, 10)
+        lock.unlock()
 
 
 def main(argv=None):
