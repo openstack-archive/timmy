@@ -1,8 +1,7 @@
-import yaml
 import logging
 import sys
 from nodefilter import NodeFilter
-
+from tools import load_yaml_file
 
 class Conf(object):
     """Configuration parameters"""
@@ -32,25 +31,8 @@ class Conf(object):
 
     @staticmethod
     def load_conf(filename):
-        try:
-            with open(filename, 'r') as f:
-                conf = yaml.load(f)
-            return Conf(**conf)
-        except IOError as e:
-            logging.error("load_conf: I/O error(%s): %s" %
-                          (e.errno, e.strerror))
-            sys.exit(1)
-        except ValueError:
-            logging.error("load_conf: Could not convert data")
-            sys.exit(1)
-        except yaml.parser.ParserError as e:
-            logging.error("load_conf: Could not parse %s:\n%s" %
-                          (filename, str(e)))
-            sys.exit(1)
-        except:
-            logging.error("load_conf: Unexpected error: %s" %
-                          sys.exc_info()[0])
-            sys.exit(1)
+        conf = load_yaml_file(filename)
+        return Conf(**conf)
 
 
 if __name__ == '__main__':

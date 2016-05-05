@@ -25,6 +25,7 @@ import sys
 import threading
 from multiprocessing import Process, Queue, BoundedSemaphore
 import subprocess
+import yaml
 
 
 slowpipe = '''
@@ -135,6 +136,27 @@ def get_dir_structure(rootdir):
         logging.error('failed to create list of the directory: %s' % rootdir)
         sys.exit(1)
     return dir
+
+
+def load_yaml_file(filename):
+    try:
+        with open(filename, 'r') as f:
+            return yaml.load(f)
+    except IOError as e:
+        logging.error("load_conf: I/O error(%s): %s" %
+                      (e.errno, e.strerror))
+        sys.exit(1)
+    except ValueError:
+        logging.error("load_conf: Could not convert data")
+        sys.exit(1)
+    except yaml.parser.ParserError as e:
+        logging.error("load_conf: Could not parse %s:\n%s" %
+                      (filename, str(e)))
+        sys.exit(1)
+    except:
+        logging.error("load_conf: Unexpected error: %s" %
+                      sys.exc_info()[0])
+        sys.exit(1)
 
 
 def mdir(directory):
