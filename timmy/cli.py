@@ -92,8 +92,10 @@ def main(argv=None):
         lf = '/tmp/timmy-logs.lock'
         lock = flock.FLock(lf)
         if lock.lock():
-            # n.get_node_file_list()
-            n.calculate_log_size(args.maxthreads)
+            size = n.calculate_log_size(args.maxthreads)
+            if size == 0:
+                logging.warning('No logs to collect.')
+                return
             if n.is_enough_space(config.archives):
                 n.archive_logs(config.archives,
                                config.compress_timeout,

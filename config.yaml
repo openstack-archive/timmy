@@ -26,6 +26,7 @@ logs:
 #         logs:
 #             path: '/var/log'
 #             include: 'ceph'
+#             start: '2016-05-05'
 # by_node_id:
 #     1:
 #         env_vars:
@@ -33,4 +34,4 @@ logs:
 #             - 'IPTABLES_STR="iptables -S"'
 #         logs:
 #             path: '/var/log'
-#             start: '2016-05-04 22:00'
+#             start: '2016-05-04 22:00:01'

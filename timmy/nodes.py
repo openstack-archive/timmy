@@ -210,21 +210,13 @@ class Node(object):
             logging.debug('node: %s, key: %s, data:\n%s' %
                           (self.node_id, key, self.data[key]))
 
-    def logs_filter(self):
-        for item in self.logs:
-            if 'files' not in item:
-                continue
-            result = {} 
-            for f, s in item['files'].items():
-                if (('include' not in item or
-                     re.search(item['include'], f)) and
-                        ('exclude' not in item or
-                         not re.search(item['exclude'], f))):
-                    result[f] = s
-            item['files'] = result
-
     def logs_populate(self, timeout=5):
-        self.got_logs = False
+        def filter_by_re(item, string):
+            return (('include' not in item or
+                     re.search(item['include'], string)) and
+                    ('exclude' not in item or not
+                     re.search(item['exclude'], string)))
+
         for item in self.logs:
             if 'start' in item:
                 start = ' -newermt \\"$(date -d \'%s\')\\"' % item['start']
@@ -245,12 +237,12 @@ class Node(object):
                               (self.node_id, self.ip, cmd, code, errs))
                 break
             if len(outs):
-                self.got_logs = True
                 item['files'] = {}
                 for line in outs.split('\n'):
                     if '\t' in line:
-                        size, filename = line.split('\t')
-                        item['files'][filename] = int(size)
+                        size, f = line.split('\t')
+                        if filter_by_re(item, f):
+                            item['files'][filename] = int(size)
                 logging.debug('logs_populate: logs: %s' % (item['files']))
         return self
 
@@ -509,13 +501,12 @@ class NodeManager(object):
                                                args={'timeout': timeout},
                                                key=key))
         self.nodes = tools.run_batch(run_items, maxthreads, dict_result=True)
-        for key, node in self.nodes.items():
-            if node.got_logs:
-                node.logs_filter()
-                total_size += sum(node.logs_dict().values())
+        for node in self.nodes.values():
+            total_size += sum(node.logs_dict().values())
         logging.info('Full log size on nodes(with fuel): %s bytes' %
                      total_size)
         self.alogsize = total_size / 1024
+        return self.alogsize
 
     def is_enough_space(self, directory, coefficient=1.2):
         tools.mdir(directory)
@@ -572,6 +563,10 @@ class NodeManager(object):
         pythonslowpipe = tools.slowpipe % speed
         run_items = []
         for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
+            if not node.logs_dict():
+                logging.info(("create_archive_logs: node %s - no logs "
+                             "to collect") % node.node_id)
+                continue
             node.archivelogsfile = os.path.join(outdir,
                                                 'logs-node-%s.tar.gz' %
                                                 str(node.node_id))
