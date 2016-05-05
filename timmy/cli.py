@@ -62,7 +62,7 @@ def main(argv=None):
                         help="be verbose",
                         action="store_true")
     args = parser.parse_args(argv[1:])
-    loglevel = logging.WARNING
+    loglevel = logging.ERROR
     if args.verbose:
         if args.debug:
             loglevel = logging.DEBUG
