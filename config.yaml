@@ -10,6 +10,7 @@ env_vars:
     - 'IPTABLES_STR="iptables -nvL"'
 fuelip:  '127.0.0.1'
 rqdir: './rq'
+rqfile: './rq.yaml'
 soft_filter:
     status:  ['ready']
 timeout: 15

@@ -105,6 +105,28 @@ class Node(object):
         logging.debug('set_files:\nkey: %s, node: %s, file_list: %s' %
                       (key, self.node_id, self.files[key]))
 
+    def set_files_from_yaml(self, dirname, key, ds, version):
+        files = []
+        dfs = 'default'
+        print(ds)
+        for role in self.roles:
+            if 'by-role' in ds[key] and role in ds[key]['by-role']:
+                for f in ds[key]['by-role'][role]:
+                    files += [os.path.join(dirname, key, key, f)]
+            if (('release-'+version in ds[key]) and
+                    (role in ds[key]['release-'+version])):
+                for f in ds[key]['release-'+version][role]:
+                        files += [os.path.join(dirname, key, key, f)]
+            if 'by-os' in ds[key]:
+                for f in ds[key]['by-os'][self.os_platform]:
+                    files += [os.path.join(dirname, key, key, f)]
+            if dfs in ds[key]:
+                for f in ds[key][dfs]:
+                    files += [os.path.join(dirname, key, key, f)]
+        self.files[key] = sorted(set(files))
+        logging.debug('set_files:\nkey: %s, node: %s, file_list: %s' %
+                      (key, self.node_id, self.files[key]))
+
     def checkos(self, filename):
         bname = str(os.path.basename(filename))
         logging.debug('check os: node: %s, filename %s' %
@@ -284,7 +306,7 @@ class NodeManager(object):
             logging.error("directory %s doesn't exist" % (self.dirname))
             sys.exit(1)
         dn = os.path.basename(self.dirname)
-        self.files = tools.get_dir_structure(conf.rqdir)[dn]
+        self.files = tools.load_yaml_file(conf.rqfile)
         if (conf.fuelip is None) or (conf.fuelip == ""):
             logging.error('looks like fuelip is not set(%s)' % conf.fuelip)
             sys.exit(7)
@@ -440,7 +462,7 @@ class NodeManager(object):
             #  ###   case
             roles = []
             for node in self.nodes.values():
-                node.set_files(self.dirname, key, self.files, self.version)
+                node.set_files_from_yaml(self.dirname, key, self.files, self.version)
                 # once-by-role functionality
                 if self.extended and key == ckey and node.online:
                     for role in node.roles:

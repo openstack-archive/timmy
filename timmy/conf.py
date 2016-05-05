@@ -16,6 +16,7 @@ class Conf(object):
     outdir = '/tmp/timmy/info'
     timeout = 15
     rqdir = '/usr/share/timmy/rq'
+    rqfile = '/usr/share/timmy/rq.yaml'
     compress_timeout = 3600
     archives = '/tmp/timmy/archives'
     cmds_archive = ''

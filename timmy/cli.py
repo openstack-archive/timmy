@@ -77,36 +77,36 @@ def main(argv=None):
     main_arc = os.path.join(config.archives, 'general.tar.bz2')
     if args.dest_file:
         main_arc = args.dest_file
-    n = NodeManager(conf=config,
+    nm = NodeManager(conf=config,
                     extended=args.extended,
                     cluster=args.cluster,
                     )
     if not args.only_logs:
-        n.get_node_file_list()
-        n.launch_ssh(config.outdir, args.maxthreads)
-        n.get_conf_files(config.outdir, args.maxthreads)
-        n.create_archive_general(config.outdir,
-                                 main_arc,
-                                 60)
+        nm.get_node_file_list()
+        nm.launch_ssh(config.outdir, args.maxthreads)
+        nm.get_conf_files(config.outdir, args.maxthreads)
+        nm.create_archive_general(config.outdir,
+                                  main_arc,
+                                  60)
     if args.only_logs or args.getlogs:
         lf = '/tmp/timmy-logs.lock'
         lock = flock.FLock(lf)
         if lock.lock():
-            size = n.calculate_log_size(args.maxthreads)
+            size = nm.calculate_log_size(args.maxthreads)
             if size == 0:
                 logging.warning('No logs to collect.')
                 return
-            if n.is_enough_space(config.archives):
-                n.archive_logs(config.archives,
-                               config.compress_timeout,
-                               maxthreads=args.logs_maxthreads,
-                               fake=args.fake_logs)
+            if nm.is_enough_space(config.archives):
+                nm.archive_logs(config.archives,
+                                config.compress_timeout,
+                                maxthreads=args.logs_maxthreads,
+                                fake=args.fake_logs)
             lock.unlock()
         else:
             logging.warning('Unable to obtain lock %s, skipping "logs"-part' %
                             lf)
-    logging.info("Nodes:\n%s" % n)
-    print(n)
+    logging.info("Nodes:\n%s" % nm)
+    print(nm)
     return 0
 
 if __name__ == '__main__':
