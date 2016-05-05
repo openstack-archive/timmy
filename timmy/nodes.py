@@ -279,13 +279,6 @@ class Node(object):
                         result[f] = s
         return result
 
-    def print_files(self):
-        for k in self.files.keys():
-            print('key: %s' % (k))
-            for f in self.files[k]:
-                print(f)
-            print('\n')
-
     def __str__(self):
         if self.status in ['ready', 'discover'] and self.online:
             my_id = self.node_id
