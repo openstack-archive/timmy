@@ -74,13 +74,13 @@ def main(argv=None):
     config = Conf()
     if args.config:
         config = Conf.load_conf(args.config)
-    main_arc = os.path.join(config.archives, 'general.tar.bz2')
+    main_arc = os.path.join(config.archives, 'general.tar.gz')
     if args.dest_file:
         main_arc = args.dest_file
     nm = NodeManager(conf=config,
-                    extended=args.extended,
-                    cluster=args.cluster,
-                    )
+                     extended=args.extended,
+                     cluster=args.cluster,
+                     )
     if not args.only_logs:
         nm.get_node_file_list()
         nm.launch_ssh(config.outdir, args.maxthreads)

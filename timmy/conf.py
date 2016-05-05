@@ -1,7 +1,6 @@
-import logging
-import sys
 from nodefilter import NodeFilter
 from tools import load_yaml_file
+
 
 class Conf(object):
     """Configuration parameters"""
@@ -20,8 +19,8 @@ class Conf(object):
     compress_timeout = 3600
     archives = '/tmp/timmy/archives'
     cmds_archive = ''
-    logs = { 'path': '/var/log',
-             'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
+    logs = {'path': '/var/log',
+            'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
 
     def __init__(self, **entries):
         self.__dict__.update(entries)
@@ -37,5 +36,6 @@ class Conf(object):
 
 
 if __name__ == '__main__':
+    import yaml
     conf = Conf.load_conf('config.yaml')
     print(yaml.dump(conf))

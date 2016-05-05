@@ -108,7 +108,6 @@ class Node(object):
     def set_files_from_yaml(self, dirname, key, ds, version):
         files = []
         dfs = 'default'
-        print(ds)
         for role in self.roles:
             if 'by-role' in ds[key] and role in ds[key]['by-role']:
                 for f in ds[key]['by-role'][role]:
@@ -187,7 +186,8 @@ class Node(object):
                     logging.error("exec_cmd: can't write to file %s" % dfile)
         return self
 
-    def exec_simple_cmd(self, cmd, infile, outfile, timeout=15, fake=False):
+    def exec_simple_cmd(self, cmd, infile, outfile, timeout=15,
+                        fake=False, ok_codes=[0, ]):
         logging.info('node:%s(%s), exec: %s' % (self.node_id, self.ip, cmd))
         if not fake:
             outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -197,7 +197,7 @@ class Node(object):
                                               timeout=timeout,
                                               outputfile=outfile,
                                               inputfile=infile)
-            if code != 0:
+            if code not in ok_codes:
                 logging.warning("node: %s, ip: %s, cmdfile: %s,"
                                 " code: %s, error message: %s" %
                                 (self.node_id, self.ip, cmd, code, errs))
@@ -264,7 +264,7 @@ class Node(object):
                     if '\t' in line:
                         size, f = line.split('\t')
                         if filter_by_re(item, f):
-                            item['files'][filename] = int(size)
+                            item['files'][f] = int(size)
                 logging.debug('logs_populate: logs: %s' % (item['files']))
         return self
 
@@ -305,7 +305,6 @@ class NodeManager(object):
         if (not os.path.exists(self.dirname)):
             logging.error("directory %s doesn't exist" % (self.dirname))
             sys.exit(1)
-        dn = os.path.basename(self.dirname)
         self.files = tools.load_yaml_file(conf.rqfile)
         if (conf.fuelip is None) or (conf.fuelip == ""):
             logging.error('looks like fuelip is not set(%s)' % conf.fuelip)
@@ -462,7 +461,10 @@ class NodeManager(object):
             #  ###   case
             roles = []
             for node in self.nodes.values():
-                node.set_files_from_yaml(self.dirname, key, self.files, self.version)
+                node.set_files_from_yaml(self.dirname,
+                                         key,
+                                         self.files,
+                                         self.version)
                 # once-by-role functionality
                 if self.extended and key == ckey and node.online:
                     for role in node.roles:
@@ -550,7 +552,7 @@ class NodeManager(object):
             return True
 
     def create_archive_general(self, directory, outfile, timeout):
-        cmd = "tar jcf '%s' -C %s %s" % (outfile, directory, ".")
+        cmd = "tar zcf '%s' -C %s %s" % (outfile, directory, ".")
         tools.mdir(self.conf.archives)
         logging.debug("create_archive_general: cmd: %s" % cmd)
         outs, errs, code = tools.launch_cmd(command=cmd,
@@ -598,19 +600,20 @@ class NodeManager(object):
             try:
                 with open(logslistfile, 'w') as llf:
                     for filename in node.logs_dict():
-                        llf.write(filename+"\0")
+                        llf.write(filename.lstrip('/')+"\0")
             except:
                 logging.error("create_archive_logs: Can't write to file %s" %
                               logslistfile)
                 continue
-            cmd = ("tar --gzip --create --warning=no-file-changed "
+            cmd = ("tar --gzip -C / --create --warning=no-file-changed "
                    " --file - --null --files-from -")
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
                 cmd = ' '.join([cmd, "| python -c '%s'" % pythonslowpipe])
             args = {'cmd': cmd,
                     'infile': logslistfile,
                     'outfile': node.archivelogsfile,
-                    'timeout': timeout}
+                    'timeout': timeout,
+                    'ok_codes': [0, 1]}
             run_items.append(tools.RunItem(target=node.exec_simple_cmd,
                                            args=args))
         tools.run_batch(run_items, maxthreads)
