@@ -154,7 +154,7 @@ class Node(object):
         logging.debug('add files:\nnode: %s, key: %s, files:\n%s' %
                       (self.node_id, key, self.files[key]))
 
-    def exec_cmd(self, label, odir='info', fake=False):
+    def exec_cmd(self, label, odir='info', fake=False, ok_codes=[0, ]):
         sn = 'node-%s' % self.node_id
         cl = 'cluster-%s' % self.cluster
         logging.debug('%s/%s/%s/%s' % (odir, label, cl, sn))
@@ -170,10 +170,10 @@ class Node(object):
                                                   timeout=self.timeout,
                                                   command=''
                                                   )
-                if code != 0:
-                    logging.error("node: %s, ip: %s, cmdfile: %s,"
-                                  " code: %s, error message: %s" %
-                                  (self.node_id, self.ip, f, code, errs))
+                if code not in ok_codes:
+                    logging.warning("node: %s, ip: %s, cmdfile: %s,"
+                                    " code: %s, error message: %s" %
+                                    (self.node_id, self.ip, f, code, errs))
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                  (self.node_id, self.ip, os.path.basename(f)))
             logging.info('outfile: %s' % dfile)
