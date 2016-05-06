@@ -39,7 +39,7 @@ def main(argv=None):
                         help='output archive file')
     parser.add_argument('-e', '--extended', action='store_true',
                         help='exec once by role cmdfiles')
-    parser.add_argument('-c', '--cluster', help='cluster id')
+    parser.add_argument('-c', '--cluster', help='env id', type=int)
     parser.add_argument('-m', '--maxthreads', type=int, default=100,
                         help="maximum simultaneous operations for commands")
     parser.add_argument('-l', '--logs',
@@ -74,13 +74,13 @@ def main(argv=None):
     config = Conf()
     if args.config:
         config = Conf.load_conf(args.config)
+    if args.cluster is not None:
+        config.soft_filter.clusters = [args.cluster]
     main_arc = os.path.join(config.archives, 'general.tar.gz')
     if args.dest_file:
         main_arc = args.dest_file
     nm = NodeManager(conf=config,
-                     extended=args.extended,
-                     cluster=args.cluster,
-                     )
+                     extended=args.extended)
     if not args.only_logs:
         nm.launch_ssh(config.outdir, args.maxthreads)
         nm.get_conf_files(config.outdir, args.maxthreads)

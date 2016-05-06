@@ -43,9 +43,9 @@ class Node(object):
 
     def __init__(self, node_id, mac, cluster, roles, os_platform,
                  online, status, ip, conf):
-        self.cluster = cluster
         self.node_id = node_id
         self.mac = mac
+        self.cluster = cluster
         self.roles = roles
         self.os_platform = os_platform
         self.online = online
@@ -60,16 +60,29 @@ class Node(object):
         self.filtered_out = False
         self.apply_conf(conf)
 
+    def __str__(self):
+        if not self.filtered_out:
+            my_id = self.node_id
+        else:
+            my_id = '#' + str(self.node_id)
+
+        templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform} '
+        templ += '{2} {1.online} {1.status}'
+        return templ.format(my_id, self, ','.join(self.roles))
+
     def apply_conf(self, conf):
         def __list(v):
             return v if type(v) == list else [v]
 
-        def apply_subset(subconf, replace=False):
+        def apply_subset(subconf, replace=False, default=False):
             for field, value in subconf.items():
                 if field in Node.conf_appendable:
-                    if field not in self.overridden or replace:
+                    if (replace or
+                        (field not in Node.conf_keep_default and
+                         field not in self.overridden)):
                         setattr(self, field, deepcopy(__list(value)))
-                        self.overridden[field] = True
+                        if not default:
+                            self.overridden[field] = True
                     else:
                         getattr(self, field).extend(deepcopy(__list(value)))
                 else:
@@ -86,7 +99,7 @@ class Node(object):
         if hasattr(conf, pri_sec):
             pri_conf = getattr(conf, pri_sec)
         # apply defaults
-        apply_subset(defaults_conf, replace=True)
+        apply_subset(defaults_conf, default=True)
         # apply overrides
         for section in override:
             attr = section[len(pre):]
@@ -248,22 +261,11 @@ class Node(object):
                         result[f] = s
         return result
 
-    def __str__(self):
-        if not self.filtered_out:
-            my_id = self.node_id
-        else:
-            my_id = '#' + str(self.node_id)
-
-        templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform} '
-        templ += '{2} {1.online} {1.status}'
-        return templ.format(my_id, self, ','.join(self.roles))
-
 
 class NodeManager(object):
     """Class nodes """
 
-    def __init__(self, cluster, extended, conf, filename=None):
-        self.cluster = cluster
+    def __init__(self, extended, conf, filename=None):
         self.extended = extended
         self.conf = conf
         self.rqdir = conf.rqdir.rstrip('/')
@@ -290,12 +292,10 @@ class NodeManager(object):
 
     def __str__(self):
         s = "#node-id, cluster, admin-ip, mac, os, roles, online, status\n"
-        for node in sorted(self.nodes.values(), key=lambda x: x.node_id):
-            if (self.cluster and (str(self.cluster) != str(node.cluster)) and
-                    node.cluster != 0):
-                s += "#%s\n" % str(node)
-            else:
-                s += "%s\n" % str(node)
+        return s+'\n'.join([str(n) for n in self.sorted_nodes()])
+
+    def sorted_nodes(self):
+        s = [n for n in sorted(self.nodes.values(), key=lambda x: x.node_id)]
         return s
 
     def import_rq(self, conf):
@@ -344,8 +344,9 @@ class NodeManager(object):
                 roles = node_roles
             else:
                 roles = str(node_roles).split(', ')
-            keys = "cluster mac os_platform status online ip".split()
+            keys = "mac os_platform status online ip".split()
             params = {'node_id': int(node_data['id']),
+                      'cluster': int(node_data['cluster']),
                       'roles': roles,
                       'conf': conf}
             for key in keys:
@@ -399,7 +400,7 @@ class NodeManager(object):
                 ((not f.node_ids) or (node.node_id in f.node_ids)) and
                 ((not f.online) or (node.online)) and
                 (((not f.clusters) or node.cluster in f.clusters) or
-                 (node.cluster == 0 and f == self.conf.hard_filter))) 
+                 (node.cluster == 0 and f == self.conf.hard_filter)))
 
     def launch_ssh(self, odir='info', timeout=15, fake=False, maxthreads=100):
         lock = flock.FLock('/tmp/timmy-cmds.lock')
@@ -413,7 +414,9 @@ class NodeManager(object):
                                                args={'odir': odir,
                                                      'fake': fake},
                                                key=key))
-        self.nodes = tools.run_batch(run_items, maxthreads, dict_result=True)
+        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        for key in result:
+            self.nodes[key] = result[key]
         lock.unlock()
 
     def calculate_log_size(self, timeout=15, maxthreads=100):
@@ -424,7 +427,9 @@ class NodeManager(object):
                 run_items.append(tools.RunItem(target=node.logs_populate,
                                                args={'timeout': timeout},
                                                key=key))
-        self.nodes = tools.run_batch(run_items, maxthreads, dict_result=True)
+        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        for key in result:
+            self.nodes[key] = result[key]
         for node in self.nodes.values():
             total_size += sum(node.logs_dict().values())
         logging.info('Full log size on nodes(with fuel): %s bytes' %
