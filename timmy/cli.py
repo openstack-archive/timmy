@@ -82,7 +82,6 @@ def main(argv=None):
                      cluster=args.cluster,
                      )
     if not args.only_logs:
-        nm.get_node_file_list()
         nm.launch_ssh(config.outdir, args.maxthreads)
         nm.get_conf_files(config.outdir, args.maxthreads)
         nm.create_archive_general(config.outdir,

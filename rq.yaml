@@ -1,53 +1,53 @@
 files:
-  by-role:
+  by_role:
     fuel: [etc-nailgun, etc-fuel]
     ceph-osd: [etc-ceph]
     cinder: [etc-cinder]
     compute: [etc-nova, etc-libvirt]
     controller: [etc-glance, etc-haproxy, etc-heat, etc-ceph-controller, etc-nova,
       etc-keystone, etc-neutron, etc-mysql]
-  by-os:
+  by_os_platform:
     centos: [yum]
     ubuntu: [etc-apt]
-  files: [etc-nailgun, etc-glance, etc-haproxy, etc-fuel, etc-heat, etc-ceph-controller,
-    etc-nova, etc-keystone, etc-ceph, etc-neutron, etc-mysql, etc-libvirt, etc-cinder]
 cmds:
-  release-6.1:
-    fuel: [fuel-notifications]
-  release-7.0:
-    fuel: [fuel-notifications]
-  release-5.1.1:
-    fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
-  by-role:
+  by_release:
+    4.1.1:
+      fuel: [fuel-postgres-dump]
+    5.0.1:
+      fuel: [fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+    6.0:
+      compute: [ipset-save, ipset-list]
+      controller: [ipset-save, ipset-list]
+    6.1:
+      fuel: [fuel-notifications]
+    7.0:
+      fuel: [fuel-notifications]
+    5.1.1:
+      fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+    8.0:
+      fuel: [fuel-notifications]
+  by_role:
     fuel: [fuel-release, fuel-task-list, fuel-environment-list]
     cinder: [ovs-vsctl-show, cinder-manage]
     compute: [compute-iptables-nat, ovs-dump-flows, compute-iptables, ovs-ofctl-show-bridges,
       ovs-vsctl-show]
     controller: [rabbitmqctl-list-queues, nova-manage-service-list, iptables-namespaces,
       rabbitmqctl-cluster-status, crm-resource-status, ovs-dump-flows, neutron-agent-list,
-      mysql-status, ceph_mon_status, ovs-ofctl-show-bridges, rabbitmqctl_list_connections,
+      mysql-status, ceph-mon-status, ovs-ofctl-show-bridges, rabbitmqctl-list-connections,
       ovs-vsctl-show, rabbitmqctl-report, mysql-size, rabbitmqctl-status, crm-resource-list,
       cinder-manage]
     mongo: [mongo-replication-status, ipa, mongo-replica-conf, mongo-status, ovs-vsctl-show]
-  once-by-role:
+  once_by_role:
     ceph-osd: [ceph-df, ceph-osd-status, ceph-osd-tree, ceph-pg-dump, ovs-vsctl-show,
       ceph-health-detail]
     controller: [neutron-router-list, neutron-net-list, neutron-subnet-list, keystone-endpoint-list,
       cinder-list, nova-list, nova-manage-vm-list, keystone-tenant-list, nova-usage-list,
       neutron-port-list]
-  release-4.1.1:
-    fuel: [fuel-postgres-dump]
-  release-8.0:
-    fuel: [fuel-notifications]
-  release-5.0.1:
-    fuel: [fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+  by_os_platform:
+      ubuntu: [dmesg-t-ubuntu, packages-ubuntu]
+      centos: [dmesg-centos, packages-centos]
   default:
-    [.packages-ubuntu, ip-ne, iptables, ipnetns, ss, ipa, iptables-nat,
-    .dmesg-t-ubuntu, df-m, services-status, .dmesg-centos, cpuinfo, df-i, .packages-centos,
-    ipro]
-  release-6.0:
-    compute: [ipset-save, ipset-list]
-    controller: [ipset-save, ipset-list]
+    [ip-ne, iptables, ipnetns, ss, ipa, iptables-nat, df-m, services-status, cpuinfo, df-i, ipro]
 #  by-os:
 #    centos: []
 #    ubuntu: []
