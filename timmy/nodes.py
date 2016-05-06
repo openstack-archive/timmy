@@ -402,7 +402,7 @@ class NodeManager(object):
             for fn in fnames:
                 node_v = w_list(getattr(node, fn))
                 filter_v = w_list(f[fn])
-                checks.append(set(node_v).intersection(filter_v))
+                checks.append(not set(node_v).isdisjoint(filter_v))
             return all(checks)
 
     def launch_ssh(self, odir='info', timeout=15, fake=False, maxthreads=100):
