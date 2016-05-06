@@ -75,7 +75,7 @@ def main(argv=None):
     if args.config:
         config = Conf.load_conf(args.config)
     if args.cluster is not None:
-        config.soft_filter.clusters = [args.cluster]
+        config.soft_filter['cluster'] = [args.cluster]
     main_arc = os.path.join(config.archives, 'general.tar.gz')
     if args.dest_file:
         main_arc = args.dest_file

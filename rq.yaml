@@ -12,20 +12,27 @@ files:
 cmds:
   by_release:
     4.1.1:
-      fuel: [fuel-postgres-dump]
+      by_role:
+        fuel: [fuel-postgres-dump]
     5.0.1:
-      fuel: [fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+      by_role:
+        fuel: [fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
     6.0:
-      compute: [ipset-save, ipset-list]
-      controller: [ipset-save, ipset-list]
+      by_role:
+        compute: [ipset-save, ipset-list]
+        controller: [ipset-save, ipset-list]
     6.1:
-      fuel: [fuel-notifications]
+      by_role:
+        fuel: [fuel-notifications]
     7.0:
-      fuel: [fuel-notifications]
+      by_role:
+        fuel: [fuel-notifications]
     5.1.1:
-      fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+      by_role:
+        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
     8.0:
-      fuel: [fuel-notifications]
+      by_role:
+        fuel: [fuel-notifications]
   by_role:
     fuel: [fuel-release, fuel-task-list, fuel-environment-list]
     cinder: [ovs-vsctl-show, cinder-manage]

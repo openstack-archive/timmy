@@ -13,6 +13,8 @@ rqdir: './rq'
 rqfile: './rq.yaml'
 soft_filter:
     status:  ['ready']
+    online: True
+    roles: ['compute']
 timeout: 15
 compress_timeout: 3600
 logs:
@@ -28,7 +30,7 @@ logs:
 #             path: '/var/log'
 #             include: 'ceph'
 #             start: '2016-05-05'
-# by_node_id:
+# by_id:
 #     1:
 #         env_vars:
 #             - 'OPENRC=/root/openrc'

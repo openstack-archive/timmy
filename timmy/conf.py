@@ -6,9 +6,8 @@ class Conf(object):
     """Configuration parameters"""
 
     def __init__(self, **entries):
-        self.hard_filter = NodeFilter()
-        self.soft_filter = NodeFilter(statuses=['ready','discover'],
-                                 online=True)
+        self.hard_filter = {}
+        self.soft_filter = {'status': ['ready','discover'], 'online': True}
         self.ssh_opts = ['-oConnectTimeout=2', '-oStrictHostKeyChecking=no',
                     '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
                     '-lroot', '-oBatchMode=yes']
@@ -24,10 +23,6 @@ class Conf(object):
         self.logs = {'path': '/var/log',
                 'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
         self.__dict__.update(entries)
-        if 'hard_filter' in entries:
-            self.hard_filter = NodeFilter(**entries['hard_filter'])
-        if 'soft_filter' in entries:
-            self.soft_filter = NodeFilter(**entries['soft_filter'])
 
     @staticmethod
     def load_conf(filename):

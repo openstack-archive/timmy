@@ -278,5 +278,9 @@ def free_space(destdir, timeout):
     return outs, errs, code
 
 
+# wrap non-list into list
+def w_list(value):
+    return value if type(value) == list else [value]
+
 if __name__ == '__main__':
     exit(0)

@@ -26,6 +26,7 @@ import logging
 import sys
 import re
 import tools
+from tools import w_list
 from copy import deepcopy
 
 ckey = 'cmds'
@@ -39,11 +40,11 @@ class Node(object):
     conf_appendable = ['logs','cmds','files']
     conf_keep_default = ['cmds','files']
     conf_section_prefix = 'by_'
-    conf_priority_section = conf_section_prefix + 'node_id'
+    conf_priority_section = conf_section_prefix + 'id'
 
-    def __init__(self, node_id, mac, cluster, roles, os_platform,
+    def __init__(self, id, mac, cluster, roles, os_platform,
                  online, status, ip, conf):
-        self.node_id = node_id
+        self.id = id
         self.mac = mac
         self.cluster = cluster
         self.roles = roles
@@ -62,17 +63,15 @@ class Node(object):
 
     def __str__(self):
         if not self.filtered_out:
-            my_id = self.node_id
+            my_id = self.id
         else:
-            my_id = '#' + str(self.node_id)
+            my_id = '#' + str(self.id)
 
         templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform} '
         templ += '{2} {1.online} {1.status}'
         return templ.format(my_id, self, ','.join(self.roles))
 
     def apply_conf(self, conf):
-        def __list(v):
-            return v if type(v) == list else [v]
 
         def apply_subset(subconf, replace=False, default=False):
             for field, value in subconf.items():
@@ -80,11 +79,11 @@ class Node(object):
                     if (replace or
                         (field not in Node.conf_keep_default and
                          field not in self.overridden)):
-                        setattr(self, field, deepcopy(__list(value)))
+                        setattr(self, field, deepcopy(w_list(value)))
                         if not default:
                             self.overridden[field] = True
                     else:
-                        getattr(self, field).extend(deepcopy(__list(value)))
+                        getattr(self, field).extend(deepcopy(w_list(value)))
                 else:
                     setattr(self, field, deepcopy(value))
 
@@ -114,7 +113,7 @@ class Node(object):
     def checkos(self, filename):
         bname = str(os.path.basename(filename))
         logging.debug('check os: node: %s, filename %s' %
-                      (self.node_id, filename))
+                      (self.id, filename))
         if bname[0] == '.':
             if self.os_platform in bname:
                 logging.debug('os %s in filename %s' %
@@ -137,17 +136,17 @@ class Node(object):
                                                      'once-by-role', role, f)]
         self.files[key] = sorted(set(self.files[key]))
         logging.debug('add files:\nnode: %s, key: %s, files:\n%s' %
-                      (self.node_id, key, self.files[key]))
+                      (self.id, key, self.files[key]))
 
     def exec_cmd(self, odir='info', fake=False, ok_codes=[0, ]):
-        sn = 'node-%s' % self.node_id
+        sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
         logging.debug('%s/%s/%s/%s' % (odir, ckey, cl, sn))
         ddir = os.path.join(odir, ckey, cl, sn)
         tools.mdir(ddir)
         for c in self.cmds:
             f = os.path.join(self.rqdir,'cmds',c)
-            logging.info('node:%s(%s), exec: %s' % (self.node_id, self.ip, f))
+            logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,
                                                   filename=f,
@@ -157,9 +156,9 @@ class Node(object):
                 if code not in ok_codes:
                     logging.warning("node: %s, ip: %s, cmdfile: %s,"
                                     " code: %s, error message: %s" %
-                                    (self.node_id, self.ip, f, code, errs))
+                                    (self.id, self.ip, f, code, errs))
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
-                                 (self.node_id, self.ip, os.path.basename(f)))
+                                 (self.id, self.ip, os.path.basename(f)))
             logging.info('outfile: %s' % dfile)
             self.mapcmds[os.path.basename(f)] = dfile
             if not fake:
@@ -172,7 +171,7 @@ class Node(object):
 
     def exec_simple_cmd(self, cmd, infile, outfile, timeout=15,
                         fake=False, ok_codes=[0, ]):
-        logging.info('node:%s(%s), exec: %s' % (self.node_id, self.ip, cmd))
+        logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, cmd))
         if not fake:
             outs, errs, code = tools.ssh_node(ip=self.ip,
                                               command=cmd,
@@ -184,12 +183,12 @@ class Node(object):
             if code not in ok_codes:
                 logging.warning("node: %s, ip: %s, cmdfile: %s,"
                                 " code: %s, error message: %s" %
-                                (self.node_id, self.ip, cmd, code, errs))
+                                (self.id, self.ip, cmd, code, errs))
 
     def get_files(self, odir='info', timeout=15):
         logging.info('node:%s(%s), filelist: %s' %
-                     (self.node_id, self.ip, fkey))
-        sn = 'node-%s' % self.node_id
+                     (self.id, self.ip, fkey))
+        sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
         ddir = os.path.join(odir, fkey, cl, sn)
         tools.mdir(ddir)
@@ -203,7 +202,7 @@ class Node(object):
                             data += line
             except:
                 logging.error('could not read file: %s' % fname)
-        logging.debug('node: %s, data:\n%s' % (self.node_id, data))
+        logging.debug('node: %s, data:\n%s' % (self.id, data))
         outs, errs, code = tools.get_files_rsync(ip=self.ip,
                                                  data=data,
                                                  ssh_opts=self.ssh_opts,
@@ -212,7 +211,7 @@ class Node(object):
         if code != 0:
             logging.warning("get_files: node: %s, ip: %s, "
                             "code: %s, error message: %s" %
-                            (self.node_id, self.ip, code, errs))
+                            (self.id, self.ip, code, errs))
 
     def logs_populate(self, timeout=5):
         def filter_by_re(item, string):
@@ -229,7 +228,7 @@ class Node(object):
             cmd = ("find '%s' -type f%s -exec du -b {} +" % (item['path'],
                                                              start))
             logging.info('logs_populate: node: %s, logs du-cmd: %s' %
-                         (self.node_id, cmd))
+                         (self.id, cmd))
             outs, errs, code = tools.ssh_node(ip=self.ip,
                                               command=cmd,
                                               ssh_opts=self.ssh_opts,
@@ -238,7 +237,7 @@ class Node(object):
             if code == 124:
                 logging.error("node: %s, ip: %s, command: %s, "
                               "timeout code: %s, error message: %s" %
-                              (self.node_id, self.ip, cmd, code, errs))
+                              (self.id, self.ip, cmd, code, errs))
                 break
             if len(outs):
                 item['files'] = {}
@@ -295,7 +294,7 @@ class NodeManager(object):
         return s+'\n'.join([str(n) for n in self.sorted_nodes()])
 
     def sorted_nodes(self):
-        s = [n for n in sorted(self.nodes.values(), key=lambda x: x.node_id)]
+        s = [n for n in sorted(self.nodes.values(), key=lambda x: x.id)]
         return s
 
     def import_rq(self, conf):
@@ -316,7 +315,7 @@ class NodeManager(object):
 
     def get_nodes(self, conf):
         fuel_node_cmd = 'fuel node list --json'
-        fuelnode = Node(node_id=0,
+        fuelnode = Node(id=0,
                         cluster=0,
                         mac='n/a',
                         os_platform='centos',
@@ -345,7 +344,7 @@ class NodeManager(object):
             else:
                 roles = str(node_roles).split(', ')
             keys = "mac os_platform status online ip".split()
-            params = {'node_id': int(node_data['id']),
+            params = {'id': int(node_data['id']),
                       'cluster': int(node_data['cluster']),
                       'roles': roles,
                       'conf': conf}
@@ -375,32 +374,36 @@ class NodeManager(object):
     def get_release(self):
         cmd = "awk -F ':' '/fuel_version/ {print \$2}' /etc/astute.yaml"
         for node in self.nodes.values():
-            if node.node_id == 0:
+            if node.id == 0:
                 # skip master
                 node.release = self.version
-            if (node.node_id != 0) and (node.status == 'ready'):
+            if (node.id != 0) and (node.status == 'ready'):
                 release, err, code = tools.ssh_node(ip=node.ip,
                                                     command=cmd,
                                                     ssh_opts=node.ssh_opts,
                                                     timeout=node.timeout)
                 if code != 0:
                     logging.warning("get_release: node: %s: %s" %
-                                    (node.node_id, "Can't get node release"))
+                                    (node.id, "Can't get node release"))
                     node.release = None
                     continue
                 else:
                     node.release = release.strip('\n "\'')
                 logging.info("get_release: node: %s, release: %s" %
-                             (node.node_id, node.release))
+                             (node.id, node.release))
 
     def filter(self, node, node_filter):
         f = node_filter
-        return (((not f.statuses) or (node.status in f.statuses)) and
-                ((not f.roles) or (node.role in f.roles)) and
-                ((not f.node_ids) or (node.node_id in f.node_ids)) and
-                ((not f.online) or (node.online)) and
-                (((not f.clusters) or node.cluster in f.clusters) or
-                 (node.cluster == 0 and f == self.conf.hard_filter)))
+        if node.id == 0 and f == self.conf.hard_filter:
+            return True
+        else:
+            fnames = [k for k in f if hasattr(node, k)]
+            checks = []
+            for fn in fnames:
+                node_v = w_list(getattr(node, fn))
+                filter_v = w_list(f[fn])
+                checks.append(set(node_v).intersection(filter_v))
+            return all(checks)
 
     def launch_ssh(self, odir='info', timeout=15, fake=False, maxthreads=100):
         lock = flock.FLock('/tmp/timmy-cmds.lock')
@@ -494,11 +497,11 @@ class NodeManager(object):
         for node in [n for n in self.nodes.values() if not n.filtered_out]:
             if not node.logs_dict():
                 logging.info(("create_archive_logs: node %s - no logs "
-                             "to collect") % node.node_id)
+                             "to collect") % node.id)
                 continue
             node.archivelogsfile = os.path.join(outdir,
                                                 'logs-node-%s.tar.gz' %
-                                                str(node.node_id))
+                                                str(node.id))
             tools.mdir(outdir)
             logslistfile = node.archivelogsfile + '.txt'
             txtfl.append(logslistfile)
