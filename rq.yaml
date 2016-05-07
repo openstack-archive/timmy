@@ -11,26 +11,26 @@ files:
     ubuntu: [etc-apt]
 cmds:
   by_release:
-    4.1.1:
+    '4.1.1':
       by_role:
         fuel: [fuel-postgres-dump]
-    5.0.1:
+    '5.0.1':
       by_role:
         fuel: [fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
-    6.0:
+    '6.0':
       by_role:
         compute: [ipset-save, ipset-list]
         controller: [ipset-save, ipset-list]
-    6.1:
+    '6.1':
       by_role:
         fuel: [fuel-notifications]
-    7.0:
+    '7.0':
       by_role:
         fuel: [fuel-notifications]
-    5.1.1:
+    '5.1.1':
       by_role:
         fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
-    8.0:
+    '8.0':
       by_role:
         fuel: [fuel-notifications]
   by_role:
@@ -53,8 +53,5 @@ cmds:
   by_os_platform:
       ubuntu: [dmesg-t-ubuntu, packages-ubuntu]
       centos: [dmesg-centos, packages-centos]
-  default:
+  __default:
     [ip-ne, iptables, ipnetns, ss, ipa, iptables-nat, df-m, services-status, cpuinfo, df-i, ipro]
-#  by-os:
-#    centos: []
-#    ubuntu: []

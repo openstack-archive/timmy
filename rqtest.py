@@ -2,59 +2,53 @@
 
 from timmy import tools
 from yaml import dump
-from copy import deepcopy as dc
 
 class Conf():
     default_key = '__default'
 
 class Node():
-    conf_section_prefix = 'by_'
+    conf_match_prefix = 'by_'
 
 def import_rq():
-    def is_sub(m, d, p):
+    def sub_is_match(el, d, p):
         checks = []
-        for i in m:
+        for i in el:
             checks.append(i.startswith(p) or i == d)
         return all(checks)
 
-    def r_sub(a, m, mk, mmk, d, p, ds):
-        if not mk in ds:
-            ds[mk] = {}
-        if d in mmk:
-            if mk.startswith(p):
-                ds[mk][d] = {a: mmk[d]}
-                mmk[d] = {a: mmk[d]}
+    def r_sub(attr, el, k, d, p, dst):
+        match_sect = False
+        if type(k) is str and k.startswith(p):
+             match_sect = True
+        if not k in dst and k != attr:
+            dst[k] = {}
+        if d in el[k]:
+            if k == attr:
+                dst[k] = el[k][d]
+            elif k.startswith(p):
+                dst[k][d] = {attr: el[k][d]}
             else:
-                ds[mk][a] = mmk[d]
-        if mk.startswith(p):
-            ks = [k for k in mmk if k != d]
-            for k in ks:
-                if mmk[k] is not None:
-                    if not k in ds[mk]:
-                        ds[mk][k] = {}
-                    r_sub(a, mmk, k, mmk[k], d, p, ds[mk])
-        elif type(mmk) is dict and is_sub(mmk, d, p):
-            ks = [k for k in mmk if k.startswith(p)]
-            for k in ks:
-                if mmk[k] is not None:
-                    if not k in ds[mk]:
-                        ds[mk][k] = {}
-                    r_sub(a, mmk, k, mmk[k], d, p, ds[mk])
+                dst[k][attr] = el[k][d]
+        if k == attr:        
+            subks = [subk for subk in el[k] if subk != d]
+            for subk in subks:
+                r_sub(attr, el[k], subk, d, p, dst)
+        elif match_sect or type(el[k]) is dict and sub_is_match(el[k], d, p):
+            subks = [subk for subk in el[k] if subk != d]
+            for subk in subks:
+                if el[k][subk] is not None:
+                    if not subk in dst[k]:
+                        dst[k][subk] = {}
+                    r_sub(attr, el[k], subk, d, p, dst[k])
         else:
-            ds[mk][a] = m[mk]
-            m[mk] = {a: m[mk]}
+            dst[k][attr] = el[k]
         
-    rq = tools.load_yaml_file('rqtest.yaml')
-    rq2 = {}
-    p = Node.conf_section_prefix
+    src = tools.load_yaml_file('rq.yaml')
+    dst = {}
+    p = Node.conf_match_prefix
     d = Conf.default_key
-    for attr in rq:
-        m = rq[attr]
-        if d in m:
-           rq2[attr] = m[d]
-        mks = [mk for mk in m if mk.startswith(p)]
-        for mk in mks: 
-            r_sub(attr, m, mk, m[mk], d, p, rq2)
-    return rq2
+    for attr in src:
+        r_sub(attr, src, attr, d, p, dst)
+    return dst
 
 print(dump(import_rq(), default_flow_style=False))
