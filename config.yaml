@@ -14,7 +14,6 @@ rqfile: './rq.yaml'
 soft_filter:
     status:  ['ready']
     online: True
-    roles: ['compute']
 timeout: 15
 compress_timeout: 3600
 logs:
