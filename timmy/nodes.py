@@ -39,8 +39,9 @@ class Node(object):
 
     conf_appendable = ['logs','cmds','files']
     conf_keep_default = ['cmds','files']
-    conf_section_prefix = 'by_'
-    conf_priority_section = conf_section_prefix + 'id'
+    conf_match_prefix = 'by_'
+    conf_default_key = '__default'
+    conf_priority_section = conf_match_prefix + 'id'
 
     def __init__(self, id, mac, cluster, roles, os_platform,
                  online, status, ip, conf):
@@ -87,22 +88,22 @@ class Node(object):
                 else:
                     setattr(self, field, deepcopy(value))
 
-        pre = Node.conf_section_prefix
+        pre = Node.conf_match_prefix
         pri_sec = Node.conf_priority_section 
-        defaults = [s for s in vars(conf) if not s.startswith(pre)]
-        defaults_conf = dict((attr, getattr(conf, attr)) for attr in defaults)
-        override = [s for s in vars(conf) if s.startswith(pre) and
+        defaults = [s for s in conf if not s.startswith(pre)]
+        defaults_conf = dict((attr, conf[attr]) for attr in defaults)
+        override = [s for s in conf if s.startswith(pre) and
                                              s != pri_sec]
-        override_conf = dict((attr, getattr(conf, attr)) for attr in override)
+        override_conf = dict((attr, conf[attr]) for attr in override)
         pri_conf = None    
-        if hasattr(conf, pri_sec):
-            pri_conf = getattr(conf, pri_sec)
+        if pri_sec in conf:
+            pri_conf = conf[pri_sec]
         # apply defaults
         apply_subset(defaults_conf, default=True)
         # apply overrides
         for section in override:
             attr = section[len(pre):]
-            subconf = getattr(conf, section)
+            subconf = conf[section]
             if hasattr(self, attr):
                 if getattr(self, attr) in subconf:
                     apply_subset(subconf[getattr(self, attr)])
@@ -267,15 +268,15 @@ class NodeManager(object):
     def __init__(self, extended, conf, filename=None):
         self.extended = extended
         self.conf = conf
-        self.rqdir = conf.rqdir.rstrip('/')
-        self.import_rq(conf)
+        self.rqdir = conf['rqdir'].rstrip('/')
+        self.import_rq()
         if (not os.path.exists(self.rqdir)):
             logging.error("directory %s doesn't exist" % (self.rqdir))
             sys.exit(1)
-        if (conf.fuelip is None) or (conf.fuelip == ""):
-            logging.error('looks like fuelip is not set(%s)' % conf.fuelip)
+        if (conf['fuelip'] is None) or (conf['fuelip'] == ""):
+            logging.error('looks like fuelip is not set(%s)' % conf['fuelip'])
             sys.exit(7)
-        self.fuelip = conf.fuelip
+        self.fuelip = conf['fuelip']
         logging.info('extended: %s' % self.extended)
         if filename is not None:
             try:
@@ -285,8 +286,8 @@ class NodeManager(object):
                 logging.error("Can't load data from file %s" % filename)
                 sys.exit(6)
         else:
-            self.njdata = json.loads(self.get_nodes(conf))
-        self.load_nodes(conf)
+            self.njdata = json.loads(self.get_nodes())
+        self.load_nodes()
         self.get_version()
 
     def __str__(self):
@@ -297,23 +298,48 @@ class NodeManager(object):
         s = [n for n in sorted(self.nodes.values(), key=lambda x: x.id)]
         return s
 
-    def import_rq(self, conf):
-        rq = tools.load_yaml_file(conf.rqfile)
-        for attr in rq:
-            if 'default' in rq[attr]:
-                setattr(conf, attr, rq[attr]['default'])
-            pre = Node.conf_section_prefix
-            override = [s for s in rq[attr] if s.startswith(pre)]
-            override_conf = dict((s, rq[attr][s]) for s in override)
-            for section in override:
-                if not hasattr(conf, section):
-                    setattr(conf, section, {})
-                for k, v in override_conf[section].items():
-                    if k not in getattr(conf, section):
-                        getattr(conf, section)[k] = {}
-                    getattr(conf, section)[k][attr] = v
+    def import_rq(self):
+        def sub_is_match(el, d, p):
+            checks = []
+            for i in el:
+                checks.append(i.startswith(p) or i == d)
+            return all(checks)
+    
+        def r_sub(attr, el, k, d, p, dst):
+            match_sect = False
+            if type(k) is str and k.startswith(p):
+                 match_sect = True
+            if not k in dst and k != attr:
+                dst[k] = {}
+            if d in el[k]:
+                if k == attr:
+                    dst[k] = el[k][d]
+                elif k.startswith(p):
+                    dst[k][d] = {attr: el[k][d]}
+                else:
+                    dst[k][attr] = el[k][d]
+            if k == attr:
+                subks = [subk for subk in el[k] if subk != d]
+                for subk in subks:
+                    r_sub(attr, el[k], subk, d, p, dst)
+            elif match_sect or type(el[k]) is dict and sub_is_match(el[k], d, p):
+                subks = [subk for subk in el[k] if subk != d]
+                for subk in subks:
+                    if el[k][subk] is not None:
+                        if not subk in dst[k]:
+                            dst[k][subk] = {}
+                        r_sub(attr, el[k], subk, d, p, dst[k])
+            else:
+                dst[k][attr] = el[k]
 
-    def get_nodes(self, conf):
+        dst = self.conf
+        src = tools.load_yaml_file(self.conf['rqfile'])
+        p = Node.conf_match_prefix
+        d = Node.conf_default_key
+        for attr in src:
+            r_sub(attr, src, attr, d, p, dst)
+
+    def get_nodes(self):
         fuel_node_cmd = 'fuel node list --json'
         fuelnode = Node(id=0,
                         cluster=0,
@@ -323,7 +349,7 @@ class NodeManager(object):
                         status='ready',
                         online=True,
                         ip=self.fuelip,
-                        conf=conf)
+                        conf=self.conf)
         self.nodes = {self.fuelip: fuelnode}
         nodes_json, err, code = tools.ssh_node(ip=self.fuelip,
                                                command=fuel_node_cmd,
@@ -334,7 +360,7 @@ class NodeManager(object):
             sys.exit(4)
         return nodes_json
 
-    def load_nodes(self, conf):
+    def load_nodes(self):
         for node_data in self.njdata:
             node_roles = node_data.get('roles')
             if not node_roles:
@@ -347,12 +373,12 @@ class NodeManager(object):
             params = {'id': int(node_data['id']),
                       'cluster': int(node_data['cluster']),
                       'roles': roles,
-                      'conf': conf}
+                      'conf': self.conf}
             for key in keys:
                 params[key] = node_data[key]
             node = Node(**params)
-            if self.filter(node, self.conf.hard_filter):
-                if not self.filter(node, self.conf.soft_filter):
+            if self.filter(node, self.conf['hard_filter']):
+                if not self.filter(node, self.conf['soft_filter']):
                     node.filtered_out = True
                 self.nodes[node.ip] = node
 
@@ -394,7 +420,7 @@ class NodeManager(object):
 
     def filter(self, node, node_filter):
         f = node_filter
-        if node.id == 0 and f == self.conf.hard_filter:
+        if node.id == 0 and f == self.conf['hard_filter']:
             return True
         else:
             fnames = [k for k in f if hasattr(node, k)]
@@ -461,7 +487,7 @@ class NodeManager(object):
 
     def create_archive_general(self, directory, outfile, timeout):
         cmd = "tar zcf '%s' -C %s %s" % (outfile, directory, ".")
-        tools.mdir(self.conf.archives)
+        tools.mdir(self.conf['archives'])
         logging.debug("create_archive_general: cmd: %s" % cmd)
         outs, errs, code = tools.launch_cmd(command=cmd,
                                             timeout=timeout)

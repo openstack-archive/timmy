@@ -20,7 +20,7 @@ from timmy.nodes import NodeManager
 import logging
 import sys
 import os
-from timmy.conf import Conf
+from timmy.conf import load_conf
 from timmy import flock
 from timmy.tools import interrupt_wrapper
 
@@ -33,13 +33,13 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
                                                   ' collection tool'))
-    parser.add_argument('--config',
-                        help='config file')
+    parser.add_argument('-c', '--conf',
+                        help='configuration file')
     parser.add_argument('-o', '--dest-file',
                         help='output archive file')
-    parser.add_argument('-e', '--extended', action='store_true',
+    parser.add_argument('-x', '--extended', action='store_true',
                         help='exec once by role cmdfiles')
-    parser.add_argument('-c', '--cluster', help='env id', type=int)
+    parser.add_argument('-e', '--env', help='env id', type=int)
     parser.add_argument('-m', '--maxthreads', type=int, default=100,
                         help="maximum simultaneous operations for commands")
     parser.add_argument('-l', '--logs',
@@ -71,20 +71,18 @@ def main(argv=None):
     logging.basicConfig(filename=args.log_file,
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
-    config = Conf()
-    if args.config:
-        config = Conf.load_conf(args.config)
-    if args.cluster is not None:
-        config.soft_filter['cluster'] = [args.cluster]
-    main_arc = os.path.join(config.archives, 'general.tar.gz')
+    conf = load_conf(args.conf)
+    if args.env is not None:
+        conf['soft_filter']['cluster'] = [args.env]
+    main_arc = os.path.join(conf['archives'], 'general.tar.gz')
     if args.dest_file:
         main_arc = args.dest_file
-    nm = NodeManager(conf=config,
+    nm = NodeManager(conf=conf,
                      extended=args.extended)
     if not args.only_logs:
-        nm.launch_ssh(config.outdir, args.maxthreads)
-        nm.get_conf_files(config.outdir, args.maxthreads)
-        nm.create_archive_general(config.outdir,
+        nm.launch_ssh(conf['outdir'], args.maxthreads)
+        nm.get_conf_files(conf['outdir'], args.maxthreads)
+        nm.create_archive_general(conf['outdir'],
                                   main_arc,
                                   60)
     if args.only_logs or args.getlogs:
@@ -95,9 +93,9 @@ def main(argv=None):
             if size == 0:
                 logging.warning('No logs to collect.')
                 return
-            if nm.is_enough_space(config.archives):
-                nm.archive_logs(config.archives,
-                                config.compress_timeout,
+            if nm.is_enough_space(conf['archives']):
+                nm.archive_logs(conf['archives'],
+                                conf['compress_timeout'],
                                 maxthreads=args.logs_maxthreads,
                                 fake=args.fake_logs)
             lock.unlock()
