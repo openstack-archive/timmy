@@ -465,8 +465,8 @@ class NodeManager(object):
                                 node.apply_conf(once_conf, clean=False)
                                 assigned[ak] = node.id
                                 break
-                if assigned[ak]:
-                    break
+                    if assigned[ak]:
+                        break
 
     def nodes_reapply_conf(self):
         for node in self.nodes.values():
