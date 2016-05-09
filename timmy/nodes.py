@@ -39,6 +39,7 @@ class Node(object):
 
     conf_appendable = ['logs', 'cmds', 'files']
     conf_keep_default = ['cmds', 'files']
+    conf_once_prefix = 'once_'
     conf_match_prefix = 'by_'
     conf_default_key = '__default'
     conf_priority_section = conf_match_prefix + 'id'
@@ -71,7 +72,7 @@ class Node(object):
         templ += '{2} {1.online} {1.status}'
         return templ.format(my_id, self, ','.join(self.roles))
 
-    def apply_conf(self, conf):
+    def apply_conf(self, conf, clean=True):
 
         def apply(k, v, c_a, k_d, o, default=False):
             if k in c_a:
@@ -86,10 +87,10 @@ class Node(object):
             else:
                 setattr(self, k, deepcopy(v))
 
-        def r_apply(el, p, p_s, c_a, k_d, o, d):
+        def r_apply(el, p, p_s, c_a, k_d, o, d, clean=False):
             # apply normal attributes
             for k in [k for k in el if k != p_s and not k.startswith(p)]:
-                if el == conf:
+                if el == conf and clean:
                     apply(k, el[k], c_a, k_d, o, default=True)
                 else:
                     apply(k, el[k], c_a, k_d, o)
@@ -123,11 +124,12 @@ class Node(object):
         k_d = Node.conf_keep_default
         d = Node.conf_default_key
         overridden = {}
-        '''clean appendable keep_default params to ensure no content
-        duplication if this function gets called more than once'''
-        for f in set(c_a).intersection(k_d):
-            setattr(self, f, [])
-        r_apply(conf, p, p_s, c_a, k_d, overridden, d)
+        if clean:
+            '''clean appendable keep_default params to ensure no content
+            duplication if this function gets called more than once'''
+            for f in set(c_a).intersection(k_d):
+                setattr(self, f, [])
+        r_apply(conf, p, p_s, c_a, k_d, overridden, d, clean=clean)
 
     def checkos(self, filename):
         bname = str(os.path.basename(filename))
@@ -310,6 +312,7 @@ class NodeManager(object):
         self.get_version()
         self.nodes_get_release()
         self.nodes_reapply_conf()
+        self.conf_assign_once()
 
     def __str__(self):
         s = "#node-id, cluster, admin-ip, mac, os, roles, online, status\n"
@@ -321,47 +324,50 @@ class NodeManager(object):
 
     def import_rq(self):
 
-        def sub_is_match(el, d, p):
+        def sub_is_match(el, d, p, once_p):
             if type(el) is not dict:
                 return False
             checks = []
             for i in el:
-                checks.append(i.startswith(p) or i == d)
+                checks.append(any([i == d,
+                                  i.startswith(p),
+                                  i.startswith(once_p)]))
             return all(checks)
 
-        def r_sub(attr, el, k, d, p, dst):
+        def r_sub(attr, el, k, d, p, once_p, dst):
             match_sect = False
-            if type(k) is str and k.startswith(p):
+            if type(k) is str and (k.startswith(p) or k.startswith(once_p)):
                 match_sect = True
             if k not in dst and k != attr:
                 dst[k] = {}
-            if d not in el[k]:
+            if d in el[k]:
                 if k == attr:
                     dst[k] = el[k][d]
-                elif k.startswith(p):
+                elif k.startswith(p) or k.startswith(once_p):
                     dst[k][d] = {attr: el[k][d]}
                 else:
                     dst[k][attr] = el[k][d]
             if k == attr:
                 subks = [subk for subk in el[k] if subk != d]
                 for subk in subks:
-                    r_sub(attr, el[k], subk, d, p, dst)
-            elif match_sect or sub_is_match(el[k], d, p):
+                    r_sub(attr, el[k], subk, d, p, once_p, dst)
+            elif match_sect or sub_is_match(el[k], d, p, once_p):
                 subks = [subk for subk in el[k] if subk != d]
                 for subk in subks:
                     if el[k][subk] is not None:
                         if subk not in dst[k]:
                             dst[k][subk] = {}
-                        r_sub(attr, el[k], subk, d, p, dst[k])
+                        r_sub(attr, el[k], subk, d, p, once_p, dst[k])
             else:
                 dst[k][attr] = el[k]
 
         dst = self.conf
         src = tools.load_yaml_file(self.conf['rqfile'])
         p = Node.conf_match_prefix
+        once_p = Node.conf_once_prefix + p
         d = Node.conf_default_key
         for attr in src:
-            r_sub(attr, src, attr, d, p, dst)
+            r_sub(attr, src, attr, d, p, once_p, dst)
 
     def get_nodes(self):
         fuel_node_cmd = 'fuel node list --json'
@@ -441,6 +447,26 @@ class NodeManager(object):
                     node.release = release.strip('\n "\'')
                 logging.info("get_release: node: %s, release: %s" %
                              (node.id, node.release))
+
+    def conf_assign_once(self):
+        once = Node.conf_once_prefix
+        p = Node.conf_match_prefix
+        once_p = once + p
+        for k in [k for k in self.conf if k.startswith(once)]:
+            attr_name = k[len(once_p):]
+            assigned = dict((k, None) for k in self.conf[k])
+            for ak in assigned:
+                for node in self.nodes.values():
+                    if hasattr(node, attr_name) and not assigned[ak]:
+                        attr = w_list(getattr(node, attr_name))
+                        for v in attr:
+                            if v == ak:
+                                once_conf = self.conf[k][ak]
+                                node.apply_conf(once_conf, clean=False)
+                                assigned[ak] = node.id
+                                break
+                if assigned[ak]:
+                    break
 
     def nodes_reapply_conf(self):
         for node in self.nodes.values():
