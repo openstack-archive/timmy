@@ -64,10 +64,9 @@ def main(argv=None):
     args = parser.parse_args(argv[1:])
     loglevel = logging.ERROR
     if args.verbose:
-        if args.debug:
-            loglevel = logging.DEBUG
-        else:
-            loglevel = logging.INFO
+        loglevel = logging.INFO
+    if args.debug:
+        loglevel = logging.DEBUG
     logging.basicConfig(filename=args.log_file,
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')

@@ -47,6 +47,14 @@ def interrupt_wrapper(f):
             f(*args, **kwargs)
         except KeyboardInterrupt:
             logging.warning('Interrupted, exiting.')
+        except Exception as e:
+            logging.error('Error: %s' % e)
+            for k in dir(e):
+                '''debug: print all exception attrs except internal
+                and except 'message', which is deprecated since Python 2.6'''
+                if not k.startswith('__') and k != 'message':
+                    v = getattr(e, k)
+                    logging.debug('Error details: %s = %s' % (k, v))
     return wrapper
 
 
@@ -143,8 +151,8 @@ def load_yaml_file(filename):
         with open(filename, 'r') as f:
             return yaml.load(f)
     except IOError as e:
-        logging.error("load_conf: I/O error(%s): %s" %
-                      (e.errno, e.strerror))
+        logging.error("load_conf: I/O error(%s): file: %s; message: %s" %
+                      (e.errno, e.filename, e.strerror))
         sys.exit(1)
     except ValueError:
         logging.error("load_conf: Could not convert data")
