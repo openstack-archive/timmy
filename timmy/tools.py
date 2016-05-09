@@ -205,8 +205,9 @@ def launch_cmd(command, timeout):
     return outs, errs, p.returncode
 
 
-def ssh_node(ip, command='', ssh_opts=[], env_vars=[], timeout=15, filename=None,
-             inputfile=None, outputfile=None, prefix='nice -n 19 ionice -c 3'):
+def ssh_node(ip, command='', ssh_opts=[], env_vars=[], timeout=15,
+             filename=None, inputfile=None, outputfile=None,
+             prefix='nice -n 19 ionice -c 3'):
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
     if type(env_vars) is list:

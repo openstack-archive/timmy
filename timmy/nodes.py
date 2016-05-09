@@ -37,8 +37,8 @@ varlogdir = '/var/log'
 
 class Node(object):
 
-    conf_appendable = ['logs','cmds','files']
-    conf_keep_default = ['cmds','files']
+    conf_appendable = ['logs', 'cmds', 'files']
+    conf_keep_default = ['cmds', 'files']
     conf_match_prefix = 'by_'
     conf_default_key = '__default'
     conf_priority_section = conf_match_prefix + 'id'
@@ -58,7 +58,6 @@ class Node(object):
         self.data = {}
         self.logsize = 0
         self.mapcmds = {}
-        self.overridden = {}
         self.filtered_out = False
         self.apply_conf(conf)
 
@@ -74,42 +73,61 @@ class Node(object):
 
     def apply_conf(self, conf):
 
-        def apply_subset(subconf, replace=False, default=False):
-            for field, value in subconf.items():
-                if field in Node.conf_appendable:
-                    if (replace or
-                        (field not in Node.conf_keep_default and
-                         field not in self.overridden)):
-                        setattr(self, field, deepcopy(w_list(value)))
-                        if not default:
-                            self.overridden[field] = True
-                    else:
-                        getattr(self, field).extend(deepcopy(w_list(value)))
+        def apply(k, v, c_a, k_d, o, default=False):
+            if k in c_a:
+                if any([default,
+                        k not in k_d and k not in o,
+                        not hasattr(self, k)]):
+                    setattr(self, k, deepcopy(w_list(v)))
                 else:
-                    setattr(self, field, deepcopy(value))
+                    getattr(self, k).extend(deepcopy(w_list(v)))
+                if not default:
+                    o[k] = True
+            else:
+                setattr(self, k, deepcopy(v))
 
-        pre = Node.conf_match_prefix
-        pri_sec = Node.conf_priority_section 
-        defaults = [s for s in conf if not s.startswith(pre)]
-        defaults_conf = dict((attr, conf[attr]) for attr in defaults)
-        override = [s for s in conf if s.startswith(pre) and
-                                             s != pri_sec]
-        override_conf = dict((attr, conf[attr]) for attr in override)
-        pri_conf = None    
-        if pri_sec in conf:
-            pri_conf = conf[pri_sec]
-        # apply defaults
-        apply_subset(defaults_conf, default=True)
-        # apply overrides
-        for section in override:
-            attr = section[len(pre):]
-            subconf = conf[section]
-            if hasattr(self, attr):
-                if getattr(self, attr) in subconf:
-                    apply_subset(subconf[getattr(self, attr)])
-        # apply priority override
-        if pri_conf:
-            apply_subset(pri_conf, replace=True)
+        def r_apply(el, p, p_s, c_a, k_d, o, d):
+            # apply normal attributes
+            for k in [k for k in el if k != p_s and not k.startswith(p)]:
+                if el == conf:
+                    apply(k, el[k], c_a, k_d, o, default=True)
+                else:
+                    apply(k, el[k], c_a, k_d, o)
+            # apply match attributes (by_xxx except by_id)
+            for k in [k for k in el if k != p_s and k.startswith(p)]:
+                attr_name = k[len(p):]
+                if hasattr(self, attr_name):
+                    attr = w_list(getattr(self, attr_name))
+                    for v in attr:
+                        if v in el[k]:
+                            subconf = el[k][v]
+                            if d in el:
+                                d_conf = el[d]
+                                for a in d_conf:
+                                    apply(a, d_conf[a], c_a, k_d, o)
+                            r_apply(subconf, p, p_s, c_a, k_d, o, d)
+            # apply priority attributes (by_id)
+            if p_s in el:
+                if self.id in el[p_s]:
+                    p_conf = el[p_s][self.id]
+                    if d in el[p_s]:
+                        d_conf = el[p_s][d]
+                        for k in d_conf:
+                            apply(k, d_conf[k], c_a, k_d, o)
+                    for k in [k for k in p_conf if k != d]:
+                        apply(k, p_conf[k], c_a, k_d, o, default=True)
+
+        p = Node.conf_match_prefix
+        p_s = Node.conf_priority_section
+        c_a = Node.conf_appendable
+        k_d = Node.conf_keep_default
+        d = Node.conf_default_key
+        overridden = {}
+        '''clean appendable keep_default params to ensure no content
+        duplication if this function gets called more than once'''
+        for f in set(c_a).intersection(k_d):
+            setattr(self, f, [])
+        r_apply(conf, p, p_s, c_a, k_d, overridden, d)
 
     def checkos(self, filename):
         bname = str(os.path.basename(filename))
@@ -146,7 +164,7 @@ class Node(object):
         ddir = os.path.join(odir, ckey, cl, sn)
         tools.mdir(ddir)
         for c in self.cmds:
-            f = os.path.join(self.rqdir,'cmds',c)
+            f = os.path.join(self.rqdir, 'cmds', c)
             logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -195,7 +213,7 @@ class Node(object):
         tools.mdir(ddir)
         data = ''
         for f in self.files:
-            fname = os.path.join(self.rqdir,'files',f)
+            fname = os.path.join(self.rqdir, 'files', f)
             try:
                 with open(fname, 'r') as df:
                     for line in df:
@@ -215,6 +233,7 @@ class Node(object):
                             (self.id, self.ip, code, errs))
 
     def logs_populate(self, timeout=5):
+
         def filter_by_re(item, string):
             return (('include' not in item or
                      re.search(item['include'], string)) and
@@ -287,8 +306,10 @@ class NodeManager(object):
                 sys.exit(6)
         else:
             self.njdata = json.loads(self.get_nodes())
-        self.load_nodes()
+        self.nodes_init()
         self.get_version()
+        self.nodes_get_release()
+        self.nodes_reapply_conf()
 
     def __str__(self):
         s = "#node-id, cluster, admin-ip, mac, os, roles, online, status\n"
@@ -299,19 +320,22 @@ class NodeManager(object):
         return s
 
     def import_rq(self):
+
         def sub_is_match(el, d, p):
+            if type(el) is not dict:
+                return False
             checks = []
             for i in el:
                 checks.append(i.startswith(p) or i == d)
             return all(checks)
-    
+
         def r_sub(attr, el, k, d, p, dst):
             match_sect = False
             if type(k) is str and k.startswith(p):
-                 match_sect = True
-            if not k in dst and k != attr:
+                match_sect = True
+            if k not in dst and k != attr:
                 dst[k] = {}
-            if d in el[k]:
+            if d not in el[k]:
                 if k == attr:
                     dst[k] = el[k][d]
                 elif k.startswith(p):
@@ -322,11 +346,11 @@ class NodeManager(object):
                 subks = [subk for subk in el[k] if subk != d]
                 for subk in subks:
                     r_sub(attr, el[k], subk, d, p, dst)
-            elif match_sect or type(el[k]) is dict and sub_is_match(el[k], d, p):
+            elif match_sect or sub_is_match(el[k], d, p):
                 subks = [subk for subk in el[k] if subk != d]
                 for subk in subks:
                     if el[k][subk] is not None:
-                        if not subk in dst[k]:
+                        if subk not in dst[k]:
                             dst[k][subk] = {}
                         r_sub(attr, el[k], subk, d, p, dst[k])
             else:
@@ -360,7 +384,7 @@ class NodeManager(object):
             sys.exit(4)
         return nodes_json
 
-    def load_nodes(self):
+    def nodes_init(self):
         for node_data in self.njdata:
             node_roles = node_data.get('roles')
             if not node_roles:
@@ -397,7 +421,7 @@ class NodeManager(object):
         self.version = release.rstrip('\n').strip(' ').strip('"')
         logging.info('release:%s' % (self.version))
 
-    def get_release(self):
+    def nodes_get_release(self):
         cmd = "awk -F ':' '/fuel_version/ {print \$2}' /etc/astute.yaml"
         for node in self.nodes.values():
             if node.id == 0:
@@ -417,6 +441,10 @@ class NodeManager(object):
                     node.release = release.strip('\n "\'')
                 logging.info("get_release: node: %s, release: %s" %
                              (node.id, node.release))
+
+    def nodes_reapply_conf(self):
+        for node in self.nodes.values():
+            node.apply_conf(self.conf)
 
     def filter(self, node, node_filter):
         f = node_filter

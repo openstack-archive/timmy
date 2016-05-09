@@ -1,5 +1,5 @@
 files:
-  by_role:
+  by_roles:
     fuel: [etc-nailgun, etc-fuel]
     ceph-osd: [etc-ceph]
     cinder: [etc-cinder]
@@ -12,28 +12,28 @@ files:
 cmds:
   by_release:
     '4.1.1':
-      by_role:
+      by_roles:
         fuel: [fuel-postgres-dump]
     '5.0.1':
-      by_role:
+      by_roles:
         fuel: [fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
     '6.0':
-      by_role:
+      by_roles:
         compute: [ipset-save, ipset-list]
         controller: [ipset-save, ipset-list]
     '6.1':
-      by_role:
+      by_roles:
         fuel: [fuel-notifications]
     '7.0':
-      by_role:
+      by_roles:
         fuel: [fuel-notifications]
     '5.1.1':
-      by_role:
+      by_roles:
         fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
     '8.0':
-      by_role:
+      by_roles:
         fuel: [fuel-notifications]
-  by_role:
+  by_roles:
     fuel: [fuel-release, fuel-task-list, fuel-environment-list]
     cinder: [ovs-vsctl-show, cinder-manage]
     compute: [compute-iptables-nat, ovs-dump-flows, compute-iptables, ovs-ofctl-show-bridges,
@@ -44,7 +44,7 @@ cmds:
       ovs-vsctl-show, rabbitmqctl-report, mysql-size, rabbitmqctl-status, crm-resource-list,
       cinder-manage]
     mongo: [mongo-replication-status, ipa, mongo-replica-conf, mongo-status, ovs-vsctl-show]
-  once_by_role:
+  once_by_roles:
     ceph-osd: [ceph-df, ceph-osd-status, ceph-osd-tree, ceph-pg-dump, ovs-vsctl-show,
       ceph-health-detail]
     controller: [neutron-router-list, neutron-net-list, neutron-subnet-list, keystone-endpoint-list,

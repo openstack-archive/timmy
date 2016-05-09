@@ -5,10 +5,10 @@ def load_conf(filename):
     """Configuration parameters"""
     conf = {}
     conf['hard_filter'] = {}
-    conf['soft_filter'] = {'status': ['ready','discover'], 'online': True}
+    conf['soft_filter'] = {'status': ['ready', 'discover'], 'online': True}
     conf['ssh_opts'] = ['-oConnectTimeout=2', '-oStrictHostKeyChecking=no',
-    	                '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
-    	                '-lroot', '-oBatchMode=yes']
+                        '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
+                        '-lroot', '-oBatchMode=yes']
     conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
     conf['fuelip'] = 'localhost'
     conf['outdir'] = '/tmp/timmy/info'
@@ -19,11 +19,11 @@ def load_conf(filename):
     conf['archives'] = '/tmp/timmy/archives'
     conf['cmds_archive'] = ''
     conf['logs'] = {'path': '/var/log',
-    	            'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
+                    'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
     if filename:
         conf_extra = load_yaml_file(filename)
         conf.update(**conf_extra)
-    return conf 
+    return conf
 
 
 if __name__ == '__main__':
