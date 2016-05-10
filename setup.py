@@ -8,7 +8,7 @@ rqfiles = [('/usr/share/timmy/' + root, [os.path.join(root, f) for f in files])
 rqfiles.append(('/usr/share/timmy/configs', ['config.yaml', 'rq.yaml']))
 
 setup(name='timmy',
-      version='0.1',
+      version='1.0',
       author="Aleksandr Dobdin",
       author_email='dobdin@gmail.com',
       license='Apache2',
