@@ -481,7 +481,7 @@ class NodeManager(object):
         if node.id == 0 and f == self.conf['hard_filter']:
             return True
         else:
-            fnames = [k for k in f if hasattr(node, k)]
+            fnames = [k for k in f if hasattr(node, k) and f[k]]
             checks = []
             for fn in fnames:
                 node_v = w_list(getattr(node, fn))
