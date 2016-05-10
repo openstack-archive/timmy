@@ -286,8 +286,7 @@ class Node(object):
 class NodeManager(object):
     """Class nodes """
 
-    def __init__(self, extended, conf, filename=None):
-        self.extended = extended
+    def __init__(self, conf, extended=False, filename=None):
         self.conf = conf
         self.rqdir = conf['rqdir'].rstrip('/')
         self.import_rq()
@@ -298,7 +297,7 @@ class NodeManager(object):
             logging.error('looks like fuelip is not set(%s)' % conf['fuelip'])
             sys.exit(7)
         self.fuelip = conf['fuelip']
-        logging.info('extended: %s' % self.extended)
+        logging.info('extended: %s' % extended)
         if filename is not None:
             try:
                 with open(filename, 'r') as json_data:
@@ -313,6 +312,11 @@ class NodeManager(object):
         self.nodes_get_release()
         self.nodes_reapply_conf()
         self.conf_assign_once()
+        if extended:
+            '''TO-DO: load smth like extended.yaml
+            do additional apply_conf(clean=False) with this yaml.
+            Move some stuff from rq.yaml to extended.yaml'''
+            pass
 
     def __str__(self):
         s = "#node-id, cluster, admin-ip, mac, os, roles, online, status\n"
