@@ -48,7 +48,7 @@ def interrupt_wrapper(f):
         except KeyboardInterrupt:
             logging.warning('Interrupted, exiting.')
         except Exception as e:
-            logging.error('Error: %s' % e)
+            logging.error('Error: %s' % e, exc_info=True)
             for k in dir(e):
                 '''debug: print all exception attrs except internal
                 and except 'message', which is deprecated since Python 2.6'''
