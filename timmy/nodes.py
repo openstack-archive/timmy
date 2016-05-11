@@ -30,15 +30,15 @@ from tools import w_list
 from copy import deepcopy
 
 ckey = 'cmds'
+skey = 'scripts'
 fkey = 'files'
 lkey = 'logs'
-varlogdir = '/var/log'
 
 
 class Node(object):
 
-    conf_appendable = ['logs', 'cmds', 'files']
-    conf_keep_default = ['cmds', 'files']
+    conf_appendable = [lkey, ckey, skey, fkey]
+    conf_keep_default = [skey, ckey, fkey]
     conf_once_prefix = 'once_'
     conf_match_prefix = 'by_'
     conf_default_key = '__default'
@@ -59,6 +59,7 @@ class Node(object):
         self.data = {}
         self.logsize = 0
         self.mapcmds = {}
+        self.mapscr = {}
         self.filtered_out = False
         self.apply_conf(conf)
 
@@ -164,7 +165,8 @@ class Node(object):
         cl = 'cluster-%s' % self.cluster
         logging.debug('%s/%s/%s/%s' % (odir, ckey, cl, sn))
         ddir = os.path.join(odir, ckey, cl, sn)
-        tools.mdir(ddir)
+        if self.cmds:
+            tools.mdir(ddir)
         for c in self.cmds:
             for cmd in c:
                 if not fake:
@@ -180,15 +182,18 @@ class Node(object):
                 dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                      (self.id, self.ip, cmd))
                 logging.info('outfile: %s' % dfile)
-                self.mapcmds['cmd-'+cmd] = dfile
+                self.mapcmds[cmd] = dfile
                 if not fake:
                     try:
                         with open(dfile, 'w') as df:
                             df.write(outs)
                     except:
                         logging.error("exec_cmd: can't write to file %s" % dfile)
+        ddir = os.path.join(odir, skey, cl, sn)
+        if self.scripts:
+            tools.mdir(ddir)
         for scr in self.scripts:
-            f = os.path.join(self.rqdir, 'scripts', scr)
+            f = os.path.join(self.rqdir, skey, scr)
             logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -203,7 +208,7 @@ class Node(object):
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                  (self.id, self.ip, os.path.basename(f)))
             logging.info('outfile: %s' % dfile)
-            self.mapcmds[os.path.basename(f)] = dfile
+            self.mapscr[os.path.basename(f)] = dfile
             if not fake:
                 try:
                     with open(dfile, 'w') as df:
