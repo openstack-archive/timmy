@@ -188,7 +188,8 @@ class Node(object):
                         with open(dfile, 'w') as df:
                             df.write(outs)
                     except:
-                        logging.error("exec_cmd: can't write to file %s" % dfile)
+                        logging.error("exec_cmd: can't write to file %s" %
+                                      dfile)
         ddir = os.path.join(odir, skey, cl, sn)
         if self.scripts:
             tools.mdir(ddir)
