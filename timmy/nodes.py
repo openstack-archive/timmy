@@ -166,7 +166,29 @@ class Node(object):
         ddir = os.path.join(odir, ckey, cl, sn)
         tools.mdir(ddir)
         for c in self.cmds:
-            f = os.path.join(self.rqdir, 'cmds', c)
+            for cmd in c:
+                if not fake:
+                    outs, errs, code = tools.ssh_node(ip=self.ip,
+                                                      command=c[cmd],
+                                                      ssh_opts=self.ssh_opts,
+                                                      env_vars=self.env_vars,
+                                                      timeout=self.timeout)
+                    if code not in ok_codes:
+                        logging.warning("node: %s, ip: %s, cmdfile: %s,"
+                                        " code: %s, error message: %s" %
+                                        (self.id, self.ip, c, code, errs))
+                dfile = os.path.join(ddir, 'node-%s-%s-%s' %
+                                     (self.id, self.ip, cmd))
+                logging.info('outfile: %s' % dfile)
+                self.mapcmds['cmd-'+cmd] = dfile
+                if not fake:
+                    try:
+                        with open(dfile, 'w') as df:
+                            df.write(outs)
+                    except:
+                        logging.error("exec_cmd: can't write to file %s" % dfile)
+        for scr in self.scripts:
+            f = os.path.join(self.rqdir, 'scripts', scr)
             logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,

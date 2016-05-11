@@ -9,7 +9,7 @@ files:
   by_os_platform:
     centos: [yum]
     ubuntu: [etc-apt]
-cmds:
+scripts:
   by_release:
     '4.1.1':
       by_roles:
@@ -55,3 +55,13 @@ cmds:
       centos: [dmesg-centos, packages-centos]
   __default:
     [ip-ne, iptables, ipnetns, ss, ipa, iptables-nat, df-m, services-status, cpuinfo, df-i, ipro]
+# cmds:
+#   __default:
+#     test:
+#       'echo "test" | head -n 1'
+#     test2:
+#       'echo "test2" | less'
+#   by_roles:
+#     compute:
+#       t3: 'echo t3'
+#       t4: 'echo t4'
