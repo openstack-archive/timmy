@@ -144,12 +144,17 @@ def main(argv=None):
     print('Run complete. Node information:')
     print(nm)
     if conf['shell_mode']:
-        print('Results:')
-        for node in nm.nodes.values():
-            for cmd, path in node.mapcmds.items():
-                with open(path, 'r') as f:
-                    for line in f.readlines():
-                        print('node-%s: %s' % (node.id, line.rstrip('\n')))
+        if args.command:
+            print('Results:')
+            for node in nm.nodes.values():
+                for cmd, path in node.mapcmds.items():
+                    with open(path, 'r') as f:
+                        for line in f.readlines():
+                            print('node-%s: %s' % (node.id, line.rstrip('\n')))
+    if args.file:
+        print('Files collected into "%s".' % conf['outdir'])
+    if not args.no_archive:
+        print('Results packed and available in "%s".' % conf['archives'])
     return 0
 
 if __name__ == '__main__':

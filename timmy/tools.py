@@ -154,7 +154,6 @@ def load_yaml_file(filename):
         logging.error("load_conf: I/O error(%s): file: %s; msg: %s" %
                       (e.errno, e.filename, e.strerror))
         sys.exit(1)
-        # return e
     except ValueError:
         logging.error("load_conf: Could not convert data")
         sys.exit(1)
@@ -261,10 +260,9 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
 
 
 def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
-    ddir = ddir.rstrip('/') + '/'
-    if '/' in file.lstrip('/'):
-        subpath = ddir + file.lstrip('/')[:file.rfind('/')-1]
-        mdir(subpath)
+    dest = os.path.split(os.path.normpath(file).lstrip(os.path.sep))[0]
+    ddir = os.path.join(os.path.normpath(ddir), dest)
+    mdir(ddir)
     r = '-r ' if recursive else ''
     cmd = "timeout '%s' scp %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
     return launch_cmd(cmd, timeout)

@@ -15,16 +15,17 @@ def load_conf(filename):
     conf['fuelip'] = 'localhost'
     conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
     conf['timeout'] = 15
-    rqlabel = 'rq'
+    rqdir = 'rq'
+    rqfile = 'rq.yaml'
     dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', 'timmy')
-    if os.path.isdir(os.path.join(dtm, rqlabel)):
-        conf['rqdir'] = os.path.join(dtm, rqlabel)
+    if os.path.isdir(os.path.join(dtm, rqdir)):
+        conf['rqdir'] = os.path.join(dtm, rqdir)
     else:
-        conf['rqdir'] = rqlabel
-    if os.path.isfile(os.path.join(dtm, 'configs', 'rq.yaml')):
-        conf['rqfile'] = os.path.join(dtm, 'configs', 'rq.yaml')
+        conf['rqdir'] = rqdir
+    if os.path.isfile(os.path.join(dtm, 'configs', rqfile)):
+        conf['rqfile'] = os.path.join(dtm, 'configs', rqfile)
     else:
-        conf['rqfile'] = 'rq.yaml'
+        conf['rqfile'] = rqfile
     conf['compress_timeout'] = 3600
     conf['archives'] = os.path.join(gettempdir(), 'timmy', 'archives')
     conf['cmds_archive'] = ''
@@ -37,7 +38,8 @@ def load_conf(filename):
     Skip 'once' overrides (see Node.conf_once_prefix);
     Skip Fuel node;
     Print command execution results. Files and outputs will also be in a
-    place specified by conf['outdir'].'''
+    place specified by conf['outdir'], archive will also be created and put
+    in a place specified by conf['archives'].'''
     conf['shell_mode'] = False
     if filename:
         conf_extra = load_yaml_file(filename)
