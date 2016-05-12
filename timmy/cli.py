@@ -108,7 +108,7 @@ def main(argv=None):
         filter = conf['soft_filter']
     if args.role:
         filter['roles'] = args.role
-    if args.env:
+    if args.env is not None:
         filter['cluster'] = [args.env]
     main_arc = os.path.join(conf['archives'], 'general.tar.gz')
     if args.dest_file:
