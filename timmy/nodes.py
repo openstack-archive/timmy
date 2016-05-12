@@ -26,6 +26,7 @@ import logging
 import sys
 import re
 import tools
+from tempfile import gettempdir
 from tools import w_list
 from copy import deepcopy
 
@@ -522,7 +523,7 @@ class NodeManager(object):
 
     def run_commands(self, odir='info', timeout=15, fake=False,
                      maxthreads=100):
-        lock = flock.FLock('/tmp/timmy-cmds.lock')
+        lock = flock.FLock(os.path.join(gettempdir(), 'timmy-cmds.lock'))
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
             return ''
@@ -623,13 +624,13 @@ class NodeManager(object):
             try:
                 with open(logslistfile, 'w') as llf:
                     for filename in node.logs_dict():
-                        llf.write(filename.lstrip('/')+"\0")
+                        llf.write(filename.lstrip(os.path.abspath(os.sep))+"\0")
             except:
                 logging.error("create_archive_logs: Can't write to file %s" %
                               logslistfile)
                 continue
-            cmd = ("tar --gzip -C / --create --warning=no-file-changed "
-                   " --file - --null --files-from -")
+            cmd = ("tar --gzip -C %s --create --warning=no-file-changed "
+                   " --file - --null --files-from -" % os.path.abspath(os.sep))
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
                 cmd = ' '.join([cmd, "| python -c '%s'" % pythonslowpipe])
             args = {'cmd': cmd,
@@ -647,7 +648,7 @@ class NodeManager(object):
                 logging.error("archive_logs: can't delete file %s" % tfile)
 
     def get_files(self, odir=Node.fkey, timeout=15):
-        lock = flock.FLock('/tmp/timmy-files.lock')
+        lock = flock.FLock(os.path.join(gettempdir(), 'timmy-files.lock'))
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "files"-part')
             return ''

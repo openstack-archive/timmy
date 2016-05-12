@@ -146,21 +146,15 @@ def get_dir_structure(rootdir):
     return dir
 
 
-def choose_path(filename):
-    if os.path.exists(filename):
-        return filename
-    elif '/' in filename:
-        return filename.split('/')[-1]
-
-
 def load_yaml_file(filename):
     try:
-        with open(choose_path(filename), 'r') as f:
+        with open(filename, 'r') as f:
             return yaml.load(f)
     except IOError as e:
         logging.error("load_conf: I/O error(%s): file: %s; msg: %s" %
                       (e.errno, e.filename, e.strerror))
-        return e
+        sys.exit(1)
+        # return e
     except ValueError:
         logging.error("load_conf: Could not convert data")
         sys.exit(1)

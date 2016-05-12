@@ -23,6 +23,7 @@ import os
 from timmy.conf import load_conf
 from timmy import flock
 from timmy.tools import interrupt_wrapper
+from tempfile import gettempdir
 
 
 @interrupt_wrapper
@@ -123,7 +124,7 @@ def main(argv=None):
                                       main_arc,
                                       60)
     if args.only_logs or args.getlogs:
-        lf = '/tmp/timmy-logs.lock'
+        lf = os.path.join(gettempdir(),'timmy-logs.lock')
         lock = flock.FLock(lf)
         if lock.lock():
             size = nm.calculate_log_size(args.maxthreads)

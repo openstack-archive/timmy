@@ -1,4 +1,6 @@
-from tools import load_yaml_file, choose_path
+from tools import load_yaml_file
+from tempfile import gettempdir
+import os
 
 
 def load_conf(filename):
@@ -11,12 +13,20 @@ def load_conf(filename):
                         '-lroot', '-oBatchMode=yes']
     conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
     conf['fuelip'] = 'localhost'
-    conf['outdir'] = '/tmp/timmy/info'
+    conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
     conf['timeout'] = 15
-    conf['rqdir'] = choose_path('/usr/share/timmy/rq')
-    conf['rqfile'] = choose_path('/usr/share/timmy/configs/rq.yaml')
+    rqlabel = 'rq'
+    dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', 'timmy')
+    if os.path.isdir(os.path.join(dtm, rqlabel)):
+        conf['rqdir'] = os.path.join(dtm, rqlabel)
+    else:
+        conf['rqdir'] = rqlabel
+    if os.path.isfile(os.path.join(dtm, 'configs', 'rq.yaml')):
+        conf['rqfile'] = os.path.join(dtm, 'configs', 'rq.yaml')
+    else:
+        conf['rqfile'] = 'rq.yaml'
     conf['compress_timeout'] = 3600
-    conf['archives'] = '/tmp/timmy/archives'
+    conf['archives'] = os.path.join(gettempdir(), 'timmy', 'archives')
     conf['cmds_archive'] = ''
     conf['logs'] = {'path': '/var/log',
                     'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
