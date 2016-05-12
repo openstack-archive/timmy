@@ -623,8 +623,8 @@ class NodeManager(object):
             txtfl.append(logslistfile)
             try:
                 with open(logslistfile, 'w') as llf:
-                    for filename in node.logs_dict():
-                        llf.write(filename.lstrip(os.path.abspath(os.sep))+"\0")
+                    for fn in node.logs_dict():
+                        llf.write(fn.lstrip(os.path.abspath(os.sep))+"\0")
             except:
                 logging.error("create_archive_logs: Can't write to file %s" %
                               logslistfile)

@@ -3,9 +3,10 @@
 from setuptools import setup
 import os
 
-rqfiles = [('/usr/share/timmy/' + root, [os.path.join(root, f) for f in files])
+dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', 'timmy')
+rqfiles = [(os.path.join(dtm, root), [os.path.join(root, f) for f in files])
            for root, dirs, files in os.walk('rq')]
-rqfiles.append(('/usr/share/timmy/configs', ['config.yaml', 'rq.yaml']))
+rqfiles.append((os.path.join(dtm, 'configs'), ['config.yaml', 'rq.yaml']))
 
 setup(name='timmy',
       version='1.0',

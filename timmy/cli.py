@@ -124,7 +124,7 @@ def main(argv=None):
                                       main_arc,
                                       60)
     if args.only_logs or args.getlogs:
-        lf = os.path.join(gettempdir(),'timmy-logs.lock')
+        lf = os.path.join(gettempdir(), 'timmy-logs.lock')
         lock = flock.FLock(lf)
         if lock.lock():
             size = nm.calculate_log_size(args.maxthreads)
