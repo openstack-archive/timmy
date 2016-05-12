@@ -1,4 +1,4 @@
-files:
+filelists:
   by_roles:
     fuel: [etc-nailgun, etc-fuel]
     ceph-osd: [etc-ceph]

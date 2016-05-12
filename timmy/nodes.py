@@ -29,20 +29,23 @@ import tools
 from tools import w_list
 from copy import deepcopy
 
-ckey = 'cmds'
-skey = 'scripts'
-fkey = 'files'
-lkey = 'logs'
-
 
 class Node(object):
 
-    conf_appendable = [lkey, ckey, skey, fkey]
-    conf_keep_default = [skey, ckey, fkey]
+    ckey = 'cmds'
+    skey = 'scripts'
+    fkey = 'files'
+    flkey = 'filelists'
+    lkey = 'logs'
+    conf_actionable = [lkey, ckey, skey, fkey, flkey]
+    conf_appendable = [lkey, ckey, skey, fkey, flkey]
+    conf_keep_default = [skey, ckey, fkey, flkey]
     conf_once_prefix = 'once_'
     conf_match_prefix = 'by_'
     conf_default_key = '__default'
     conf_priority_section = conf_match_prefix + 'id'
+    print_template = '{0:<14} {1:<3} {2:<16} {3:<18} {4:<10} {5:<30}'
+    print_template += ' {6:<6} {7}'
 
     def __init__(self, id, mac, cluster, roles, os_platform,
                  online, status, ip, conf):
@@ -55,7 +58,9 @@ class Node(object):
         self.status = status
         self.ip = ip
         self.files = []
+        self.filelists = []
         self.cmds = []
+        self.scripts = []
         self.data = {}
         self.logsize = 0
         self.mapcmds = {}
@@ -67,11 +72,11 @@ class Node(object):
         if not self.filtered_out:
             my_id = self.id
         else:
-            my_id = '#' + str(self.id)
-
-        templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform} '
-        templ += '{2} {1.online} {1.status}'
-        return templ.format(my_id, self, ','.join(self.roles))
+            my_id = str(self.id) + ' [skipped]'
+        pt = self.print_template
+        return pt.format(my_id, self.cluster, self.ip, self.mac,
+                         self.os_platform, ','.join(self.roles),
+                         str(self.online), self.status)
 
     def apply_conf(self, conf, clean=True):
 
@@ -132,39 +137,11 @@ class Node(object):
                 setattr(self, f, [])
         r_apply(conf, p, p_s, c_a, k_d, overridden, d, clean=clean)
 
-    def checkos(self, filename):
-        bname = str(os.path.basename(filename))
-        logging.debug('check os: node: %s, filename %s' %
-                      (self.id, filename))
-        if bname[0] == '.':
-            if self.os_platform in bname:
-                logging.debug('os %s in filename %s' %
-                              (self.os_platform, filename))
-                return True
-            else:
-                return False
-        return True
-
-    def exclude_non_os(self):
-        for key in self.files.keys():
-            self.files[key] = [f for f in self.files[key] if self.checkos(f)]
-
-    def add_files(self, dirname, key, ds):
-        for role in self.roles:
-            if ('once-by-role' in ds[key] and
-                    role in ds[key]['once-by-role'].keys()):
-                for f in ds[key]['once-by-role'][role]:
-                    self.files[key] += [os.path.join(dirname, key,
-                                                     'once-by-role', role, f)]
-        self.files[key] = sorted(set(self.files[key]))
-        logging.debug('add files:\nnode: %s, key: %s, files:\n%s' %
-                      (self.id, key, self.files[key]))
-
     def exec_cmd(self, odir='info', fake=False, ok_codes=[0, ]):
         sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
-        logging.debug('%s/%s/%s/%s' % (odir, ckey, cl, sn))
-        ddir = os.path.join(odir, ckey, cl, sn)
+        logging.debug('%s/%s/%s/%s' % (odir, Node.ckey, cl, sn))
+        ddir = os.path.join(odir, Node.ckey, cl, sn)
         if self.cmds:
             tools.mdir(ddir)
         for c in self.cmds:
@@ -190,11 +167,11 @@ class Node(object):
                     except:
                         logging.error("exec_cmd: can't write to file %s" %
                                       dfile)
-        ddir = os.path.join(odir, skey, cl, sn)
+        ddir = os.path.join(odir, Node.skey, cl, sn)
         if self.scripts:
             tools.mdir(ddir)
         for scr in self.scripts:
-            f = os.path.join(self.rqdir, skey, scr)
+            f = os.path.join(self.rqdir, Node.skey, scr)
             logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -235,32 +212,43 @@ class Node(object):
                                 (self.id, self.ip, cmd, code, errs))
 
     def get_files(self, odir='info', timeout=15):
-        logging.info('node:%s(%s), filelist: %s' %
-                     (self.id, self.ip, fkey))
+        def check_code(code):
+            if code != 0:
+                logging.warning("get_files: node: %s, ip: %s, "
+                                "code: %s, error message: %s" %
+                                (self.id, self.ip, code, errs))
+
+        logging.info('get_files: node: %s, IP: %s' % (self.id, self.ip))
         sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
-        ddir = os.path.join(odir, fkey, cl, sn)
+        ddir = os.path.join(odir, Node.fkey, cl, sn)
         tools.mdir(ddir)
-        data = ''
-        for f in self.files:
-            fname = os.path.join(self.rqdir, 'files', f)
-            try:
-                with open(fname, 'r') as df:
-                    for line in df:
-                        if not line.isspace() and line[0] != '#':
-                            data += line
-            except:
-                logging.error('could not read file: %s' % fname)
-        logging.debug('node: %s, data:\n%s' % (self.id, data))
-        outs, errs, code = tools.get_files_rsync(ip=self.ip,
-                                                 data=data,
-                                                 ssh_opts=self.ssh_opts,
-                                                 dpath=ddir,
-                                                 timeout=self.timeout)
-        if code != 0:
-            logging.warning("get_files: node: %s, ip: %s, "
-                            "code: %s, error message: %s" %
-                            (self.id, self.ip, code, errs))
+        if self.shell_mode:
+            for file in self.files:
+                outs, errs, code = tools.get_file_scp(ip=self.ip,
+                                                      file=file,
+                                                      ddir=ddir,
+                                                      recursive=True)
+                check_code(code)
+        else:
+            data = ''
+            for f in self.filelists:
+                fname = os.path.join(self.rqdir, Node.flkey, f)
+                try:
+                    with open(fname, 'r') as df:
+                        for line in df:
+                            if not line.isspace() and line[0] != '#':
+                                data += line
+                except:
+                    logging.error('could not read file: %s' % fname)
+            data += '\n'.join(self.files)
+            logging.debug('node: %s, data:\n%s' % (self.id, data))
+            outs, errs, code = tools.get_files_rsync(ip=self.ip,
+                                                     data=data,
+                                                     ssh_opts=self.ssh_opts,
+                                                     dpath=ddir,
+                                                     timeout=self.timeout)
+            check_code(code)
 
     def logs_populate(self, timeout=5):
 
@@ -317,7 +305,8 @@ class NodeManager(object):
     def __init__(self, conf, extended=False, filename=None):
         self.conf = conf
         self.rqdir = conf['rqdir'].rstrip('/')
-        self.import_rq()
+        if not conf['shell_mode']:
+            self.import_rq()
         if (not os.path.exists(self.rqdir)):
             logging.error("directory %s doesn't exist" % (self.rqdir))
             sys.exit(1)
@@ -336,19 +325,31 @@ class NodeManager(object):
         else:
             self.njdata = json.loads(self.get_nodes())
         self.nodes_init()
+        # apply soft-filter on all nodes
+        for node in self.nodes.values():
+            if not self.filter(node, self.conf['soft_filter']):
+                node.filtered_out = True
         self.get_version()
         self.nodes_get_release()
-        self.nodes_reapply_conf()
-        self.conf_assign_once()
-        if extended:
-            '''TO-DO: load smth like extended.yaml
-            do additional apply_conf(clean=False) with this yaml.
-            Move some stuff from rq.yaml to extended.yaml'''
-            pass
+        if not conf['shell_mode']:
+            self.nodes_reapply_conf()
+            self.conf_assign_once()
+            if extended:
+                '''TO-DO: load smth like extended.yaml
+                do additional apply_conf(clean=False) with this yaml.
+                Move some stuff from rq.yaml to extended.yaml'''
+                pass
 
     def __str__(self):
-        s = "#node-id, cluster, admin-ip, mac, os, roles, online, status\n"
-        return s+'\n'.join([str(n) for n in self.sorted_nodes()])
+        pt = Node.print_template
+        header = pt.format('node-id', 'env', 'ip/hostname', 'mac', 'os',
+                           'roles', 'online', 'status') + '\n'
+        nodestrings = []
+        # f3flight: I only did this to not print Fuel when it is hard-filtered
+        for n in self.sorted_nodes():
+            if self.filter(n, self.conf['hard_filter']):
+                nodestrings.append(str(n))
+        return header + '\n'.join(nodestrings)
 
     def sorted_nodes(self):
         s = [n for n in sorted(self.nodes.values(), key=lambda x: x.id)]
@@ -412,6 +413,9 @@ class NodeManager(object):
                         online=True,
                         ip=self.fuelip,
                         conf=self.conf)
+        # soft-skip Fuel if it is hard-filtered
+        if not self.filter(fuelnode, self.conf['hard_filter']):
+            fuelnode.filtered_out = True
         self.nodes = {self.fuelip: fuelnode}
         nodes_json, err, code = tools.ssh_node(ip=self.fuelip,
                                                command=fuel_node_cmd,
@@ -440,8 +444,6 @@ class NodeManager(object):
                 params[key] = node_data[key]
             node = Node(**params)
             if self.filter(node, self.conf['hard_filter']):
-                if not self.filter(node, self.conf['soft_filter']):
-                    node.filtered_out = True
                 self.nodes[node.ip] = node
 
     def get_version(self):
@@ -506,8 +508,9 @@ class NodeManager(object):
 
     def filter(self, node, node_filter):
         f = node_filter
-        if node.id == 0 and f == self.conf['hard_filter']:
-            return True
+        # soft-skip Fuel node if shell mode is enabled
+        if node.id == 0 and self.conf['shell_mode']:
+            return False
         else:
             fnames = [k for k in f if hasattr(node, k) and f[k]]
             checks = []
@@ -517,7 +520,8 @@ class NodeManager(object):
                 checks.append(not set(node_v).isdisjoint(filter_v))
             return all(checks)
 
-    def launch_ssh(self, odir='info', timeout=15, fake=False, maxthreads=100):
+    def run_commands(self, odir='info', timeout=15, fake=False,
+                     maxthreads=100):
         lock = flock.FLock('/tmp/timmy-cmds.lock')
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
@@ -596,8 +600,7 @@ class NodeManager(object):
                     speed = defspeed
                 return speed
 
-    def archive_logs(self, outdir, timeout,
-                     fake=False, maxthreads=10, speed=100):
+    def get_logs(self, outdir, timeout, fake=False, maxthreads=10, speed=100):
         if fake:
             logging.info('archive_logs:skip creating archives(fake:%s)' % fake)
             return
@@ -643,7 +646,7 @@ class NodeManager(object):
             except:
                 logging.error("archive_logs: can't delete file %s" % tfile)
 
-    def get_conf_files(self, odir=fkey, timeout=15):
+    def get_files(self, odir=Node.fkey, timeout=15):
         lock = flock.FLock('/tmp/timmy-files.lock')
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "files"-part')

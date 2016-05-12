@@ -146,24 +146,27 @@ def get_dir_structure(rootdir):
     return dir
 
 
+def choose_path(filename):
+    if os.path.exists(filename):
+        return filename
+    elif '/' in filename:
+        return filename.split('/')[-1]
+
+
 def load_yaml_file(filename):
     try:
-        with open(filename, 'r') as f:
+        with open(choose_path(filename), 'r') as f:
             return yaml.load(f)
     except IOError as e:
-        logging.error("load_conf: I/O error(%s): file: %s; message: %s" %
+        logging.error("load_conf: I/O error(%s): file: %s; msg: %s" %
                       (e.errno, e.filename, e.strerror))
-        sys.exit(1)
+        return e
     except ValueError:
         logging.error("load_conf: Could not convert data")
         sys.exit(1)
     except yaml.parser.ParserError as e:
         logging.error("load_conf: Could not parse %s:\n%s" %
                       (filename, str(e)))
-        sys.exit(1)
-    except:
-        logging.error("load_conf: Unexpected error: %s" %
-                      sys.exc_info()[0])
         sys.exit(1)
 
 
@@ -177,7 +180,7 @@ def mdir(directory):
             sys.exit(3)
 
 
-def launch_cmd(command, timeout):
+def launch_cmd(command, timeout, input=None):
     def _timeout_terminate(pid):
         try:
             os.kill(pid, 15)
@@ -188,13 +191,14 @@ def launch_cmd(command, timeout):
     logging.info('launch_cmd: command %s' % command)
     p = subprocess.Popen(command,
                          shell=True,
+                         stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
     timeout_killer = None
     try:
         timeout_killer = threading.Timer(timeout, _timeout_terminate, [p.pid])
         timeout_killer.start()
-        outs, errs = p.communicate()
+        outs, errs = p.communicate(input=input)
     except:
         try:
             p.kill()
@@ -240,8 +244,7 @@ def ssh_node(ip, command='', ssh_opts=[], env_vars=[], timeout=15,
         cmd += ' > "' + outputfile + '"'
     cmd = ("trap 'kill $pid' 15; " +
            "trap 'kill $pid' 2; " + cmd + '&:; pid=$!; wait $!')
-    outs, errs, code = launch_cmd(cmd, timeout)
-    return outs, errs, code
+    return launch_cmd(cmd, timeout)
 
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
@@ -260,31 +263,23 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
     logging.debug("command:%s\ndata:\n%s" % (cmd, data))
     if data == '':
         return cmd, '', 127
-    p = subprocess.Popen(cmd,
-                         shell=True,
-                         stdin=subprocess.PIPE,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-    try:
-        outs, errs = p.communicate(input=data)
-    except:
-        p.kill()
-        outs, errs = p.communicate()
-        logging.error("ip: %s, command: %s err: %s, returned: %s" %
-                      (ip, cmd, errs, p.returncode))
+    return launch_cmd(cmd, timeout, input=data)
 
-    logging.debug("ip: %s, ssh return: err:%s\nouts:%s\ncode:%s" %
-                  (ip, errs, outs, p.returncode))
-    logging.info("ip: %s, ssh return: err:%s\ncode:%s" %
-                 (ip, errs, p.returncode))
-    return outs, errs, p.returncode
+
+def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
+    ddir = ddir.rstrip('/') + '/'
+    if '/' in file.lstrip('/'):
+        subpath = ddir + file.lstrip('/')[:file.rfind('/')-1]
+        mdir(subpath)
+    r = '-r ' if recursive else ''
+    cmd = "timeout '%s' scp %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
+    return launch_cmd(cmd, timeout)
 
 
 def free_space(destdir, timeout):
     cmd = ("df %s --block-size K 2> /dev/null"
            " | tail -n 1 | awk '{print $2}' | sed 's/K//g'") % (destdir)
-    outs, errs, code = launch_cmd(cmd, timeout)
-    return outs, errs, code
+    return launch_cmd(cmd, timeout)
 
 
 # wrap non-list into list
