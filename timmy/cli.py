@@ -78,7 +78,7 @@ def main(argv=None):
                               ' -R compute ceph-osd any-other-role'))
     parser.add_argument('--no-archive',
                         help=('Do not create results archive. By default,'
-                              ' an arhive with all outputs and files'
+                              ' an archive with all outputs and files'
                               ' is created every time you run Timmy.'),
                         action='store_true')
     args = parser.parse_args(argv[1:])
