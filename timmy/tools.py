@@ -192,12 +192,14 @@ def launch_cmd(command, timeout, input=None):
         timeout_killer = threading.Timer(timeout, _timeout_terminate, [p.pid])
         timeout_killer.start()
         outs, errs = p.communicate(input=input)
+        errs = errs.rstrip('\n')
     except:
         try:
             p.kill()
         except:
             pass
         outs, errs = p.communicate()
+        errs = errs.rstrip('\n')
         logging.error("command: %s err: %s, returned: %s" %
                       (command, errs, p.returncode))
     finally:

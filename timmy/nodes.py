@@ -214,7 +214,7 @@ class Node(object):
                                 (self.id, self.ip, cmd, code, errs))
 
     def get_files(self, odir='info', timeout=15):
-        def check_code(code):
+        def check_code(code, errs):
             if code != 0:
                 logging.warning("get_files: node: %s, ip: %s, "
                                 "code: %s, error message: %s" %
@@ -232,7 +232,7 @@ class Node(object):
                                                       file=file,
                                                       ddir=ddir,
                                                       recursive=True)
-                check_code(code)
+                check_code(code, errs)
         else:
             data = ''
             for f in self.filelists:
@@ -252,7 +252,7 @@ class Node(object):
                                                 ssh_opts=self.ssh_opts,
                                                 dpath=ddir,
                                                 timeout=self.timeout)
-            check_code(code)
+            check_code(c, e)
 
     def logs_populate(self, timeout=5):
 

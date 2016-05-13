@@ -26,6 +26,14 @@ from timmy.tools import interrupt_wrapper
 from tempfile import gettempdir
 
 
+def pretty_run(msg, f, args=[], kwargs={}):
+    sys.stdout.write('%s...\r' % msg)
+    sys.stdout.flush()
+    result = f(*args, **kwargs)
+    print('%s: done' % msg)
+    return result
+
+
 @interrupt_wrapper
 def main(argv=None):
     if argv is None:
@@ -82,8 +90,12 @@ def main(argv=None):
                               ' an archive with all outputs and files'
                               ' is created every time you run Timmy.'),
                         action='store_true')
+    parser.add_argument('--no-clean',
+                        help=('Do not clean previous results. Allows'
+                              ' accumulating results across runs.'),
+                        action='store_true')
     args = parser.parse_args(argv[1:])
-    loglevel = logging.ERROR
+    loglevel = logging.WARNING
     if args.verbose:
         loglevel = logging.INFO
     if args.debug:
@@ -94,10 +106,9 @@ def main(argv=None):
     conf = load_conf(args.conf)
     if args.command or args.file:
         conf['shell_mode'] = True
+    if args.no_clean:
+        conf['clean'] = False
     if conf['shell_mode']:
-        # set clean to True if not defined in config
-        if conf['clean'] is None:
-            conf['clean'] = True
         filter = conf['hard_filter']
         # config cleanup for shell mode
         for k in Node.conf_actionable:
@@ -118,28 +129,44 @@ def main(argv=None):
     main_arc = os.path.join(conf['archives'], 'general.tar.gz')
     if args.dest_file:
         main_arc = args.dest_file
-    nm = NodeManager(conf=conf,
-                     extended=args.extended)
+    nm = pretty_run('Initializing node data',
+                    NodeManager,
+                    kwargs={'conf': conf,
+                     'extended': args.extended})
     if not args.only_logs:
-        nm.run_commands(conf['outdir'], args.maxthreads)
-        nm.get_files(conf['outdir'], args.maxthreads)
+        if not (conf['shell_mode'] and not args.command):
+            pretty_run('Executing commands and scripts',
+                        nm.run_commands,
+                        args=(conf['outdir'], args.maxthreads))
+        if not (conf['shell_mode'] and not args.file):
+            pretty_run('Collecting files and filelists',
+                        nm.get_files,
+                        args=(conf['outdir'], args.maxthreads))
         if not args.no_archive:
-            nm.create_archive_general(conf['outdir'],
-                                      main_arc,
-                                      60)
+            pretty_run('Creating outputs and files archive',
+                        nm.create_archive_general,
+                        args=(conf['outdir'], main_arc, 60))
     if args.only_logs or args.getlogs:
         lf = os.path.join(gettempdir(), 'timmy-logs.lock')
         lock = flock.FLock(lf)
         if lock.lock():
-            size = nm.calculate_log_size(args.maxthreads)
+            size = pretty_run('Calculating logs size',
+                              nm.calculate_log_size,
+                              args=(args.maxthreads,))
             if size == 0:
-                logging.warning('No logs to collect.')
+                logging.warning('Size zero - no logs to collect.')
+                print('Size zero - no logs to collect.')
                 return
-            if nm.is_enough_space(conf['archives']):
-                nm.get_logs(conf['archives'],
-                            conf['compress_timeout'],
-                            maxthreads=args.logs_maxthreads,
-                            fake=args.fake_logs)
+            enough = pretty_run('Checking free space',
+                                 nm.is_enough_space,
+                                 args=(conf['archives'],))
+            if enough:
+                pretty_run('Collecting and packing logs',
+                           nm.get_logs,
+                           args=(conf['archives'],
+                                 conf['compress_timeout']),
+                           kwargs={'maxthreads': args.logs_maxthreads,
+                                   'fake': args.fake_logs})
             lock.unlock()
         else:
             logging.warning('Unable to obtain lock %s, skipping "logs"-part' %

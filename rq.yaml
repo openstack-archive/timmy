@@ -4,10 +4,12 @@ filelists:
     ceph-osd: [etc-ceph]
     cinder: [etc-cinder]
     compute: [etc-nova, etc-libvirt]
-    controller: [etc-glance, etc-haproxy, etc-heat, etc-ceph-controller, etc-nova,
+    controller: [etc-glance, etc-haproxy, etc-nova,
       etc-keystone, etc-neutron, etc-mysql]
+    # f3flight: removed etc-heat, etc-ceph-controller from controller since it's not always present, gives a warning
+    # f3flight: need to make a better way to decide which files to collect
   by_os_platform:
-    centos: [yum]
+    centos: [etc-yum]
     ubuntu: [etc-apt]
 scripts:
   by_release:
