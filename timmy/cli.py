@@ -69,13 +69,14 @@ def main(argv=None):
                         help=('Enables shell mode. Shell command to'
                               ' execute. For help on shell mode, read'
                               ' timmy/conf.py'))
-    parser.add_argument('-F', '--file', nargs='+',
-                        help=('Enables shell mode. Files to collect via'
-                              '"scp -r". Result is placed into a folder'
-                              'specified via "outdir" config option.'))
-    parser.add_argument('-R', '--role', nargs='+',
-                        help=('run only on the specified role(s). Example:'
-                              ' -R compute ceph-osd any-other-role'))
+    parser.add_argument('-F', '--file', action='append',
+                        help=('Enables shell mode. Can be specified multiple'
+                              ' times. Filemask to collect via "scp -r".'
+                              ' Result is placed into a folder specified'
+                              ' by "outdir" config option.'))
+    parser.add_argument('-R', '--role', action='append',
+                        help=('Can be specified multiple times.'
+                              ' Run only on the specified role.'))
     parser.add_argument('--no-archive',
                         help=('Do not create results archive. By default,'
                               ' an archive with all outputs and files'
