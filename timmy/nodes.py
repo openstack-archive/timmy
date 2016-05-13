@@ -22,6 +22,7 @@ main module
 import flock
 import json
 import os
+import shutil
 import logging
 import sys
 import re
@@ -222,8 +223,9 @@ class Node(object):
         logging.info('get_files: node: %s, IP: %s' % (self.id, self.ip))
         sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
-        ddir = os.path.join(odir, Node.fkey, cl, sn)
-        tools.mdir(ddir)
+        if self.files or self.filelists:
+            ddir = os.path.join(odir, Node.fkey, cl, sn)
+            tools.mdir(ddir)
         if self.shell_mode:
             for file in self.files:
                 outs, errs, code = tools.get_file_scp(ip=self.ip,
@@ -244,11 +246,12 @@ class Node(object):
                     logging.error('could not read file: %s' % fname)
             data += '\n'.join(self.files)
             logging.debug('node: %s, data:\n%s' % (self.id, data))
-            outs, errs, code = tools.get_files_rsync(ip=self.ip,
-                                                     data=data,
-                                                     ssh_opts=self.ssh_opts,
-                                                     dpath=ddir,
-                                                     timeout=self.timeout)
+            if data:
+                o, e, c = tools.get_files_rsync(ip=self.ip,
+                                                data=data,
+                                                ssh_opts=self.ssh_opts,
+                                                dpath=ddir,
+                                                timeout=self.timeout)
             check_code(code)
 
     def logs_populate(self, timeout=5):
@@ -305,12 +308,15 @@ class NodeManager(object):
 
     def __init__(self, conf, extended=False, filename=None):
         self.conf = conf
-        self.rqdir = conf['rqdir'].rstrip('/')
+        if conf['clean']:
+            shutil.rmtree(conf['outdir'], ignore_errors=True)
+            shutil.rmtree(conf['archives'], ignore_errors=True)
         if not conf['shell_mode']:
+            self.rqdir = conf['rqdir']
+            if (not os.path.exists(self.rqdir)):
+                logging.error("directory %s doesn't exist" % (self.rqdir))
+                sys.exit(1)
             self.import_rq()
-        if (not os.path.exists(self.rqdir)):
-            logging.error("directory %s doesn't exist" % (self.rqdir))
-            sys.exit(1)
         if (conf['fuelip'] is None) or (conf['fuelip'] == ""):
             logging.error('looks like fuelip is not set(%s)' % conf['fuelip'])
             sys.exit(7)

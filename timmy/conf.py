@@ -41,6 +41,9 @@ def load_conf(filename):
     place specified by conf['outdir'], archive will also be created and put
     in a place specified by conf['archives'].'''
     conf['shell_mode'] = False
+    '''Clean - erase previous results in outdir and archives dir, if any.
+    Enabled by default for shell mode. Set to True or False to override.'''
+    conf['clean'] = None
     if filename:
         conf_extra = load_yaml_file(filename)
         conf.update(**conf_extra)

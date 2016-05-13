@@ -92,8 +92,13 @@ def main(argv=None):
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
     conf = load_conf(args.conf)
-    if args.command or args.file or conf['shell_mode']:
+    if args.command or args.file:
         conf['shell_mode'] = True
+    if conf['shell_mode']:
+        # set clean to True if not defined in config
+        if conf['clean'] is None:
+            conf['clean'] = True
+        filter = conf['hard_filter']
         # config cleanup for shell mode
         for k in Node.conf_actionable:
             conf[k] = [] if k in Node.conf_appendable else None
@@ -104,8 +109,6 @@ def main(argv=None):
             conf[Node.ckey] = [{'stdout': args.command}]
         if args.file:
             conf[Node.fkey] = args.file
-    if conf['shell_mode']:
-        filter = conf['hard_filter']
     else:
         filter = conf['soft_filter']
     if args.role:
