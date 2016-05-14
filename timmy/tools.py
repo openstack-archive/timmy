@@ -26,6 +26,8 @@ import threading
 from multiprocessing import Process, Queue, BoundedSemaphore
 import subprocess
 import yaml
+from flock import FLock
+from tempfile import gettempdir
 
 
 slowpipe = '''
@@ -55,6 +57,18 @@ def interrupt_wrapper(f):
                 if not k.startswith('__') and k != 'message':
                     v = getattr(e, k)
                     logging.debug('Error details: %s = %s' % (k, v))
+    return wrapper
+
+
+def run_with_lock(f):
+    def wrapper(*args, **kwargs):
+        lock = FLock(os.path.join(gettempdir(), 'timmy_%s.lock' % f.__name__))
+        if not lock.lock():
+            logging.warning('Unable to obtain lock, skipping "%s"' %
+                            f.__name__)
+            return ''
+        f(*args, **kwargs)
+        lock.unlock()
     return wrapper
 
 

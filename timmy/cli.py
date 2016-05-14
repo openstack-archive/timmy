@@ -21,9 +21,7 @@ import logging
 import sys
 import os
 from timmy.conf import load_conf
-from timmy import flock
 from timmy.tools import interrupt_wrapper
-from tempfile import gettempdir
 
 
 def pretty_run(msg, f, args=[], kwargs={}):
@@ -131,46 +129,33 @@ def main(argv=None):
         main_arc = args.dest_file
     nm = pretty_run('Initializing node data',
                     NodeManager,
-                    kwargs={'conf': conf,
-                     'extended': args.extended})
+                    kwargs={'conf': conf, 'extended': args.extended})
     if not args.only_logs:
         if not (conf['shell_mode'] and not args.command):
             pretty_run('Executing commands and scripts',
-                        nm.run_commands,
-                        args=(conf['outdir'], args.maxthreads))
+                       nm.run_commands,
+                       args=(conf['outdir'], args.maxthreads))
         if not (conf['shell_mode'] and not args.file):
             pretty_run('Collecting files and filelists',
-                        nm.get_files,
-                        args=(conf['outdir'], args.maxthreads))
+                       nm.get_files,
+                       args=(conf['outdir'], args.maxthreads))
         if not args.no_archive:
             pretty_run('Creating outputs and files archive',
-                        nm.create_archive_general,
-                        args=(conf['outdir'], main_arc, 60))
+                       nm.create_archive_general,
+                       args=(conf['outdir'], main_arc, 60))
     if args.only_logs or args.getlogs:
-        lf = os.path.join(gettempdir(), 'timmy-logs.lock')
-        lock = flock.FLock(lf)
-        if lock.lock():
-            size = pretty_run('Calculating logs size',
-                              nm.calculate_log_size,
-                              args=(args.maxthreads,))
-            if size == 0:
-                logging.warning('Size zero - no logs to collect.')
-                print('Size zero - no logs to collect.')
-                return
-            enough = pretty_run('Checking free space',
-                                 nm.is_enough_space,
-                                 args=(conf['archives'],))
-            if enough:
-                pretty_run('Collecting and packing logs',
-                           nm.get_logs,
-                           args=(conf['archives'],
-                                 conf['compress_timeout']),
-                           kwargs={'maxthreads': args.logs_maxthreads,
-                                   'fake': args.fake_logs})
-            lock.unlock()
-        else:
-            logging.warning('Unable to obtain lock %s, skipping "logs"-part' %
-                            lf)
+        size = pretty_run('Calculating logs size', nm.calculate_log_size,
+                          args=(args.maxthreads,))
+        if size == 0:
+            logging.warning('Size zero - no logs to collect.')
+            return
+        enough = pretty_run('Checking free space', nm.is_enough_space,
+                            args=(conf['archives'],))
+        if enough:
+            pretty_run('Collecting and packing logs', nm.get_logs,
+                       args=(conf['archives'], conf['compress_timeout']),
+                       kwargs={'maxthreads': args.logs_maxthreads,
+                               'fake': args.fake_logs})
     logging.info("Nodes:\n%s" % nm)
     print('Run complete. Node information:')
     print(nm)

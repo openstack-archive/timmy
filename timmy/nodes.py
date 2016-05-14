@@ -19,7 +19,6 @@
 main module
 """
 
-import flock
 import json
 import os
 import shutil
@@ -27,8 +26,7 @@ import logging
 import sys
 import re
 import tools
-from tempfile import gettempdir
-from tools import w_list
+from tools import w_list, run_with_lock
 from copy import deepcopy
 
 
@@ -527,12 +525,9 @@ class NodeManager(object):
                 checks.append(not set(node_v).isdisjoint(filter_v))
             return all(checks)
 
+    @run_with_lock
     def run_commands(self, odir='info', timeout=15, fake=False,
                      maxthreads=100):
-        lock = flock.FLock(os.path.join(gettempdir(), 'timmy-cmds.lock'))
-        if not lock.lock():
-            logging.warning('Unable to obtain lock, skipping "cmds"-part')
-            return ''
         run_items = []
         for key, node in self.nodes.items():
             if not node.filtered_out:
@@ -543,7 +538,6 @@ class NodeManager(object):
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:
             self.nodes[key] = result[key]
-        lock.unlock()
 
     def calculate_log_size(self, timeout=15, maxthreads=100):
         total_size = 0
@@ -582,6 +576,7 @@ class NodeManager(object):
         else:
             return True
 
+    @run_with_lock
     def create_archive_general(self, directory, outfile, timeout):
         cmd = "tar zcf '%s' -C %s %s" % (outfile, directory, ".")
         tools.mdir(self.conf['archives'])
@@ -607,6 +602,7 @@ class NodeManager(object):
                     speed = defspeed
                 return speed
 
+    @run_with_lock
     def get_logs(self, outdir, timeout, fake=False, maxthreads=10, speed=100):
         if fake:
             logging.info('archive_logs:skip creating archives(fake:%s)' % fake)
@@ -653,17 +649,13 @@ class NodeManager(object):
             except:
                 logging.error("archive_logs: can't delete file %s" % tfile)
 
+    @run_with_lock
     def get_files(self, odir=Node.fkey, timeout=15):
-        lock = flock.FLock(os.path.join(gettempdir(), 'timmy-files.lock'))
-        if not lock.lock():
-            logging.warning('Unable to obtain lock, skipping "files"-part')
-            return ''
         run_items = []
         for n in [n for n in self.nodes.values() if not n.filtered_out]:
             run_items.append(tools.RunItem(target=n.get_files,
                                            args={'odir': odir}))
         tools.run_batch(run_items, 10)
-        lock.unlock()
 
 
 def main(argv=None):
