@@ -22,25 +22,36 @@ main module
 import flock
 import json
 import os
+import shutil
 import logging
 import sys
 import re
 import tools
-
-ckey = 'cmds'
-fkey = 'files'
-lkey = 'logs'
-varlogdir = '/var/log'
+from tempfile import gettempdir
+from tools import w_list
+from copy import deepcopy
 
 
 class Node(object):
 
-    override_by_id = ['ssh_opts', 'env_vars', 'log_path', 'log_filter']
-    aggregate_by_role = ['log_path', 'log_filter']
+    ckey = 'cmds'
+    skey = 'scripts'
+    fkey = 'files'
+    flkey = 'filelists'
+    lkey = 'logs'
+    conf_actionable = [lkey, ckey, skey, fkey, flkey]
+    conf_appendable = [lkey, ckey, skey, fkey, flkey]
+    conf_keep_default = [skey, ckey, fkey, flkey]
+    conf_once_prefix = 'once_'
+    conf_match_prefix = 'by_'
+    conf_default_key = '__default'
+    conf_priority_section = conf_match_prefix + 'id'
+    print_template = '{0:<14} {1:<3} {2:<16} {3:<18} {4:<10} {5:<30}'
+    print_template += ' {6:<6} {7}'
 
-    def __init__(self, node_id, mac, cluster, roles, os_platform,
+    def __init__(self, id, mac, cluster, roles, os_platform,
                  online, status, ip, conf):
-        self.node_id = node_id
+        self.id = id
         self.mac = mac
         self.cluster = cluster
         self.roles = roles
@@ -48,114 +59,136 @@ class Node(object):
         self.online = online
         self.status = status
         self.ip = ip
-        self.files = {}
+        self.files = []
+        self.filelists = []
+        self.cmds = []
+        self.scripts = []
         self.data = {}
         self.logsize = 0
-        self.flogs = {}
         self.mapcmds = {}
-        self.logs = {}
-        self.set_conf(conf)
+        self.mapscr = {}
+        self.filtered_out = False
+        self.apply_conf(conf)
 
-    def override_conf(self, conf):
-        for field in Node.aggregate_by_role:
-            for role in self.roles:
-                try:
-                    override = conf.by_role[self.role][field]
-                    getattr(self, field).append(override)
-                except:
-                    pass
-        for field in Node.override_by_id:
-            try:
-                override = conf.by_node_id[self.node_id][field]
-                if field in Node.aggregate_by_role:
-                    override = [override]
-                setattr(self, field, override)
-            except:
-                pass
+    def __str__(self):
+        if not self.filtered_out:
+            my_id = self.id
+        else:
+            my_id = str(self.id) + ' [skipped]'
+        pt = self.print_template
+        return pt.format(my_id, self.cluster, self.ip, self.mac,
+                         self.os_platform, ','.join(self.roles),
+                         str(self.online), self.status)
 
-    def set_conf(self, conf):
-        self.ssh_opts = conf.ssh_opts
-        self.env_vars = conf.env_vars
-        self.log_path = list([conf.log_path])
-        self.log_filter = list([conf.log_filter])
-        self.timeout = conf.timeout
-        self.override_conf(conf)
+    def apply_conf(self, conf, clean=True):
 
-    def set_files(self, dirname, key, ds, version):
-        files = []
-        dfs = 'default'
-        for role in self.roles:
-            if 'by-role' in ds[key] and role in ds[key]['by-role'].keys():
-                for f in ds[key]['by-role'][role]:
-                    files += [os.path.join(dirname, key, 'by-role', role, f)]
-            if (('release-'+version in ds[key].keys()) and
-                    (role in ds[key]['release-'+version].keys())):
-                for f in ds[key]['release-'+version][role]:
-                        files += [os.path.join(dirname, key,
-                                               'release-'+version, role, f)]
-            if 'by-os' in ds[key]:
-                for f in ds[key]['by-os'][self.os_platform].keys():
-                    files += [os.path.join(dirname, key, 'by-os',
-                                           self.os_platform, f)]
-            if dfs in ds[key] and dfs in ds[key][dfs]:
-                for f in ds[key][dfs][dfs].keys():
-                    files += [os.path.join(dirname, key, dfs, dfs, f)]
-        self.files[key] = sorted(set(files))
-        logging.debug('set_files:\nkey: %s, node: %s, file_list: %s' %
-                      (key, self.node_id, self.files[key]))
-
-    def checkos(self, filename):
-        bname = str(os.path.basename(filename))
-        logging.debug('check os: node: %s, filename %s' %
-                      (self.node_id, filename))
-        if bname[0] == '.':
-            if self.os_platform in bname:
-                logging.debug('os %s in filename %s' %
-                              (self.os_platform, filename))
-                return True
+        def apply(k, v, c_a, k_d, o, default=False):
+            if k in c_a:
+                if any([default,
+                        k not in k_d and k not in o,
+                        not hasattr(self, k)]):
+                    setattr(self, k, deepcopy(w_list(v)))
+                else:
+                    getattr(self, k).extend(deepcopy(w_list(v)))
+                if not default:
+                    o[k] = True
             else:
-                return False
-        return True
+                setattr(self, k, deepcopy(v))
 
-    def exclude_non_os(self):
-        for key in self.files.keys():
-            self.files[key] = [f for f in self.files[key] if self.checkos(f)]
+        def r_apply(el, p, p_s, c_a, k_d, o, d, clean=False):
+            # apply normal attributes
+            for k in [k for k in el if k != p_s and not k.startswith(p)]:
+                if el == conf and clean:
+                    apply(k, el[k], c_a, k_d, o, default=True)
+                else:
+                    apply(k, el[k], c_a, k_d, o)
+            # apply match attributes (by_xxx except by_id)
+            for k in [k for k in el if k != p_s and k.startswith(p)]:
+                attr_name = k[len(p):]
+                if hasattr(self, attr_name):
+                    attr = w_list(getattr(self, attr_name))
+                    for v in attr:
+                        if v in el[k]:
+                            subconf = el[k][v]
+                            if d in el:
+                                d_conf = el[d]
+                                for a in d_conf:
+                                    apply(a, d_conf[a], c_a, k_d, o)
+                            r_apply(subconf, p, p_s, c_a, k_d, o, d)
+            # apply priority attributes (by_id)
+            if p_s in el:
+                if self.id in el[p_s]:
+                    p_conf = el[p_s][self.id]
+                    if d in el[p_s]:
+                        d_conf = el[p_s][d]
+                        for k in d_conf:
+                            apply(k, d_conf[k], c_a, k_d, o)
+                    for k in [k for k in p_conf if k != d]:
+                        apply(k, p_conf[k], c_a, k_d, o, default=True)
 
-    def add_files(self, dirname, key, ds):
-        for role in self.roles:
-            if ('once-by-role' in ds[key] and
-                    role in ds[key]['once-by-role'].keys()):
-                for f in ds[key]['once-by-role'][role]:
-                    self.files[key] += [os.path.join(dirname, key,
-                                                     'once-by-role', role, f)]
-        self.files[key] = sorted(set(self.files[key]))
-        logging.debug('add files:\nnode: %s, key: %s, files:\n%s' %
-                      (self.node_id, key, self.files[key]))
+        p = Node.conf_match_prefix
+        p_s = Node.conf_priority_section
+        c_a = Node.conf_appendable
+        k_d = Node.conf_keep_default
+        d = Node.conf_default_key
+        overridden = {}
+        if clean:
+            '''clean appendable keep_default params to ensure no content
+            duplication if this function gets called more than once'''
+            for f in set(c_a).intersection(k_d):
+                setattr(self, f, [])
+        r_apply(conf, p, p_s, c_a, k_d, overridden, d, clean=clean)
 
-    def exec_cmd(self, label, odir='info', fake=False):
-        sn = 'node-%s' % self.node_id
+    def exec_cmd(self, odir='info', fake=False, ok_codes=[0, ]):
+        sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
-        logging.debug('%s/%s/%s/%s' % (odir, label, cl, sn))
-        ddir = os.path.join(odir, label, cl, sn)
-        tools.mdir(ddir)
-        for f in self.files[label]:
-            logging.info('node:%s(%s), exec: %s' % (self.node_id, self.ip, f))
+        logging.debug('%s/%s/%s/%s' % (odir, Node.ckey, cl, sn))
+        ddir = os.path.join(odir, Node.ckey, cl, sn)
+        if self.cmds:
+            tools.mdir(ddir)
+        for c in self.cmds:
+            for cmd in c:
+                if not fake:
+                    outs, errs, code = tools.ssh_node(ip=self.ip,
+                                                      command=c[cmd],
+                                                      ssh_opts=self.ssh_opts,
+                                                      env_vars=self.env_vars,
+                                                      timeout=self.timeout)
+                    if code not in ok_codes:
+                        logging.warning("node: %s, ip: %s, cmdfile: %s,"
+                                        " code: %s, error message: %s" %
+                                        (self.id, self.ip, c, code, errs))
+                dfile = os.path.join(ddir, 'node-%s-%s-%s' %
+                                     (self.id, self.ip, cmd))
+                logging.info('outfile: %s' % dfile)
+                self.mapcmds[cmd] = dfile
+                if not fake:
+                    try:
+                        with open(dfile, 'w') as df:
+                            df.write(outs)
+                    except:
+                        logging.error("exec_cmd: can't write to file %s" %
+                                      dfile)
+        ddir = os.path.join(odir, Node.skey, cl, sn)
+        if self.scripts:
+            tools.mdir(ddir)
+        for scr in self.scripts:
+            f = os.path.join(self.rqdir, Node.skey, scr)
+            logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,
                                                   filename=f,
                                                   ssh_opts=self.ssh_opts,
                                                   env_vars=self.env_vars,
-                                                  timeout=self.timeout,
-                                                  command=''
-                                                  )
-                if code != 0:
-                    logging.error("node: %s, ip: %s, cmdfile: %s,"
-                                  " code: %s, error message: %s" %
-                                  (self.node_id, self.ip, f, code, errs))
+                                                  timeout=self.timeout)
+                if code not in ok_codes:
+                    logging.warning("node: %s, ip: %s, cmdfile: %s,"
+                                    " code: %s, error message: %s" %
+                                    (self.id, self.ip, f, code, errs))
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
-                                 (self.node_id, self.ip, os.path.basename(f)))
+                                 (self.id, self.ip, os.path.basename(f)))
             logging.info('outfile: %s' % dfile)
-            self.mapcmds[os.path.basename(f)] = dfile
+            self.mapscr[os.path.basename(f)] = dfile
             if not fake:
                 try:
                     with open(dfile, 'w') as df:
@@ -164,8 +197,9 @@ class Node(object):
                     logging.error("exec_cmd: can't write to file %s" % dfile)
         return self
 
-    def exec_simple_cmd(self, cmd, infile, outfile, timeout=15, fake=False):
-        logging.info('node:%s(%s), exec: %s' % (self.node_id, self.ip, cmd))
+    def exec_simple_cmd(self, cmd, infile, outfile, timeout=15,
+                        fake=False, ok_codes=[0, ]):
+        logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, cmd))
         if not fake:
             outs, errs, code = tools.ssh_node(ip=self.ip,
                                               command=cmd,
@@ -174,58 +208,69 @@ class Node(object):
                                               timeout=timeout,
                                               outputfile=outfile,
                                               inputfile=infile)
-            if code != 0:
+            if code not in ok_codes:
                 logging.warning("node: %s, ip: %s, cmdfile: %s,"
                                 " code: %s, error message: %s" %
-                                (self.node_id, self.ip, cmd, code, errs))
+                                (self.id, self.ip, cmd, code, errs))
 
-    def get_files(self, label, odir='info', timeout=15):
-        logging.info('node:%s(%s), filelist: %s' %
-                     (self.node_id, self.ip, label))
-        sn = 'node-%s' % self.node_id
+    def get_files(self, odir='info', timeout=15):
+        def check_code(code, errs):
+            if code != 0:
+                logging.warning("get_files: node: %s, ip: %s, "
+                                "code: %s, error message: %s" %
+                                (self.id, self.ip, code, errs))
+
+        logging.info('get_files: node: %s, IP: %s' % (self.id, self.ip))
+        sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
-        ddir = os.path.join(odir, label, cl, sn)
-        tools.mdir(ddir)
-        outs, errs, code = tools.get_files_rsync(ip=self.ip,
-                                                 data=self.data[label],
-                                                 ssh_opts=self.ssh_opts,
-                                                 dpath=ddir,
-                                                 timeout=self.timeout)
-        if code != 0:
-            logging.warning("get_files: node: %s, ip: %s, label: %s, "
-                            "code: %s, error message: %s" %
-                            (self.node_id, self.ip, label, code, errs))
-
-    def get_data_from_files(self, key):
-        self.data[key] = ''
-        for fname in self.files[key]:
-            try:
-                with open(fname, 'r') as dfile:
-                    self.data[key] += '\n'+"".join(line for line in dfile
-                                                   if (not line.isspace() and
-                                                       line[0] != '#'))
-            except:
-                logging.error('could not read file: %s' % fname)
-            logging.debug('node: %s, key: %s, data:\n%s' %
-                          (self.node_id, key, self.data[key]))
-
-    def logs_filter(self):
-        result = {}
-        for re_pair in self.log_filter:
-            for f, s in self.logs.items():
-                if (('include' not in re_pair or
-                     re.search(re_pair['include'], f)) and
-                        ('exclude' not in re_pair or
-                         not re.search(re_pair['exclude'], f))):
-                    result[f] = s
-        self.logs = result
+        if self.files or self.filelists:
+            ddir = os.path.join(odir, Node.fkey, cl, sn)
+            tools.mdir(ddir)
+        if self.shell_mode:
+            for file in self.files:
+                outs, errs, code = tools.get_file_scp(ip=self.ip,
+                                                      file=file,
+                                                      ddir=ddir,
+                                                      recursive=True)
+                check_code(code, errs)
+        else:
+            data = ''
+            for f in self.filelists:
+                fname = os.path.join(self.rqdir, Node.flkey, f)
+                try:
+                    with open(fname, 'r') as df:
+                        for line in df:
+                            if not line.isspace() and line[0] != '#':
+                                data += line
+                except:
+                    logging.error('could not read file: %s' % fname)
+            data += '\n'.join(self.files)
+            logging.debug('node: %s, data:\n%s' % (self.id, data))
+            if data:
+                o, e, c = tools.get_files_rsync(ip=self.ip,
+                                                data=data,
+                                                ssh_opts=self.ssh_opts,
+                                                dpath=ddir,
+                                                timeout=self.timeout)
+            check_code(c, e)
 
     def logs_populate(self, timeout=5):
-        self.got_logs = False
-        for path in self.log_path:
-            cmd = ("find '%s' -type f -exec du -b {} +" % (path))
+
+        def filter_by_re(item, string):
+            return (('include' not in item or
+                     re.search(item['include'], string)) and
+                    ('exclude' not in item or not
+                     re.search(item['exclude'], string)))
+
+        for item in self.logs:
+            if 'start' in item:
+                start = ' -newermt \\"$(date -d \'%s\')\\"' % item['start']
+            else:
+                start = ''
+            cmd = ("find '%s' -type f%s -exec du -b {} +" % (item['path'],
+                                                             start))
             logging.info('logs_populate: node: %s, logs du-cmd: %s' %
-                         (self.node_id, cmd))
+                         (self.id, cmd))
             outs, errs, code = tools.ssh_node(ip=self.ip,
                                               command=cmd,
                                               ssh_opts=self.ssh_opts,
@@ -234,53 +279,49 @@ class Node(object):
             if code == 124:
                 logging.error("node: %s, ip: %s, command: %s, "
                               "timeout code: %s, error message: %s" %
-                              (self.node_id, self.ip, cmd, code, errs))
+                              (self.id, self.ip, cmd, code, errs))
                 break
             if len(outs):
-                self.got_logs = True
-            for line in outs.split('\n'):
-                if '\t' in line:
-                    size, filename = line.split('\t')
-                    self.logs[filename] = int(size)
-            logging.debug('logs_populate: logs: %s' % (self.logs))
+                item['files'] = {}
+                for line in outs.split('\n'):
+                    if '\t' in line:
+                        size, f = line.split('\t')
+                        if filter_by_re(item, f):
+                            item['files'][f] = int(size)
+                logging.debug('logs_populate: logs: %s' % (item['files']))
         return self
 
-    def print_files(self):
-        for k in self.files.keys():
-            print('key: %s' % (k))
-            for f in self.files[k]:
-                print(f)
-            print('\n')
-
-    def __str__(self):
-        if self.status in ['ready', 'discover'] and self.online:
-            my_id = self.node_id
-        else:
-            my_id = '#' + str(self.node_id)
-
-        templ = '{0} {1.cluster} {1.ip} {1.mac} {1.os_platform} '
-        templ += '{2} {1.online} {1.status}'
-        return templ.format(my_id, self, ','.join(self.roles))
+    def logs_dict(self):
+        result = {}
+        for item in self.logs:
+            if 'files' in item:
+                for f, s in item['files'].items():
+                    if f in result:
+                        result[f] = max(result[f], s)
+                    else:
+                        result[f] = s
+        return result
 
 
 class NodeManager(object):
     """Class nodes """
 
-    def __init__(self, cluster, extended, conf, filename=None):
-        self.dirname = conf.rqdir.rstrip('/')
-        if (not os.path.exists(self.dirname)):
-            logging.error("directory %s doesn't exist" % (self.dirname))
-            sys.exit(1)
-        dn = os.path.basename(self.dirname)
-        self.files = tools.get_dir_structure(conf.rqdir)[dn]
-        if (conf.fuelip is None) or (conf.fuelip == ""):
-            logging.error('looks like fuelip is not set(%s)' % conf.fuelip)
-            sys.exit(7)
-        self.fuelip = conf.fuelip
+    def __init__(self, conf, extended=False, filename=None):
         self.conf = conf
-        self.cluster = cluster
-        self.extended = extended
-        logging.info('extended: %s' % self.extended)
+        if conf['clean']:
+            shutil.rmtree(conf['outdir'], ignore_errors=True)
+            shutil.rmtree(conf['archives'], ignore_errors=True)
+        if not conf['shell_mode']:
+            self.rqdir = conf['rqdir']
+            if (not os.path.exists(self.rqdir)):
+                logging.error("directory %s doesn't exist" % (self.rqdir))
+                sys.exit(1)
+            self.import_rq()
+        if (conf['fuelip'] is None) or (conf['fuelip'] == ""):
+            logging.error('looks like fuelip is not set(%s)' % conf['fuelip'])
+            sys.exit(7)
+        self.fuelip = conf['fuelip']
+        logging.info('extended: %s' % extended)
         if filename is not None:
             try:
                 with open(filename, 'r') as json_data:
@@ -289,23 +330,88 @@ class NodeManager(object):
                 logging.error("Can't load data from file %s" % filename)
                 sys.exit(6)
         else:
-            self.njdata = json.loads(self.get_nodes(conf))
-        self.load_nodes(conf)
+            self.njdata = json.loads(self.get_nodes())
+        self.nodes_init()
+        # apply soft-filter on all nodes
+        for node in self.nodes.values():
+            if not self.filter(node, self.conf['soft_filter']):
+                node.filtered_out = True
         self.get_version()
+        self.nodes_get_release()
+        if not conf['shell_mode']:
+            self.nodes_reapply_conf()
+            self.conf_assign_once()
+            if extended:
+                '''TO-DO: load smth like extended.yaml
+                do additional apply_conf(clean=False) with this yaml.
+                Move some stuff from rq.yaml to extended.yaml'''
+                pass
 
     def __str__(self):
-        s = "#node-id, cluster, admin-ip, mac, os, roles, online, status\n"
-        for node in sorted(self.nodes.values(), key=lambda x: x.node_id):
-            if (self.cluster and (str(self.cluster) != str(node.cluster)) and
-                    node.cluster != 0):
-                s += "#%s\n" % str(node)
-            else:
-                s += "%s\n" % str(node)
+        pt = Node.print_template
+        header = pt.format('node-id', 'env', 'ip/hostname', 'mac', 'os',
+                           'roles', 'online', 'status') + '\n'
+        nodestrings = []
+        # f3flight: I only did this to not print Fuel when it is hard-filtered
+        for n in self.sorted_nodes():
+            if self.filter(n, self.conf['hard_filter']):
+                nodestrings.append(str(n))
+        return header + '\n'.join(nodestrings)
+
+    def sorted_nodes(self):
+        s = [n for n in sorted(self.nodes.values(), key=lambda x: x.id)]
         return s
 
-    def get_nodes(self, conf):
+    def import_rq(self):
+
+        def sub_is_match(el, d, p, once_p):
+            if type(el) is not dict:
+                return False
+            checks = []
+            for i in el:
+                checks.append(any([i == d,
+                                  i.startswith(p),
+                                  i.startswith(once_p)]))
+            return all(checks)
+
+        def r_sub(attr, el, k, d, p, once_p, dst):
+            match_sect = False
+            if type(k) is str and (k.startswith(p) or k.startswith(once_p)):
+                match_sect = True
+            if k not in dst and k != attr:
+                dst[k] = {}
+            if d in el[k]:
+                if k == attr:
+                    dst[k] = el[k][d]
+                elif k.startswith(p) or k.startswith(once_p):
+                    dst[k][d] = {attr: el[k][d]}
+                else:
+                    dst[k][attr] = el[k][d]
+            if k == attr:
+                subks = [subk for subk in el[k] if subk != d]
+                for subk in subks:
+                    r_sub(attr, el[k], subk, d, p, once_p, dst)
+            elif match_sect or sub_is_match(el[k], d, p, once_p):
+                subks = [subk for subk in el[k] if subk != d]
+                for subk in subks:
+                    if el[k][subk] is not None:
+                        if subk not in dst[k]:
+                            dst[k][subk] = {}
+                        r_sub(attr, el[k], subk, d, p, once_p, dst[k])
+            else:
+                dst[k][attr] = el[k]
+
+        dst = self.conf
+        src = tools.load_yaml_file(self.conf['rqfile'])
+        p = Node.conf_match_prefix
+        once_p = Node.conf_once_prefix + p
+        d = Node.conf_default_key
+        for attr in src:
+            r_sub(attr, src, attr, d, p, once_p, dst)
+
+    def get_nodes(self):
         fuel_node_cmd = 'fuel node list --json'
-        fuelnode = Node(node_id=0,
+        fuelnode = Node(id=0,
                         cluster=0,
                         mac='n/a',
                         os_platform='centos',
@@ -313,79 +419,39 @@ class NodeManager(object):
                         status='ready',
                         online=True,
                         ip=self.fuelip,
-                        conf=conf)
+                        conf=self.conf)
+        # soft-skip Fuel if it is hard-filtered
+        if not self.filter(fuelnode, self.conf['hard_filter']):
+            fuelnode.filtered_out = True
+        self.nodes = {self.fuelip: fuelnode}
         nodes_json, err, code = tools.ssh_node(ip=self.fuelip,
                                                command=fuel_node_cmd,
                                                ssh_opts=fuelnode.ssh_opts,
-                                               env_vars="",
-                                               timeout=fuelnode.timeout,
-                                               filename=None)
+                                               timeout=fuelnode.timeout)
         if code != 0:
             logging.error("Can't get fuel node list %s" % err)
             sys.exit(4)
         return nodes_json
 
-    def pass_hard_filter(self, node):
-        if self.conf.hard_filter:
-            if (self.conf.hard_filter.status and
-                    (node.status not in self.conf.hard_filter.status)):
-                logging.info("hard filter by status: excluding node-%s" %
-                             node.node_id)
-                return False
-            if (isinstance(self.conf.hard_filter.online, bool) and
-                    (bool(node.online) != self.conf.hard_filter.online)):
-                logging.info("hard filter by online: excluding node-%s" %
-                             node.node_id)
-                return False
-            if (self.conf.hard_filter.node_ids and
-                    (int(node.node_id) not in self.conf.hard_filter.node_ids)):
-                logging.info("hard filter by ids: excluding node-%s" %
-                             node.node_id)
-                return False
-            if self.conf.hard_filter.roles:
-                ok_roles = []
-                for role in node.roles:
-                    if role in self.conf.hard_filter.roles:
-                        ok_roles.append(role)
-                if not ok_roles:
-                    logging.info("hard filter by roles: excluding node-%s" %
-                                 node.node_id)
-                    return False
-        return True
-
-    def load_nodes(self, conf):
-        node = Node(node_id=0,
-                    cluster=0,
-                    mac='n/a',
-                    os_platform='centos',
-                    roles=['fuel'],
-                    status='ready',
-                    online=True,
-                    ip=self.fuelip,
-                    conf=conf)
-        self.nodes = {}
-        if self.pass_hard_filter(node):
-            self.nodes = {self.fuelip: node}
-        for node in self.njdata:
-            node_roles = node.get('roles')
+    def nodes_init(self):
+        for node_data in self.njdata:
+            node_roles = node_data.get('roles')
             if not node_roles:
                 roles = ['None']
             elif isinstance(node_roles, list):
                 roles = node_roles
             else:
                 roles = str(node_roles).split(', ')
-            node_ip = str(node['ip'])
-            keys = "cluster mac os_platform status online".split()
-            params = {'node_id': node['id'],
+            keys = "mac os_platform status online ip".split()
+            params = {'id': int(node_data['id']),
+                      'cluster': int(node_data['cluster']),
                       'roles': roles,
-                      'ip': node_ip}
+                      'conf': self.conf}
             for key in keys:
-                params[key] = node[key]
-            params['conf'] = conf
-            nodeobj = Node(**params)
-
-            if self.pass_hard_filter(nodeobj):
-                self.nodes[node_ip] = nodeobj
+                params[key] = node_data[key]
+            node = Node(**params)
+            if self.filter(node, self.conf['hard_filter']):
+                self.nodes[node.ip] = node
 
     def get_version(self):
         cmd = "awk -F ':' '/release/ {print \$2}' /etc/nailgun/version.yaml"
@@ -402,100 +468,100 @@ class NodeManager(object):
         self.version = release.rstrip('\n').strip(' ').strip('"')
         logging.info('release:%s' % (self.version))
 
-    def get_release(self):
+    def nodes_get_release(self):
         cmd = "awk -F ':' '/fuel_version/ {print \$2}' /etc/astute.yaml"
         for node in self.nodes.values():
-            if node.node_id == 0:
+            if node.id == 0:
                 # skip master
                 node.release = self.version
-            if (node.node_id != 0) and (node.status == 'ready'):
+            if (node.id != 0) and (node.status == 'ready'):
                 release, err, code = tools.ssh_node(ip=node.ip,
                                                     command=cmd,
                                                     ssh_opts=node.ssh_opts,
                                                     timeout=node.timeout)
                 if code != 0:
                     logging.warning("get_release: node: %s: %s" %
-                                    (node.node_id, "Can't get node release"))
+                                    (node.id, "Can't get node release"))
                     node.release = None
                     continue
                 else:
                     node.release = release.strip('\n "\'')
                 logging.info("get_release: node: %s, release: %s" %
-                             (node.node_id, node.release))
+                             (node.id, node.release))
 
-    def get_node_file_list(self):
-        for key in self.files.keys():
-            #  ###   case
-            roles = []
-            for node in self.nodes.values():
-                node.set_files(self.dirname, key, self.files, self.version)
-                # once-by-role functionality
-                if self.extended and key == ckey and node.online:
-                    for role in node.roles:
-                        if role not in roles:
-                            roles.append(role)
-                            logging.debug('role: %s, node: %s' %
-                                          (role, node.node_id))
-                            node.add_files(self.dirname, key, self.files)
-                node.exclude_non_os()
-                if key == ckey:
-                    logging.info('node: %s, os: %s, key: %s, files: %s' %
-                                 (node.node_id,
-                                  node.os_platform,
-                                  key,
-                                  node.files[key]))
-        for key in [fkey, lkey]:
-            if key in self.files.keys():
+    def conf_assign_once(self):
+        once = Node.conf_once_prefix
+        p = Node.conf_match_prefix
+        once_p = once + p
+        for k in [k for k in self.conf if k.startswith(once)]:
+            attr_name = k[len(once_p):]
+            assigned = dict((k, None) for k in self.conf[k])
+            for ak in assigned:
                 for node in self.nodes.values():
-                    node.get_data_from_files(key)
+                    if hasattr(node, attr_name) and not assigned[ak]:
+                        attr = w_list(getattr(node, attr_name))
+                        for v in attr:
+                            if v == ak:
+                                once_conf = self.conf[k][ak]
+                                node.apply_conf(once_conf, clean=False)
+                                assigned[ak] = node.id
+                                break
+                    if assigned[ak]:
+                        break
+
+    def nodes_reapply_conf(self):
         for node in self.nodes.values():
-            logging.debug('%s' % node.files[ckey])
+            node.apply_conf(self.conf)
 
-    def exec_filter(self, node):
-        f = self.conf.soft_filter
-        if f:
-            result = (((not f.status) or (node.status in f.status)) and
-                      ((not f.roles) or (node.role in f.roles)) and
-                      ((not f.node_ids) or (node.node_id in f.node_ids)))
+    def filter(self, node, node_filter):
+        f = node_filter
+        # soft-skip Fuel node if shell mode is enabled
+        if node.id == 0 and self.conf['shell_mode']:
+            return False
         else:
-            result = True
-        return result and (((self.cluster and node.cluster != 0 and
-                             str(self.cluster) == str(node.cluster)) or not
-                            self.cluster) and node.online)
+            fnames = [k for k in f if hasattr(node, k) and f[k]]
+            checks = []
+            for fn in fnames:
+                node_v = w_list(getattr(node, fn))
+                filter_v = w_list(f[fn])
+                checks.append(not set(node_v).isdisjoint(filter_v))
+            return all(checks)
 
-    def launch_ssh(self, odir='info', timeout=15, fake=False, maxthreads=100):
-        lock = flock.FLock('/tmp/timmy-cmds.lock')
+    def run_commands(self, odir='info', timeout=15, fake=False,
+                     maxthreads=100):
+        lock = flock.FLock(os.path.join(gettempdir(), 'timmy-cmds.lock'))
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "cmds"-part')
             return ''
-        label = ckey
         run_items = []
         for key, node in self.nodes.items():
-            if self.exec_filter(node):
+            if not node.filtered_out:
                 run_items.append(tools.RunItem(target=node.exec_cmd,
-                                               args={'label': label,
-                                                     'odir': odir,
+                                               args={'odir': odir,
                                                      'fake': fake},
                                                key=key))
-        self.nodes = tools.run_batch(run_items, maxthreads, dict_result=True)
+        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        for key in result:
+            self.nodes[key] = result[key]
         lock.unlock()
 
     def calculate_log_size(self, timeout=15, maxthreads=100):
         total_size = 0
         run_items = []
         for key, node in self.nodes.items():
-            if self.exec_filter(node):
+            if not node.filtered_out:
                 run_items.append(tools.RunItem(target=node.logs_populate,
                                                args={'timeout': timeout},
                                                key=key))
-        self.nodes = tools.run_batch(run_items, maxthreads, dict_result=True)
-        for key, node in self.nodes.items():
-            if self.exec_filter(node) and node.got_logs:
-                node.logs_filter()
-                total_size += sum(node.logs.values())
+        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        for key in result:
+            self.nodes[key] = result[key]
+        for node in self.nodes.values():
+            total_size += sum(node.logs_dict().values())
         logging.info('Full log size on nodes(with fuel): %s bytes' %
                      total_size)
         self.alogsize = total_size / 1024
+        return self.alogsize
 
     def is_enough_space(self, directory, coefficient=1.2):
         tools.mdir(directory)
@@ -517,8 +583,8 @@ class NodeManager(object):
             return True
 
     def create_archive_general(self, directory, outfile, timeout):
-        cmd = "tar jcf '%s' -C %s %s" % (outfile, directory, ".")
-        tools.mdir(self.conf.archives)
+        cmd = "tar zcf '%s' -C %s %s" % (outfile, directory, ".")
+        tools.mdir(self.conf['archives'])
         logging.debug("create_archive_general: cmd: %s" % cmd)
         outs, errs, code = tools.launch_cmd(command=cmd,
                                             timeout=timeout)
@@ -541,8 +607,7 @@ class NodeManager(object):
                     speed = defspeed
                 return speed
 
-    def archive_logs(self, outdir, timeout,
-                     fake=False, maxthreads=10, speed=100):
+    def get_logs(self, outdir, timeout, fake=False, maxthreads=10, speed=100):
         if fake:
             logging.info('archive_logs:skip creating archives(fake:%s)' % fake)
             return
@@ -551,29 +616,34 @@ class NodeManager(object):
         speed = int(speed * 0.9 / min(maxthreads, len(self.nodes)))
         pythonslowpipe = tools.slowpipe % speed
         run_items = []
-        for node in [n for n in self.nodes.values() if self.exec_filter(n)]:
+        for node in [n for n in self.nodes.values() if not n.filtered_out]:
+            if not node.logs_dict():
+                logging.info(("create_archive_logs: node %s - no logs "
+                             "to collect") % node.id)
+                continue
             node.archivelogsfile = os.path.join(outdir,
                                                 'logs-node-%s.tar.gz' %
-                                                str(node.node_id))
+                                                str(node.id))
             tools.mdir(outdir)
             logslistfile = node.archivelogsfile + '.txt'
             txtfl.append(logslistfile)
             try:
                 with open(logslistfile, 'w') as llf:
-                    for filename in node.logs:
-                        llf.write(filename+"\0")
+                    for fn in node.logs_dict():
+                        llf.write(fn.lstrip(os.path.abspath(os.sep))+"\0")
             except:
                 logging.error("create_archive_logs: Can't write to file %s" %
                               logslistfile)
                 continue
-            cmd = ("tar --gzip --create --warning=no-file-changed "
-                   " --file - --null --files-from -")
+            cmd = ("tar --gzip -C %s --create --warning=no-file-changed "
+                   " --file - --null --files-from -" % os.path.abspath(os.sep))
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
                 cmd = ' '.join([cmd, "| python -c '%s'" % pythonslowpipe])
             args = {'cmd': cmd,
                     'infile': logslistfile,
                     'outfile': node.archivelogsfile,
-                    'timeout': timeout}
+                    'timeout': timeout,
+                    'ok_codes': [0, 1]}
             run_items.append(tools.RunItem(target=node.exec_simple_cmd,
                                            args=args))
         tools.run_batch(run_items, maxthreads)
@@ -583,21 +653,15 @@ class NodeManager(object):
             except:
                 logging.error("archive_logs: can't delete file %s" % tfile)
 
-    def get_conf_files(self, odir=fkey, timeout=15):
-        if fkey not in self.files:
-            logging.warning("get_conf_files: %s directory doesn't exist" %
-                            fkey)
-            return
-        lock = flock.FLock('/tmp/timmy-files.lock')
+    def get_files(self, odir=Node.fkey, timeout=15):
+        lock = flock.FLock(os.path.join(gettempdir(), 'timmy-files.lock'))
         if not lock.lock():
             logging.warning('Unable to obtain lock, skipping "files"-part')
             return ''
-        label = fkey
         run_items = []
-        for n in [n for n in self.nodes.values() if self.exec_filter(n)]:
+        for n in [n for n in self.nodes.values() if not n.filtered_out]:
             run_items.append(tools.RunItem(target=n.get_files,
-                                           args={'label': label,
-                                                 'odir': odir}))
+                                           args={'odir': odir}))
         tools.run_batch(run_items, 10)
         lock.unlock()
 

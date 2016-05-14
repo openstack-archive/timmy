@@ -25,6 +25,7 @@ import sys
 import threading
 from multiprocessing import Process, Queue, BoundedSemaphore
 import subprocess
+import yaml
 
 
 slowpipe = '''
@@ -46,6 +47,14 @@ def interrupt_wrapper(f):
             f(*args, **kwargs)
         except KeyboardInterrupt:
             logging.warning('Interrupted, exiting.')
+        except Exception as e:
+            logging.error('Error: %s' % e, exc_info=True)
+            for k in dir(e):
+                '''debug: print all exception attrs except internal
+                and except 'message', which is deprecated since Python 2.6'''
+                if not k.startswith('__') and k != 'message':
+                    v = getattr(e, k)
+                    logging.debug('Error details: %s = %s' % (k, v))
     return wrapper
 
 
@@ -137,6 +146,23 @@ def get_dir_structure(rootdir):
     return dir
 
 
+def load_yaml_file(filename):
+    try:
+        with open(filename, 'r') as f:
+            return yaml.load(f)
+    except IOError as e:
+        logging.error("load_conf: I/O error(%s): file: %s; msg: %s" %
+                      (e.errno, e.filename, e.strerror))
+        sys.exit(1)
+    except ValueError:
+        logging.error("load_conf: Could not convert data")
+        sys.exit(1)
+    except yaml.parser.ParserError as e:
+        logging.error("load_conf: Could not parse %s:\n%s" %
+                      (filename, str(e)))
+        sys.exit(1)
+
+
 def mdir(directory):
     if not os.path.exists(directory):
         logging.debug('creating directory %s' % directory)
@@ -147,7 +173,7 @@ def mdir(directory):
             sys.exit(3)
 
 
-def launch_cmd(command, timeout):
+def launch_cmd(command, timeout, input=None):
     def _timeout_terminate(pid):
         try:
             os.kill(pid, 15)
@@ -158,19 +184,22 @@ def launch_cmd(command, timeout):
     logging.info('launch_cmd: command %s' % command)
     p = subprocess.Popen(command,
                          shell=True,
+                         stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
     timeout_killer = None
     try:
         timeout_killer = threading.Timer(timeout, _timeout_terminate, [p.pid])
         timeout_killer.start()
-        outs, errs = p.communicate()
+        outs, errs = p.communicate(input=input)
+        errs = errs.rstrip('\n')
     except:
         try:
             p.kill()
         except:
             pass
         outs, errs = p.communicate()
+        errs = errs.rstrip('\n')
         logging.error("command: %s err: %s, returned: %s" %
                       (command, errs, p.returncode))
     finally:
@@ -183,8 +212,9 @@ def launch_cmd(command, timeout):
     return outs, errs, p.returncode
 
 
-def ssh_node(ip, command, ssh_opts=[], env_vars=[], timeout=15, filename=None,
-             inputfile=None, outputfile=None, prefix='nice -n 19 ionice -c 3'):
+def ssh_node(ip, command='', ssh_opts=[], env_vars=[], timeout=15,
+             filename=None, inputfile=None, outputfile=None,
+             prefix='nice -n 19 ionice -c 3'):
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
     if type(env_vars) is list:
@@ -209,8 +239,7 @@ def ssh_node(ip, command, ssh_opts=[], env_vars=[], timeout=15, filename=None,
         cmd += ' > "' + outputfile + '"'
     cmd = ("trap 'kill $pid' 15; " +
            "trap 'kill $pid' 2; " + cmd + '&:; pid=$!; wait $!')
-    outs, errs, code = launch_cmd(cmd, timeout)
-    return outs, errs, code
+    return launch_cmd(cmd, timeout)
 
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
@@ -229,32 +258,27 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
     logging.debug("command:%s\ndata:\n%s" % (cmd, data))
     if data == '':
         return cmd, '', 127
-    p = subprocess.Popen(cmd,
-                         shell=True,
-                         stdin=subprocess.PIPE,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-    try:
-        outs, errs = p.communicate(input=data)
-    except:
-        p.kill()
-        outs, errs = p.communicate()
-        logging.error("ip: %s, command: %s err: %s, returned: %s" %
-                      (ip, cmd, errs, p.returncode))
+    return launch_cmd(cmd, timeout, input=data)
 
-    logging.debug("ip: %s, ssh return: err:%s\nouts:%s\ncode:%s" %
-                  (ip, errs, outs, p.returncode))
-    logging.info("ip: %s, ssh return: err:%s\ncode:%s" %
-                 (ip, errs, p.returncode))
-    return outs, errs, p.returncode
+
+def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
+    dest = os.path.split(os.path.normpath(file).lstrip(os.path.sep))[0]
+    ddir = os.path.join(os.path.normpath(ddir), dest)
+    mdir(ddir)
+    r = '-r ' if recursive else ''
+    cmd = "timeout '%s' scp %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
+    return launch_cmd(cmd, timeout)
 
 
 def free_space(destdir, timeout):
     cmd = ("df %s --block-size K 2> /dev/null"
            " | tail -n 1 | awk '{print $2}' | sed 's/K//g'") % (destdir)
-    outs, errs, code = launch_cmd(cmd, timeout)
-    return outs, errs, code
+    return launch_cmd(cmd, timeout)
 
+
+# wrap non-list into list
+def w_list(value):
+    return value if type(value) == list else [value]
 
 if __name__ == '__main__':
     exit(0)

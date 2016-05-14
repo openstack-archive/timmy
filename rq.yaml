@@ -1,0 +1,69 @@
+filelists:
+  by_roles:
+    fuel: [etc-nailgun, etc-fuel]
+    ceph-osd: [etc-ceph]
+    cinder: [etc-cinder]
+    compute: [etc-nova, etc-libvirt]
+    controller: [etc-glance, etc-haproxy, etc-nova,
+      etc-keystone, etc-neutron, etc-mysql]
+    # f3flight: removed etc-heat, etc-ceph-controller from controller since it's not always present, gives a warning
+    # f3flight: need to make a better way to decide which files to collect
+  by_os_platform:
+    centos: [etc-yum]
+    ubuntu: [etc-apt]
+scripts:
+  by_release:
+    '4.1.1':
+      by_roles:
+        fuel: [fuel-postgres-dump]
+    '5.0.1':
+      by_roles:
+        fuel: [fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+    '6.0':
+      by_roles:
+        compute: [ipset-save, ipset-list]
+        controller: [ipset-save, ipset-list]
+    '6.1':
+      by_roles:
+        fuel: [fuel-notifications]
+    '7.0':
+      by_roles:
+        fuel: [fuel-notifications]
+    '5.1.1':
+      by_roles:
+        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+    '8.0':
+      by_roles:
+        fuel: [fuel-notifications]
+  by_roles:
+    fuel: [fuel-release, fuel-task-list, fuel-environment-list]
+    cinder: [ovs-vsctl-show, cinder-manage]
+    compute: [compute-iptables-nat, ovs-dump-flows, compute-iptables, ovs-ofctl-show-bridges,
+      ovs-vsctl-show]
+    controller: [rabbitmqctl-list-queues, nova-manage-service-list, iptables-namespaces,
+      rabbitmqctl-cluster-status, crm-resource-status, ovs-dump-flows, neutron-agent-list,
+      mysql-status, ceph-mon-status, ovs-ofctl-show-bridges, rabbitmqctl-list-connections,
+      ovs-vsctl-show, rabbitmqctl-report, mysql-size, rabbitmqctl-status, crm-resource-list,
+      cinder-manage]
+    mongo: [mongo-replication-status, ipa, mongo-replica-conf, mongo-status, ovs-vsctl-show]
+  once_by_roles:
+    ceph-osd: [ceph-df, ceph-osd-status, ceph-osd-tree, ceph-pg-dump, ovs-vsctl-show,
+      ceph-health-detail]
+    controller: [neutron-router-list, neutron-net-list, neutron-subnet-list, keystone-endpoint-list,
+      cinder-list, nova-list, nova-manage-vm-list, keystone-tenant-list, nova-usage-list,
+      neutron-port-list]
+  by_os_platform:
+      ubuntu: [dmesg-t-ubuntu, packages-ubuntu]
+      centos: [dmesg-centos, packages-centos]
+  __default:
+    [ip-ne, iptables, ipnetns, ss, ipa, iptables-nat, df-m, services-status, cpuinfo, df-i, ipro]
+# cmds:
+#   __default:
+#     test:
+#       'echo "test" | head -n 1'
+#     test2:
+#       'echo "test2" | less'
+#   by_roles:
+#     compute:
+#       t3: 'echo t3'
+#       t4: 'echo t4'

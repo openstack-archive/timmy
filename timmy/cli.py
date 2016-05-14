@@ -16,13 +16,22 @@
 #    under the License.
 
 import argparse
-from timmy.nodes import NodeManager
+from timmy.nodes import Node, NodeManager
 import logging
 import sys
 import os
-from timmy.conf import Conf
+from timmy.conf import load_conf
 from timmy import flock
 from timmy.tools import interrupt_wrapper
+from tempfile import gettempdir
+
+
+def pretty_run(msg, f, args=[], kwargs={}):
+    sys.stdout.write('%s...\r' % msg)
+    sys.stdout.flush()
+    result = f(*args, **kwargs)
+    print('%s: done' % msg)
+    return result
 
 
 @interrupt_wrapper
@@ -33,78 +42,150 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
                                                   ' collection tool'))
-    parser.add_argument('--config',
-                        help='config file')
+    parser.add_argument('-c', '--conf',
+                        help='Path to YAML a configuration file.')
     parser.add_argument('-o', '--dest-file',
-                        help='output archive file')
-    parser.add_argument('-e', '--extended', action='store_true',
-                        help='exec once by role cmdfiles')
-    parser.add_argument('-c', '--cluster', help='cluster id')
+                        help='Path to an output archive file.')
+    parser.add_argument('-x', '--extended', action='store_true',
+                        help='Execute extended commands.')
+    parser.add_argument('-e', '--env', type=int,
+                        help='Env ID. Run only on specific environment.')
     parser.add_argument('-m', '--maxthreads', type=int, default=100,
-                        help="maximum simultaneous operations for commands")
+                        help=('Maximum simultaneous nodes for command'
+                              'execution.'))
     parser.add_argument('-l', '--logs',
-                        help='collect logs from nodes',
+                        help=('Collect logs from nodes. Logs are not collected'
+                              ' by default due to their size.'),
                         action='store_true', dest='getlogs')
     parser.add_argument('-L', '--logs-maxthreads', type=int, default=100,
-                        help="maximum simultaneous log collection operations")
+                        help='Maximum simultaneous nodes for log collection.')
     parser.add_argument('--only-logs',
                         action='store_true',
-                        help='Collect only logs from fuel-node')
+                        help='Only collect logs, do not run commands.')
     parser.add_argument('--log-file', default=None,
-                        help='timmy log file')
+                        help='Output file for Timmy log.')
     parser.add_argument('--fake-logs',
-                        help="Do not collect logs, only calculate size",
-                        action="store_true")
+                        help='Do not collect logs, only calculate size.',
+                        action='store_true')
     parser.add_argument('-d', '--debug',
-                        help="print lots of debugging statements, implies -v",
-                        action="store_true")
+                        help='Be extremely verbose.',
+                        action='store_true')
     parser.add_argument('-v', '--verbose',
-                        help="be verbose",
-                        action="store_true")
+                        help='Be verbose.',
+                        action='store_true')
+    parser.add_argument('-C', '--command',
+                        help=('Enables shell mode. Shell command to'
+                              ' execute. For help on shell mode, read'
+                              ' timmy/conf.py'))
+    parser.add_argument('-F', '--file', action='append',
+                        help=('Enables shell mode. Can be specified multiple'
+                              ' times. Filemask to collect via "scp -r".'
+                              ' Result is placed into a folder specified'
+                              ' by "outdir" config option.'))
+    parser.add_argument('-R', '--role', action='append',
+                        help=('Can be specified multiple times.'
+                              ' Run only on the specified role.'))
+    parser.add_argument('--no-archive',
+                        help=('Do not create results archive. By default,'
+                              ' an archive with all outputs and files'
+                              ' is created every time you run Timmy.'),
+                        action='store_true')
+    parser.add_argument('--no-clean',
+                        help=('Do not clean previous results. Allows'
+                              ' accumulating results across runs.'),
+                        action='store_true')
     args = parser.parse_args(argv[1:])
     loglevel = logging.WARNING
     if args.verbose:
-        if args.debug:
-            loglevel = logging.DEBUG
-        else:
-            loglevel = logging.INFO
+        loglevel = logging.INFO
+    if args.debug:
+        loglevel = logging.DEBUG
     logging.basicConfig(filename=args.log_file,
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
-    config = Conf()
-    if args.config:
-        config = Conf.load_conf(args.config)
-    main_arc = os.path.join(config.archives, 'general.tar.bz2')
+    conf = load_conf(args.conf)
+    if args.command or args.file:
+        conf['shell_mode'] = True
+    if args.no_clean:
+        conf['clean'] = False
+    if conf['shell_mode']:
+        filter = conf['hard_filter']
+        # config cleanup for shell mode
+        for k in Node.conf_actionable:
+            conf[k] = [] if k in Node.conf_appendable else None
+        for k in conf:
+            if k.startswith(Node.conf_match_prefix):
+                conf.pop(k)
+        if args.command:
+            conf[Node.ckey] = [{'stdout': args.command}]
+        if args.file:
+            conf[Node.fkey] = args.file
+    else:
+        filter = conf['soft_filter']
+    if args.role:
+        filter['roles'] = args.role
+    if args.env is not None:
+        filter['cluster'] = [args.env]
+    main_arc = os.path.join(conf['archives'], 'general.tar.gz')
     if args.dest_file:
         main_arc = args.dest_file
-    n = NodeManager(conf=config,
-                    extended=args.extended,
-                    cluster=args.cluster,
-                    )
+    nm = pretty_run('Initializing node data',
+                    NodeManager,
+                    kwargs={'conf': conf,
+                     'extended': args.extended})
     if not args.only_logs:
-        n.get_node_file_list()
-        n.launch_ssh(config.outdir, args.maxthreads)
-        n.get_conf_files(config.outdir, args.maxthreads)
-        n.create_archive_general(config.outdir,
-                                 main_arc,
-                                 60)
+        if not (conf['shell_mode'] and not args.command):
+            pretty_run('Executing commands and scripts',
+                        nm.run_commands,
+                        args=(conf['outdir'], args.maxthreads))
+        if not (conf['shell_mode'] and not args.file):
+            pretty_run('Collecting files and filelists',
+                        nm.get_files,
+                        args=(conf['outdir'], args.maxthreads))
+        if not args.no_archive:
+            pretty_run('Creating outputs and files archive',
+                        nm.create_archive_general,
+                        args=(conf['outdir'], main_arc, 60))
     if args.only_logs or args.getlogs:
-        lf = '/tmp/timmy-logs.lock'
+        lf = os.path.join(gettempdir(), 'timmy-logs.lock')
         lock = flock.FLock(lf)
         if lock.lock():
-            # n.get_node_file_list()
-            n.calculate_log_size(args.maxthreads)
-            if n.is_enough_space(config.archives):
-                n.archive_logs(config.archives,
-                               config.compress_timeout,
-                               maxthreads=args.logs_maxthreads,
-                               fake=args.fake_logs)
+            size = pretty_run('Calculating logs size',
+                              nm.calculate_log_size,
+                              args=(args.maxthreads,))
+            if size == 0:
+                logging.warning('Size zero - no logs to collect.')
+                print('Size zero - no logs to collect.')
+                return
+            enough = pretty_run('Checking free space',
+                                 nm.is_enough_space,
+                                 args=(conf['archives'],))
+            if enough:
+                pretty_run('Collecting and packing logs',
+                           nm.get_logs,
+                           args=(conf['archives'],
+                                 conf['compress_timeout']),
+                           kwargs={'maxthreads': args.logs_maxthreads,
+                                   'fake': args.fake_logs})
             lock.unlock()
         else:
             logging.warning('Unable to obtain lock %s, skipping "logs"-part' %
                             lf)
-    logging.info("Nodes:\n%s" % n)
-    print(n)
+    logging.info("Nodes:\n%s" % nm)
+    print('Run complete. Node information:')
+    print(nm)
+    if conf['shell_mode']:
+        if args.command:
+            print('Results:')
+            for node in nm.nodes.values():
+                for cmd, path in node.mapcmds.items():
+                    with open(path, 'r') as f:
+                        for line in f.readlines():
+                            print('node-%s: %s' % (node.id, line.rstrip('\n')))
+    if args.file:
+        print('Files collected into "%s".' % conf['outdir'])
+    if not args.no_archive:
+        print('Results packed and available in "%s".' % conf['archives'])
     return 0
 
 if __name__ == '__main__':

@@ -10,22 +10,32 @@ env_vars:
     - 'IPTABLES_STR="iptables -nvL"'
 fuelip:  '127.0.0.1'
 rqdir: './rq'
+rqfile: './rq.yaml'
 soft_filter:
     status:  ['ready']
+    online: True
 timeout: 15
 compress_timeout: 3600
-log_path: '/var/log'
-log_filter:
-    include: '(.)*'
+logs:
+    path: '/var/log'
     exclude: '[-_]\d{8}$|atop[-_]|\.gz$'
-# by_role:
-#     contrail:
-#         log_filter:
-#             include: 'contrail'
-# by_node_id:
-#     3:
+# by_roles:
+#     compute:
+#         logs:
+#             path: '/var/log'
+#             include: 'compute'
+#     ceph-osd:
+#         logs:
+#             path: '/var/log'
+#             include: 'ceph'
+#             start: '2016-05-05'
+# by_id:
+#     1:
 #         env_vars:
 #             - 'OPENRC=/root/openrc'
 #             - 'IPTABLES_STR="iptables -S"'
-#         log_filter:
-#             include: 'messages'
+#         logs:
+#             path: '/var/log'
+#             start: '2016-05-08 22:00:01'
+#         cmds:
+#             - 'df-m'
