@@ -29,6 +29,7 @@ def load_conf(filename):
     conf['compress_timeout'] = 3600
     conf['archives'] = os.path.join(gettempdir(), 'timmy', 'archives')
     conf['cmds_archive'] = ''
+    conf['put'] = []
     conf['logs'] = {'path': '/var/log',
                     'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
     '''Shell mode - only run what was specified via command line.

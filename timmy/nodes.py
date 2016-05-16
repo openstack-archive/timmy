@@ -31,14 +31,14 @@ from copy import deepcopy
 
 
 class Node(object):
-
     ckey = 'cmds'
     skey = 'scripts'
     fkey = 'files'
     flkey = 'filelists'
     lkey = 'logs'
-    conf_actionable = [lkey, ckey, skey, fkey, flkey]
-    conf_appendable = [lkey, ckey, skey, fkey, flkey]
+    pkey = 'put'
+    conf_actionable = [lkey, ckey, skey, fkey, flkey, pkey]
+    conf_appendable = [lkey, ckey, skey, fkey, flkey, pkey]
     conf_keep_default = [skey, ckey, fkey, flkey]
     conf_once_prefix = 'once_'
     conf_match_prefix = 'by_'
@@ -61,6 +61,8 @@ class Node(object):
         self.filelists = []
         self.cmds = []
         self.scripts = []
+        # put elements must be tuples - (src, dst)
+        self.put = []
         self.data = {}
         self.logsize = 0
         self.mapcmds = {}
@@ -137,7 +139,7 @@ class Node(object):
                 setattr(self, f, [])
         r_apply(conf, p, p_s, c_a, k_d, overridden, d, clean=clean)
 
-    def exec_cmd(self, odir='info', fake=False, ok_codes=[0, ]):
+    def exec_cmd(self, odir='info', fake=False, ok_codes=None):
         sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
         logging.debug('%s/%s/%s/%s' % (odir, Node.ckey, cl, sn))
@@ -146,21 +148,17 @@ class Node(object):
             tools.mdir(ddir)
         for c in self.cmds:
             for cmd in c:
+                dfile = os.path.join(ddir, 'node-%s-%s-%s' %
+                                     (self.id, self.ip, cmd))
+                logging.info('outfile: %s' % dfile)
+                self.mapcmds[cmd] = dfile
                 if not fake:
                     outs, errs, code = tools.ssh_node(ip=self.ip,
                                                       command=c[cmd],
                                                       ssh_opts=self.ssh_opts,
                                                       env_vars=self.env_vars,
                                                       timeout=self.timeout)
-                    if code not in ok_codes:
-                        logging.warning("node: %s, ip: %s, cmdfile: %s,"
-                                        " code: %s, error message: %s" %
-                                        (self.id, self.ip, c, code, errs))
-                dfile = os.path.join(ddir, 'node-%s-%s-%s' %
-                                     (self.id, self.ip, cmd))
-                logging.info('outfile: %s' % dfile)
-                self.mapcmds[cmd] = dfile
-                if not fake:
+                    self.check_code(code, 'exec_cmd', c[cmd], ok_codes)
                     try:
                         with open(dfile, 'w') as df:
                             df.write(outs)
@@ -173,21 +171,17 @@ class Node(object):
         for scr in self.scripts:
             f = os.path.join(self.rqdir, Node.skey, scr)
             logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
+            dfile = os.path.join(ddir, 'node-%s-%s-%s' %
+                                 (self.id, self.ip, os.path.basename(f)))
+            logging.info('outfile: %s' % dfile)
+            self.mapscr[os.path.basename(f)] = dfile
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,
                                                   filename=f,
                                                   ssh_opts=self.ssh_opts,
                                                   env_vars=self.env_vars,
                                                   timeout=self.timeout)
-                if code not in ok_codes:
-                    logging.warning("node: %s, ip: %s, cmdfile: %s,"
-                                    " code: %s, error message: %s" %
-                                    (self.id, self.ip, f, code, errs))
-            dfile = os.path.join(ddir, 'node-%s-%s-%s' %
-                                 (self.id, self.ip, os.path.basename(f)))
-            logging.info('outfile: %s' % dfile)
-            self.mapscr[os.path.basename(f)] = dfile
-            if not fake:
+                self.check_code(code, 'exec_cmd', 'script %s' % f, ok_codes)
                 try:
                     with open(dfile, 'w') as df:
                         df.write(outs)
@@ -196,7 +190,7 @@ class Node(object):
         return self
 
     def exec_simple_cmd(self, cmd, infile, outfile, timeout=15,
-                        fake=False, ok_codes=[0, ]):
+                        fake=False, ok_codes=None):
         logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, cmd))
         if not fake:
             outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -205,19 +199,11 @@ class Node(object):
                                               env_vars=self.env_vars,
                                               timeout=timeout,
                                               outputfile=outfile,
-                                              inputfile=infile)
-            if code not in ok_codes:
-                logging.warning("node: %s, ip: %s, cmdfile: %s,"
-                                " code: %s, error message: %s" %
-                                (self.id, self.ip, cmd, code, errs))
+                                              inputfile=infile,
+                                              ok_codes=ok_codes)
+            self.check_code(code, 'exec_simple_cmd', cmd, ok_codes)
 
     def get_files(self, odir='info', timeout=15):
-        def check_code(code, errs):
-            if code != 0:
-                logging.warning("get_files: node: %s, ip: %s, "
-                                "code: %s, error message: %s" %
-                                (self.id, self.ip, code, errs))
-
         logging.info('get_files: node: %s, IP: %s' % (self.id, self.ip))
         sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
@@ -225,12 +211,12 @@ class Node(object):
             ddir = os.path.join(odir, Node.fkey, cl, sn)
             tools.mdir(ddir)
         if self.shell_mode:
-            for file in self.files:
+            for f in self.files:
                 outs, errs, code = tools.get_file_scp(ip=self.ip,
-                                                      file=file,
+                                                      file=f,
                                                       ddir=ddir,
                                                       recursive=True)
-                check_code(code, errs)
+                self.check_code(code, 'get_files', 'tools.get_file_scp')
         else:
             data = ''
             for f in self.filelists:
@@ -250,7 +236,15 @@ class Node(object):
                                                 ssh_opts=self.ssh_opts,
                                                 dpath=ddir,
                                                 timeout=self.timeout)
-            check_code(c, e)
+                self.check_code(c, 'get_files', 'tools.get_files_rsync')
+
+    def put_files(self):
+        logging.info('put_files: node: %s, IP: %s' % (self.id, self.ip))
+        for f in self.put:
+            outs, errs, code = tools.get_file_scp(ip=self.ip,
+                                                  file=f[0],
+                                                  dest=f[1],
+                                                  recursive=True)
 
     def logs_populate(self, timeout=5):
 
@@ -299,6 +293,13 @@ class Node(object):
                     else:
                         result[f] = s
         return result
+
+    def check_code(self, code, func_name, cmd, ok_codes=None):
+        if code:
+            if not ok_codes or code not in ok_codes:
+                logging.warning("%s: got bad exit code %s,"
+                                " node: %s, ip: %s, cmd: %s" %
+                                (func_name, code, self.id, self.ip, cmd))
 
 
 class NodeManager(object):
@@ -581,8 +582,7 @@ class NodeManager(object):
         cmd = "tar zcf '%s' -C %s %s" % (outfile, directory, ".")
         tools.mdir(self.conf['archives'])
         logging.debug("create_archive_general: cmd: %s" % cmd)
-        outs, errs, code = tools.launch_cmd(command=cmd,
-                                            timeout=timeout)
+        outs, errs, code = tools.launch_cmd(cmd, timeout)
         if code != 0:
             logging.error("Can't create archive %s" % (errs))
 
@@ -655,6 +655,13 @@ class NodeManager(object):
         for n in [n for n in self.nodes.values() if not n.filtered_out]:
             run_items.append(tools.RunItem(target=n.get_files,
                                            args={'odir': odir}))
+        tools.run_batch(run_items, 10)
+
+    @run_with_lock
+    def put_files(self):
+        run_items = []
+        for n in [n for n in self.nodes.values() if not n.filtered_out]:
+            run_items.append(tools.RunItem(target=n.put_files))
         tools.run_batch(run_items, 10)
 
 

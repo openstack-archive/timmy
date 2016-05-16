@@ -187,7 +187,16 @@ def mdir(directory):
             sys.exit(3)
 
 
-def launch_cmd(command, timeout, input=None):
+def launch_cmd(cmd, timeout, input=None, ok_codes=None):
+    def _log_msg(cmd, stderr, code, debug=False, stdout=None):
+        message = ('launch_cmd:\n'
+                   '___command: %s\n'
+                   '______code: %s\n'
+                   '____stderr: %s\n' % (cmd, code, stderr))
+        if debug:
+            message += '____stdout: %s' % stdout
+        return message
+
     def _timeout_terminate(pid):
         try:
             os.kill(pid, 15)
@@ -195,8 +204,8 @@ def launch_cmd(command, timeout, input=None):
         except:
             pass
 
-    logging.info('launch_cmd: command %s' % command)
-    p = subprocess.Popen(command,
+    logging.info('launch_cmd: cmd %s' % cmd)
+    p = subprocess.Popen(cmd,
                          shell=True,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
@@ -214,21 +223,25 @@ def launch_cmd(command, timeout, input=None):
             pass
         outs, errs = p.communicate()
         errs = errs.rstrip('\n')
-        logging.error("command: %s err: %s, returned: %s" %
-                      (command, errs, p.returncode))
+        logging.error(_log_msg(cmd, errs, p.returncode))
     finally:
         if timeout_killer:
             timeout_killer.cancel()
-    logging.debug("ssh return: err:%s\nouts:%s\ncode:%s" %
-                  (errs, outs, p.returncode))
-    logging.info("ssh return: err:%s\ncode:%s" %
-                 (errs, p.returncode))
+    logging.info(_log_msg(cmd, errs, p.returncode))
+    logging.debug(_log_msg(cmd, errs, p.returncode, debug=True, stdout=outs))
+    if p.returncode:
+        if not ok_codes or p.returncode not in ok_codes:
+            logging.warning(_log_msg(cmd, errs, p.returncode))
     return outs, errs, p.returncode
 
 
-def ssh_node(ip, command='', ssh_opts=[], env_vars=[], timeout=15,
+def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
              filename=None, inputfile=None, outputfile=None,
-             prefix='nice -n 19 ionice -c 3'):
+             ok_codes=None, prefix='nice -n 19 ionice -c 3'):
+    if not ssh_opts:
+        ssh_opts = ''
+    if not env_vars:
+        env_vars = ''
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
     if type(env_vars) is list:
@@ -253,7 +266,7 @@ def ssh_node(ip, command='', ssh_opts=[], env_vars=[], timeout=15,
         cmd += ' > "' + outputfile + '"'
     cmd = ("trap 'kill $pid' 15; " +
            "trap 'kill $pid' 2; " + cmd + '&:; pid=$!; wait $!')
-    return launch_cmd(cmd, timeout)
+    return launch_cmd(cmd, timeout, ok_codes=ok_codes)
 
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
@@ -281,6 +294,12 @@ def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
     mdir(ddir)
     r = '-r ' if recursive else ''
     cmd = "timeout '%s' scp %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
+    return launch_cmd(cmd, timeout)
+
+
+def put_file_scp(ip, file, dest, timeout=600, recursive=True):
+    r = '-r ' if recursive else ''
+    cmd = "timeout '%s' scp %s'%s' '%s':'%s'" % (timeout, r, file, ip, dest)
     return launch_cmd(cmd, timeout)
 
 

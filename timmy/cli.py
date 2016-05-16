@@ -92,6 +92,10 @@ def main(argv=None):
                         help=('Do not clean previous results. Allows'
                               ' accumulating results across runs.'),
                         action='store_true')
+    parser.add_argument('-P', '--put', nargs=2, action='append',
+                        help=('Upload filemask via "scp -r" to node(s).'
+                              ' Each argument must contain two strings -'
+                              ' source file/path/mask and destination.'))
     args = parser.parse_args(argv[1:])
     loglevel = logging.WARNING
     if args.verbose:
@@ -114,6 +118,8 @@ def main(argv=None):
         for k in conf:
             if k.startswith(Node.conf_match_prefix):
                 conf.pop(k)
+        for src_dst in args.put:
+            conf[Node.pkey].append(src_dst)
         if args.command:
             conf[Node.ckey] = [{'stdout': args.command}]
         if args.file:
@@ -131,13 +137,13 @@ def main(argv=None):
                     NodeManager,
                     kwargs={'conf': conf, 'extended': args.extended})
     if not args.only_logs:
+        if conf[Node.pkey]:
+            pretty_run('Uploading files', nm.put_files)
         if not (conf['shell_mode'] and not args.command):
-            pretty_run('Executing commands and scripts',
-                       nm.run_commands,
+            pretty_run('Executing commands and scripts', nm.run_commands,
                        args=(conf['outdir'], args.maxthreads))
         if not (conf['shell_mode'] and not args.file):
-            pretty_run('Collecting files and filelists',
-                       nm.get_files,
+            pretty_run('Collecting files and filelists', nm.get_files,
                        args=(conf['outdir'], args.maxthreads))
         if not args.no_archive:
             pretty_run('Creating outputs and files archive',
