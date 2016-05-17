@@ -12,7 +12,7 @@ def load_conf(filename):
                         '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
                         '-lroot', '-oBatchMode=yes']
     conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
-    conf['fuelip'] = 'localhost'
+    conf['fuelip'] = '127.0.0.1'
     conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
     conf['timeout'] = 15
     rqdir = 'rq'

@@ -44,6 +44,10 @@ def main(argv=None):
                                                   ' collection tool'))
     parser.add_argument('-c', '--conf',
                         help='Path to YAML a configuration file.')
+    parser.add_argument('-j', '--nodes-json',
+                        help=('Path to a json file retrieved via'
+                              ' "fuel node --json". Useful to speed up'
+                              ' initialization, skips "fuel node" call.'))
     parser.add_argument('-o', '--dest-file',
                         help='Path to an output archive file.')
     parser.add_argument('-x', '--extended', action='store_true',
@@ -149,7 +153,8 @@ def main(argv=None):
         main_arc = args.dest_file
     nm = pretty_run(args.quiet, 'Initializing node data',
                     NodeManager,
-                    kwargs={'conf': conf, 'extended': args.extended})
+                    kwargs={'conf': conf, 'extended': args.extended,
+                            'nodes_json': args.nodes_json})
     if not args.only_logs:
         if nm.has(Node.pkey):
             pretty_run(args.quiet, 'Uploading files', nm.put_files)

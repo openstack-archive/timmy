@@ -306,42 +306,41 @@ class Node(object):
 class NodeManager(object):
     """Class nodes """
 
-    def __init__(self, conf, extended=False, filename=None):
+    def __init__(self, conf, extended=False, nodes_json=None):
         self.conf = conf
+        self.nodes = {}
         if conf['clean']:
             shutil.rmtree(conf['outdir'], ignore_errors=True)
             shutil.rmtree(conf['archives'], ignore_errors=True)
         if not conf['shell_mode']:
             self.rqdir = conf['rqdir']
             if (not os.path.exists(self.rqdir)):
-                logging.error("directory %s doesn't exist" % (self.rqdir))
+                logging.error(('NodeManager __init__: directory %s does not'
+                               'exist') % self.rqdir)
                 sys.exit(1)
             self.import_rq()
-        if (conf['fuelip'] is None) or (conf['fuelip'] == ""):
-            logging.error('looks like fuelip is not set(%s)' % conf['fuelip'])
-            sys.exit(7)
-        self.fuelip = conf['fuelip']
-        logging.info('extended: %s' % extended)
-        if filename is not None:
+        self.fuel_init()
+        if nodes_json:
             try:
-                with open(filename, 'r') as json_data:
-                    self.njdata = json.load(json_data)
+                with open(nodes_json, 'r') as json_data:
+                    self.nodes_json = json.load(json_data)
             except:
-                logging.error("Can't load data from file %s" % filename)
+                logging.error(('NodeManager __init__: cannot load data from'
+                               ' file "%s"') % nodes_json)
                 sys.exit(6)
         else:
-            self.njdata = json.loads(self.get_nodes())
+            self.nodes_json = json.loads(self.get_nodes_json())
         self.nodes_init()
         # apply soft-filter on all nodes
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
                 node.filtered_out = True
-        self.get_version()
-        self.nodes_get_release()
         if not conf['shell_mode']:
+            self.nodes_get_release()
             self.nodes_reapply_conf()
             self.conf_assign_once()
             if extended:
+                logging.info('NodeManager __init__: extended mode enabled')
                 '''TO-DO: load smth like extended.yaml
                 do additional apply_conf(clean=False) with this yaml.
                 Move some stuff from rq.yaml to extended.yaml'''
@@ -409,8 +408,10 @@ class NodeManager(object):
         for attr in src:
             r_sub(attr, src, attr, d, p, once_p, dst)
 
-    def get_nodes(self):
-        fuel_node_cmd = 'fuel node list --json'
+    def fuel_init(self):
+        if not self.conf['fuelip']:
+            logging.error('NodeManager fuel_init: fuelip not set')
+            sys.exit(7)
         fuelnode = Node(id=0,
                         cluster=0,
                         mac='n/a',
@@ -418,23 +419,28 @@ class NodeManager(object):
                         roles=['fuel'],
                         status='ready',
                         online=True,
-                        ip=self.fuelip,
+                        ip=self.conf['fuelip'],
                         conf=self.conf)
         # soft-skip Fuel if it is hard-filtered
         if not self.filter(fuelnode, self.conf['hard_filter']):
             fuelnode.filtered_out = True
-        self.nodes = {self.fuelip: fuelnode}
-        nodes_json, err, code = tools.ssh_node(ip=self.fuelip,
+        self.nodes[self.conf['fuelip']] = fuelnode
+
+    def get_nodes_json(self):
+        fuelnode = self.nodes[self.conf['fuelip']]
+        fuel_node_cmd = 'fuel node list --json'
+        nodes_json, err, code = tools.ssh_node(ip=fuelnode.ip,
                                                command=fuel_node_cmd,
                                                ssh_opts=fuelnode.ssh_opts,
                                                timeout=fuelnode.timeout)
         if code != 0:
-            logging.error("Can't get fuel node list %s" % err)
+            logging.error(('NodeManager get_nodes: cannot get '
+                           'fuel node list: %s') % err)
             sys.exit(4)
         return nodes_json
 
     def nodes_init(self):
-        for node_data in self.njdata:
+        for node_data in self.nodes_json:
             node_roles = node_data.get('roles')
             if not node_roles:
                 roles = ['None']
@@ -453,41 +459,26 @@ class NodeManager(object):
             if self.filter(node, self.conf['hard_filter']):
                 self.nodes[node.ip] = node
 
-    def get_version(self):
-        cmd = "awk -F ':' '/release/ {print $2}' /etc/nailgun/version.yaml"
-        fuelnode = self.nodes[self.fuelip]
-        release, err, code = tools.ssh_node(ip=fuelnode.ip,
-                                            command=cmd,
-                                            ssh_opts=fuelnode.ssh_opts,
-                                            env_vars="",
-                                            timeout=fuelnode.timeout,
-                                            filename=None)
-        if code != 0:
-            logging.error("Can't get fuel version %s" % err)
-            sys.exit(3)
-        self.version = release.rstrip('\n').strip(' ').strip('"')
-        logging.info('release:%s' % (self.version))
-
     def nodes_get_release(self):
-        cmd = "awk -F ':' '/fuel_version/ {print $2}' /etc/astute.yaml"
         for node in self.nodes.values():
             if node.id == 0:
-                # skip master
-                node.release = self.version
-            if (node.id != 0) and (node.status == 'ready'):
-                release, err, code = tools.ssh_node(ip=node.ip,
-                                                    command=cmd,
-                                                    ssh_opts=node.ssh_opts,
-                                                    timeout=node.timeout)
-                if code != 0:
-                    logging.warning("get_release: node: %s: %s" %
-                                    (node.id, "Can't get node release"))
-                    node.release = None
-                    continue
-                else:
-                    node.release = release.strip('\n "\'')
-                logging.info("get_release: node: %s, release: %s" %
-                             (node.id, node.release))
+                cmd = ("awk -F ':' '/release/ {print $2}' "
+                       "/etc/nailgun/version.yaml")
+            else:
+                cmd = ("awk -F ':' '/fuel_version/ {print $2}' "
+                       "/etc/astute.yaml")
+            release, err, code = tools.ssh_node(ip=node.ip,
+                                                command=cmd,
+                                                ssh_opts=node.ssh_opts,
+                                                timeout=node.timeout)
+            if code != 0:
+                logging.warning("get_release: node: %s: %s" %
+                                (node.id, "Can't get node release"))
+                continue
+            else:
+                node.release = release.strip('\n "\'')
+            logging.info("get_release: node: %s, release: %s" %
+                         (node.id, node.release))
 
     def conf_assign_once(self):
         once = Node.conf_once_prefix
