@@ -24,11 +24,13 @@ from timmy.conf import load_conf
 from timmy.tools import interrupt_wrapper
 
 
-def pretty_run(msg, f, args=[], kwargs={}):
-    sys.stdout.write('%s...\r' % msg)
-    sys.stdout.flush()
+def pretty_run(quiet, msg, f, args=[], kwargs={}):
+    if not quiet:
+        sys.stdout.write('%s...\r' % msg)
+        sys.stdout.flush()
     result = f(*args, **kwargs)
-    print('%s: done' % msg)
+    if not quiet:
+        print('%s: done' % msg)
     return result
 
 
@@ -65,17 +67,20 @@ def main(argv=None):
     parser.add_argument('--fake-logs',
                         help='Do not collect logs, only calculate size.',
                         action='store_true')
-    parser.add_argument('-d', '--debug',
-                        help='Be extremely verbose.',
+    parser.add_argument('-w', '--warning',
+                        help='Sets log level to warning (default).',
                         action='store_true')
     parser.add_argument('-v', '--verbose',
                         help='Be verbose.',
+                        action='store_true')
+    parser.add_argument('-d', '--debug',
+                        help='Be extremely verbose.',
                         action='store_true')
     parser.add_argument('-C', '--command',
                         help=('Enables shell mode. Shell command to'
                               ' execute. For help on shell mode, read'
                               ' timmy/conf.py'))
-    parser.add_argument('-F', '--file', action='append',
+    parser.add_argument('-G', '--get', action='append',
                         help=('Enables shell mode. Can be specified multiple'
                               ' times. Filemask to collect via "scp -r".'
                               ' Result is placed into a folder specified'
@@ -93,11 +98,20 @@ def main(argv=None):
                               ' accumulating results across runs.'),
                         action='store_true')
     parser.add_argument('-P', '--put', nargs=2, action='append',
-                        help=('Upload filemask via "scp -r" to node(s).'
-                              ' Each argument must contain two strings -'
-                              ' source file/path/mask and destination.'))
+                        help=('Enables shell mode. Upload filemask via'
+                              ' "scp -r" to node(s). Each argument must'
+                              'contain two strings - source file/path/mask'
+                              ' and destination.'))
+    parser.add_argument('-q', '--quiet',
+                        help=('Print only command execution results and log'
+                              ' messages. Good for quick runs / "watch" wrap.'
+                              ' Also sets default loglevel to ERROR.'),
+                        action='store_true')
     args = parser.parse_args(argv[1:])
-    loglevel = logging.WARNING
+    if args.quiet and not args.warning:
+        loglevel = logging.ERROR
+    else:
+        loglevel = logging.WARNING
     if args.verbose:
         loglevel = logging.INFO
     if args.debug:
@@ -106,7 +120,7 @@ def main(argv=None):
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
     conf = load_conf(args.conf)
-    if args.command or args.file:
+    if args.command or args.get or args.put:
         conf['shell_mode'] = True
     if args.no_clean:
         conf['clean'] = False
@@ -118,12 +132,12 @@ def main(argv=None):
         for k in conf:
             if k.startswith(Node.conf_match_prefix):
                 conf.pop(k)
-        for src_dst in args.put:
-            conf[Node.pkey].append(src_dst)
+        if args.put:
+            conf[Node.pkey] = args.put
         if args.command:
             conf[Node.ckey] = [{'stdout': args.command}]
-        if args.file:
-            conf[Node.fkey] = args.file
+        if args.get:
+            conf[Node.fkey] = args.get
     else:
         filter = conf['soft_filter']
     if args.role:
@@ -133,50 +147,59 @@ def main(argv=None):
     main_arc = os.path.join(conf['archives'], 'general.tar.gz')
     if args.dest_file:
         main_arc = args.dest_file
-    nm = pretty_run('Initializing node data',
+    nm = pretty_run(args.quiet, 'Initializing node data',
                     NodeManager,
                     kwargs={'conf': conf, 'extended': args.extended})
     if not args.only_logs:
-        if conf[Node.pkey]:
-            pretty_run('Uploading files', nm.put_files)
-        if not (conf['shell_mode'] and not args.command):
-            pretty_run('Executing commands and scripts', nm.run_commands,
-                       args=(conf['outdir'], args.maxthreads))
-        if not (conf['shell_mode'] and not args.file):
-            pretty_run('Collecting files and filelists', nm.get_files,
-                       args=(conf['outdir'], args.maxthreads))
-        if not args.no_archive:
-            pretty_run('Creating outputs and files archive',
-                       nm.create_archive_general,
-                       args=(conf['outdir'], main_arc, 60))
+        if nm.has(Node.pkey):
+            pretty_run(args.quiet, 'Uploading files', nm.put_files)
+        if nm.has(Node.ckey, Node.skey):
+            pretty_run(args.quiet, 'Executing commands and scripts',
+                       nm.run_commands, args=(conf['outdir'],
+                                              args.maxthreads))
+        if nm.has(Node.fkey, Node.flkey):
+            pretty_run(args.quiet, 'Collecting files and filelists',
+                       nm.get_files, args=(conf['outdir'], args.maxthreads))
+        if not args.no_archive and nm.has(*Node.conf_archive_general):
+            pretty_run(args.quiet, 'Creating outputs and files archive',
+                       nm.create_archive_general, args=(conf['outdir'],
+                                                        main_arc, 60))
     if args.only_logs or args.getlogs:
-        size = pretty_run('Calculating logs size', nm.calculate_log_size,
-                          args=(args.maxthreads,))
+        size = pretty_run(args.quiet, 'Calculating logs size',
+                          nm.calculate_log_size, args=(args.maxthreads,))
         if size == 0:
             logging.warning('Size zero - no logs to collect.')
             return
-        enough = pretty_run('Checking free space', nm.is_enough_space,
-                            args=(conf['archives'],))
+        enough = pretty_run(args.quiet, 'Checking free space',
+                            nm.is_enough_space, args=(conf['archives'],))
         if enough:
-            pretty_run('Collecting and packing logs', nm.get_logs,
+            pretty_run(args.quiet, 'Collecting and packing logs', nm.get_logs,
                        args=(conf['archives'], conf['compress_timeout']),
                        kwargs={'maxthreads': args.logs_maxthreads,
                                'fake': args.fake_logs})
+        else:
+            logging.warning(('Not enough space for logs in "%s", skipping'
+                             'log collection.') %
+                            conf['archives'])
     logging.info("Nodes:\n%s" % nm)
-    print('Run complete. Node information:')
-    print(nm)
+    if not args.quiet:
+        print('Run complete. Node information:')
+        print(nm)
     if conf['shell_mode']:
         if args.command:
-            print('Results:')
+            if not args.quiet:
+                print('Results:')
             for node in nm.nodes.values():
                 for cmd, path in node.mapcmds.items():
                     with open(path, 'r') as f:
                         for line in f.readlines():
-                            print('node-%s: %s' % (node.id, line.rstrip('\n')))
-    if args.file:
-        print('Files collected into "%s".' % conf['outdir'])
-    if not args.no_archive:
-        print('Results packed and available in "%s".' % conf['archives'])
+                            print('node-%s:\t%s' %
+                                  (node.id, line.rstrip('\n')))
+    if nm.has(Node.fkey, Node.flkey) and not args.quiet:
+        print('Outputs and files available in "%s".' % conf['outdir'])
+    if all([not args.no_archive, nm.has(*Node.conf_archive_general),
+            not args.quiet]):
+        print('Archives available in "%s".' % conf['archives'])
     return 0
 
 if __name__ == '__main__':

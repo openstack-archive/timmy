@@ -39,6 +39,7 @@ class Node(object):
     pkey = 'put'
     conf_actionable = [lkey, ckey, skey, fkey, flkey, pkey]
     conf_appendable = [lkey, ckey, skey, fkey, flkey, pkey]
+    conf_archive_general = [ckey, skey, fkey, flkey]
     conf_keep_default = [skey, ckey, fkey, flkey]
     conf_once_prefix = 'once_'
     conf_match_prefix = 'by_'
@@ -189,8 +190,8 @@ class Node(object):
                     logging.error("exec_cmd: can't write to file %s" % dfile)
         return self
 
-    def exec_simple_cmd(self, cmd, infile, outfile, timeout=15,
-                        fake=False, ok_codes=None):
+    def exec_simple_cmd(self, cmd, timeout=15, infile=None, outfile=None,
+                        fake=False, ok_codes=None, input=None):
         logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, cmd))
         if not fake:
             outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -199,8 +200,8 @@ class Node(object):
                                               env_vars=self.env_vars,
                                               timeout=timeout,
                                               outputfile=outfile,
-                                              inputfile=infile,
-                                              ok_codes=ok_codes)
+                                              ok_codes=ok_codes,
+                                              input=input)
             self.check_code(code, 'exec_simple_cmd', cmd, ok_codes)
 
     def get_files(self, odir='info', timeout=15):
@@ -241,7 +242,7 @@ class Node(object):
     def put_files(self):
         logging.info('put_files: node: %s, IP: %s' % (self.id, self.ip))
         for f in self.put:
-            outs, errs, code = tools.get_file_scp(ip=self.ip,
+            outs, errs, code = tools.put_file_scp(ip=self.ip,
                                                   file=f[0],
                                                   dest=f[1],
                                                   recursive=True)
@@ -453,7 +454,7 @@ class NodeManager(object):
                 self.nodes[node.ip] = node
 
     def get_version(self):
-        cmd = "awk -F ':' '/release/ {print \$2}' /etc/nailgun/version.yaml"
+        cmd = "awk -F ':' '/release/ {print $2}' /etc/nailgun/version.yaml"
         fuelnode = self.nodes[self.fuelip]
         release, err, code = tools.ssh_node(ip=fuelnode.ip,
                                             command=cmd,
@@ -468,7 +469,7 @@ class NodeManager(object):
         logging.info('release:%s' % (self.version))
 
     def nodes_get_release(self):
-        cmd = "awk -F ':' '/fuel_version/ {print \$2}' /etc/astute.yaml"
+        cmd = "awk -F ':' '/fuel_version/ {print $2}' /etc/astute.yaml"
         for node in self.nodes.values():
             if node.id == 0:
                 # skip master
@@ -605,7 +606,7 @@ class NodeManager(object):
     @run_with_lock
     def get_logs(self, outdir, timeout, fake=False, maxthreads=10, speed=100):
         if fake:
-            logging.info('archive_logs:skip creating archives(fake:%s)' % fake)
+            logging.info('get_logs: fake = True, skipping' % fake)
             return
         txtfl = []
         speed = self.find_adm_interface_speed(speed)
@@ -614,31 +615,27 @@ class NodeManager(object):
         run_items = []
         for node in [n for n in self.nodes.values() if not n.filtered_out]:
             if not node.logs_dict():
-                logging.info(("create_archive_logs: node %s - no logs "
+                logging.info(("get_logs: node %s - no logs "
                              "to collect") % node.id)
                 continue
             node.archivelogsfile = os.path.join(outdir,
                                                 'logs-node-%s.tar.gz' %
                                                 str(node.id))
             tools.mdir(outdir)
-            logslistfile = node.archivelogsfile + '.txt'
-            txtfl.append(logslistfile)
-            try:
-                with open(logslistfile, 'w') as llf:
-                    for fn in node.logs_dict():
-                        llf.write(fn.lstrip(os.path.abspath(os.sep))+"\0")
-            except:
-                logging.error("create_archive_logs: Can't write to file %s" %
-                              logslistfile)
-                continue
+            input = ''
+            for fn in node.logs_dict():
+                input += '%s\0' % fn.lstrip(os.path.abspath(os.sep))
+            with open('test-%s' % node.id, 'w') as fi:
+                fi.write(input)
             cmd = ("tar --gzip -C %s --create --warning=no-file-changed "
                    " --file - --null --files-from -" % os.path.abspath(os.sep))
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
-                cmd = ' '.join([cmd, "| python -c '%s'" % pythonslowpipe])
+                cmd = ' '.join([cmd, "| python -c '%s'; exit ${PIPESTATUS}" %
+                                pythonslowpipe])
             args = {'cmd': cmd,
-                    'infile': logslistfile,
-                    'outfile': node.archivelogsfile,
                     'timeout': timeout,
+                    'outfile': node.archivelogsfile,
+                    'input': input,
                     'ok_codes': [0, 1]}
             run_items.append(tools.RunItem(target=node.exec_simple_cmd,
                                            args=args))
@@ -647,7 +644,7 @@ class NodeManager(object):
             try:
                 os.remove(tfile)
             except:
-                logging.error("archive_logs: can't delete file %s" % tfile)
+                logging.error("get_logs: can't delete file %s" % tfile)
 
     @run_with_lock
     def get_files(self, odir=Node.fkey, timeout=15):
@@ -663,6 +660,18 @@ class NodeManager(object):
         for n in [n for n in self.nodes.values() if not n.filtered_out]:
             run_items.append(tools.RunItem(target=n.put_files))
         tools.run_batch(run_items, 10)
+
+    def has(self, *keys):
+        nodes = {}
+        for k in keys:
+            for n in self.nodes.values():
+                if hasattr(n, k):
+                    attr = getattr(n, k)
+                    if attr:
+                        if k not in nodes:
+                            nodes[k] = []
+                        nodes[k].append(n)
+        return nodes
 
 
 def main(argv=None):
