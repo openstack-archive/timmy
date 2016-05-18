@@ -41,7 +41,7 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
-                                                  ' collection tool'))
+                                                  ' manipulation tool'))
     parser.add_argument('-c', '--conf',
                         help='Path to YAML a configuration file.')
     parser.add_argument('-j', '--nodes-json',
@@ -49,49 +49,52 @@ def main(argv=None):
                               ' "fuel node --json". Useful to speed up'
                               ' initialization, skips "fuel node" call.'))
     parser.add_argument('-o', '--dest-file',
-                        help='Path to an output archive file.')
-    parser.add_argument('-x', '--extended', action='store_true',
-                        help='Execute extended commands.')
+                        help=('Output filename for the archive in tar.gz'
+                              ' format for command outputs and collected'
+                              ' files. Overrides "archives" config option.'))
+    parser.add_argument('--log-file', default=None,
+                        help='Redirect Timmy log to a file.')
     parser.add_argument('-e', '--env', type=int,
                         help='Env ID. Run only on specific environment.')
-    parser.add_argument('-m', '--maxthreads', type=int, default=100,
-                        help=('Maximum simultaneous nodes for command'
-                              'execution.'))
-    parser.add_argument('-l', '--logs',
-                        help=('Collect logs from nodes. Logs are not collected'
-                              ' by default due to their size.'),
-                        action='store_true', dest='getlogs')
-    parser.add_argument('-L', '--logs-maxthreads', type=int, default=100,
-                        help='Maximum simultaneous nodes for log collection.')
-    parser.add_argument('--only-logs',
-                        action='store_true',
-                        help='Only collect logs, do not run commands.')
-    parser.add_argument('--log-file', default=None,
-                        help='Output file for Timmy log.')
-    parser.add_argument('--fake-logs',
-                        help='Do not collect logs, only calculate size.',
-                        action='store_true')
-    parser.add_argument('-w', '--warning',
-                        help='Sets log level to warning (default).',
-                        action='store_true')
-    parser.add_argument('-v', '--verbose',
-                        help='Be verbose.',
-                        action='store_true')
-    parser.add_argument('-d', '--debug',
-                        help='Be extremely verbose.',
-                        action='store_true')
-    parser.add_argument('-C', '--command',
-                        help=('Enables shell mode. Shell command to'
-                              ' execute. For help on shell mode, read'
-                              ' timmy/conf.py'))
+    parser.add_argument('-R', '--role', action='append',
+                        help=('Can be specified multiple times.'
+                              ' Run only on the specified role.'))
     parser.add_argument('-G', '--get', action='append',
                         help=('Enables shell mode. Can be specified multiple'
                               ' times. Filemask to collect via "scp -r".'
                               ' Result is placed into a folder specified'
-                              ' by "outdir" config option.'))
-    parser.add_argument('-R', '--role', action='append',
-                        help=('Can be specified multiple times.'
-                              ' Run only on the specified role.'))
+                              ' by "outdir" config option.'
+                              ' For help on shell mode, read timmy/conf.py.'))
+    parser.add_argument('-C', '--command', action='append',
+                        help=('Enables shell mode. Can be specified'
+                              ' multiple times. Shell command to execute.'
+                              ' For help on shell mode, read timmy/conf.py.'))
+    parser.add_argument('-S', '--script', action='append',
+                        help=('Enables shell mode. Can be specified'
+                              ' multiple times. Bash script name to execute.'
+                              ' Script must be placed in "%s" folder inside a'
+                              ' path specified by "rqdir" configuration'
+                              ' parameter.' % Node.skey) +
+                              ' For help on shell mode, read timmy/conf.py.')
+    parser.add_argument('-P', '--put', nargs=2, action='append',
+                        help=('Enables shell mode. Can be specified multiple'
+                              ' times. Upload filemask via"scp -r" to node(s).'
+                              ' Each argument must contain two strings -'
+                              ' source file/path/mask and dest. file/path.'
+                              ' For help on shell mode, read timmy/conf.py.'))
+    parser.add_argument('-l', '--logs',
+                        help=('Collect logs from nodes. Logs are not collected'
+                              ' by default due to their size.'),
+                        action='store_true', dest='getlogs')
+    parser.add_argument('--only-logs',
+                        action='store_true',
+                        help=('Only collect logs, do not run commands or'
+                              ' collect files.'))
+    parser.add_argument('--fake-logs',
+                        help='Do not collect logs, only calculate size.',
+                        action='store_true')
+    parser.add_argument('-x', '--extended', action='store_true',
+                        help='Execute extended commands.')
     parser.add_argument('--no-archive',
                         help=('Do not create results archive. By default,'
                               ' an archive with all outputs and files'
@@ -101,15 +104,24 @@ def main(argv=None):
                         help=('Do not clean previous results. Allows'
                               ' accumulating results across runs.'),
                         action='store_true')
-    parser.add_argument('-P', '--put', nargs=2, action='append',
-                        help=('Enables shell mode. Upload filemask via'
-                              ' "scp -r" to node(s). Each argument must'
-                              'contain two strings - source file/path/mask'
-                              ' and destination.'))
     parser.add_argument('-q', '--quiet',
                         help=('Print only command execution results and log'
                               ' messages. Good for quick runs / "watch" wrap.'
                               ' Also sets default loglevel to ERROR.'),
+                        action='store_true')
+    parser.add_argument('-m', '--maxthreads', type=int, default=100,
+                        help=('Maximum simultaneous nodes for command'
+                              'execution.'))
+    parser.add_argument('-L', '--logs-maxthreads', type=int, default=100,
+                        help='Maximum simultaneous nodes for log collection.')
+    parser.add_argument('-w', '--warning',
+                        help='Sets log level to warning (default).',
+                        action='store_true')
+    parser.add_argument('-v', '--verbose',
+                        help='Be verbose.',
+                        action='store_true')
+    parser.add_argument('-d', '--debug',
+                        help='Be extremely verbose.',
                         action='store_true')
     args = parser.parse_args(argv[1:])
     if args.quiet and not args.warning:
@@ -124,7 +136,7 @@ def main(argv=None):
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
     conf = load_conf(args.conf)
-    if args.command or args.get or args.put:
+    if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
     if args.no_clean:
         conf['clean'] = False
@@ -139,7 +151,15 @@ def main(argv=None):
         if args.put:
             conf[Node.pkey] = args.put
         if args.command:
-            conf[Node.ckey] = [{'stdout': args.command}]
+            i = 0
+            pad = str(len(str(len(args.command))))
+            template = 'timmy_shell_mode_cmd_%0' + pad + 'd'
+            for c in args.command:
+                cmdname = template % i
+                conf[Node.ckey].append({cmdname: c})
+                i += 1
+        if args.script:
+            conf[Node.skey] = args.script
         if args.get:
             conf[Node.fkey] = args.get
     else:
@@ -191,15 +211,12 @@ def main(argv=None):
         print('Run complete. Node information:')
         print(nm)
     if conf['shell_mode']:
-        if args.command:
+        if args.command or args.script:
             if not args.quiet:
                 print('Results:')
-            for node in nm.nodes.values():
-                for cmd, path in node.mapcmds.items():
-                    with open(path, 'r') as f:
-                        for line in f.readlines():
-                            print('node-%s:\t%s' %
-                                  (node.id, line.rstrip('\n')))
+            for node in nm.sorted_nodes():
+                node.print_results(node.mapcmds)
+                node.print_results(node.mapscr)
     if nm.has(Node.fkey, Node.flkey) and not args.quiet:
         print('Outputs and files available in "%s".' % conf['outdir'])
     if all([not args.no_archive, nm.has(*Node.conf_archive_general),

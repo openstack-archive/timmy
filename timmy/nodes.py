@@ -147,6 +147,7 @@ class Node(object):
         ddir = os.path.join(odir, Node.ckey, cl, sn)
         if self.cmds:
             tools.mdir(ddir)
+        self.cmds = sorted(self.cmds)
         for c in self.cmds:
             for cmd in c:
                 dfile = os.path.join(ddir, 'node-%s-%s-%s' %
@@ -169,13 +170,14 @@ class Node(object):
         ddir = os.path.join(odir, Node.skey, cl, sn)
         if self.scripts:
             tools.mdir(ddir)
+        self.scripts = sorted(self.scripts)
         for scr in self.scripts:
             f = os.path.join(self.rqdir, Node.skey, scr)
             logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                  (self.id, self.ip, os.path.basename(f)))
             logging.info('outfile: %s' % dfile)
-            self.mapscr[os.path.basename(f)] = dfile
+            self.mapscr[scr] = dfile
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,
                                                   filename=f,
@@ -301,6 +303,14 @@ class Node(object):
                 logging.warning("%s: got bad exit code %s,"
                                 " node: %s, ip: %s, cmd: %s" %
                                 (func_name, code, self.id, self.ip, cmd))
+
+    def print_results(self, result_map):
+        # result_map should be either mapcmds or mapscr
+        for cmd in sorted(result_map):
+            with open(result_map[cmd], 'r') as f:
+                for line in f.readlines():
+                    print('node-%s:\t%s' %
+                          (self.id, line.rstrip('\n')))
 
 
 class NodeManager(object):
