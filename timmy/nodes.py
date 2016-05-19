@@ -140,6 +140,26 @@ class Node(object):
                 setattr(self, f, [])
         r_apply(conf, p, p_s, c_a, k_d, overridden, d, clean=clean)
 
+    def get_release(self):
+        if self.id == 0:
+            cmd = ("awk -F ':' '/release/ {print $2}' "
+                   "/etc/nailgun/version.yaml")
+        else:
+            cmd = ("awk -F ':' '/fuel_version/ {print $2}' "
+                   "/etc/astute.yaml")
+        release, err, code = tools.ssh_node(ip=self.ip,
+                                            command=cmd,
+                                            ssh_opts=self.ssh_opts,
+                                            timeout=self.timeout,
+                                            prefix=self.prefix)
+        if code != 0:
+            logging.warning('get_release: node: %s: could not determine'
+                            ' MOS release' % self.id)
+        else:
+            self.release = release.strip('\n "\'')
+        logging.info('get_release: node: %s, MOS release: %s' %
+                     (self.id, self.release))
+
     def exec_cmd(self, odir='info', fake=False, ok_codes=None):
         sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
@@ -159,7 +179,8 @@ class Node(object):
                                                       command=c[cmd],
                                                       ssh_opts=self.ssh_opts,
                                                       env_vars=self.env_vars,
-                                                      timeout=self.timeout)
+                                                      timeout=self.timeout,
+                                                      prefix=self.prefix)
                     self.check_code(code, 'exec_cmd', c[cmd], ok_codes)
                     try:
                         with open(dfile, 'w') as df:
@@ -183,7 +204,8 @@ class Node(object):
                                                   filename=f,
                                                   ssh_opts=self.ssh_opts,
                                                   env_vars=self.env_vars,
-                                                  timeout=self.timeout)
+                                                  timeout=self.timeout,
+                                                  prefix=self.prefix)
                 self.check_code(code, 'exec_cmd', 'script %s' % f, ok_codes)
                 try:
                     with open(dfile, 'w') as df:
@@ -203,7 +225,8 @@ class Node(object):
                                               timeout=timeout,
                                               outputfile=outfile,
                                               ok_codes=ok_codes,
-                                              input=input)
+                                              input=input,
+                                              prefix=self.prefix)
             self.check_code(code, 'exec_simple_cmd', cmd, ok_codes)
 
     def get_files(self, odir='info', timeout=15):
@@ -270,7 +293,8 @@ class Node(object):
                                               command=cmd,
                                               ssh_opts=self.ssh_opts,
                                               env_vars='',
-                                              timeout=timeout)
+                                              timeout=timeout,
+                                              prefix=self.prefix)
             if code == 124:
                 logging.error("node: %s, ip: %s, command: %s, "
                               "timeout code: %s, error message: %s" %
@@ -442,7 +466,8 @@ class NodeManager(object):
         nodes_json, err, code = tools.ssh_node(ip=fuelnode.ip,
                                                command=fuel_node_cmd,
                                                ssh_opts=fuelnode.ssh_opts,
-                                               timeout=fuelnode.timeout)
+                                               timeout=fuelnode.timeout,
+                                               prefix=fuelnode.prefix)
         if code != 0:
             logging.error(('NodeManager get_nodes: cannot get '
                            'fuel node list: %s') % err)
@@ -470,25 +495,10 @@ class NodeManager(object):
                 self.nodes[node.ip] = node
 
     def nodes_get_release(self):
-        for node in self.nodes.values():
-            if node.id == 0:
-                cmd = ("awk -F ':' '/release/ {print $2}' "
-                       "/etc/nailgun/version.yaml")
-            else:
-                cmd = ("awk -F ':' '/fuel_version/ {print $2}' "
-                       "/etc/astute.yaml")
-            release, err, code = tools.ssh_node(ip=node.ip,
-                                                command=cmd,
-                                                ssh_opts=node.ssh_opts,
-                                                timeout=node.timeout)
-            if code != 0:
-                logging.warning("get_release: node: %s: %s" %
-                                (node.id, "Can't get node release"))
-                continue
-            else:
-                node.release = release.strip('\n "\'')
-            logging.info("get_release: node: %s, release: %s" %
-                         (node.id, node.release))
+        run_items = []
+        for n in [n for n in self.nodes.values() if not n.filtered_out]:
+            run_items.append(tools.RunItem(target=n.get_release))
+        tools.run_batch(run_items, 100)
 
     def conf_assign_once(self):
         once = Node.conf_once_prefix

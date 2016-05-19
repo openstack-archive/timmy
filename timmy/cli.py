@@ -72,10 +72,10 @@ def main(argv=None):
     parser.add_argument('-S', '--script', action='append',
                         help=('Enables shell mode. Can be specified'
                               ' multiple times. Bash script name to execute.'
-                              ' Script must be placed in "%s" folder inside a'
-                              ' path specified by "rqdir" configuration'
-                              ' parameter.' % Node.skey) +
-                              ' For help on shell mode, read timmy/conf.py.')
+                              ' Script must be placed in "%s" folder inside'
+                              ' a path specified by "rqdir" configuration'
+                              ' parameter. For help on shell mode, read'
+                              ' timmy/conf.py.') % Node.skey)
     parser.add_argument('-P', '--put', nargs=2, action='append',
                         help=('Enables shell mode. Can be specified multiple'
                               ' times. Upload filemask via"scp -r" to node(s).'

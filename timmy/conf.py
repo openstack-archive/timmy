@@ -15,6 +15,7 @@ def load_conf(filename):
     conf['fuelip'] = '127.0.0.1'
     conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
     conf['timeout'] = 15
+    conf['prefix'] = 'nice -n 19 ionice -c 3'
     rqdir = 'rq'
     rqfile = 'rq.yaml'
     dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', 'timmy')

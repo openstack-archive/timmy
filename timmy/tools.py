@@ -242,7 +242,7 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
 
 def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
              filename=None, inputfile=None, outputfile=None,
-             ok_codes=None, input=None, prefix='nice -n 19 ionice -c 3'):
+             ok_codes=None, input=None, prefix=None):
     if not ssh_opts:
         ssh_opts = ''
     if not env_vars:
