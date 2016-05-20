@@ -40,7 +40,7 @@ scripts:
     cinder: [ovs-vsctl-show, cinder-manage]
     compute: [compute-iptables-nat, ovs-dump-flows, compute-iptables, ovs-ofctl-show-bridges,
       ovs-vsctl-show]
-    controller: [rabbitmqctl-list-queues, nova-manage-service-list, iptables-namespaces,
+    controller: [rabbitmqctl-list-queues, nova-service-list, iptables-namespaces,
       rabbitmqctl-cluster-status, crm-resource-status, ovs-dump-flows, neutron-agent-list,
       mysql-status, ceph-mon-status, ovs-ofctl-show-bridges, rabbitmqctl-list-connections,
       ovs-vsctl-show, rabbitmqctl-report, mysql-size, rabbitmqctl-status, crm-resource-list,
@@ -50,7 +50,7 @@ scripts:
     ceph-osd: [ceph-df, ceph-osd-status, ceph-osd-tree, ceph-pg-dump, ovs-vsctl-show,
       ceph-health-detail]
     controller: [neutron-router-list, neutron-net-list, neutron-subnet-list, keystone-endpoint-list,
-      cinder-list, nova-list, nova-manage-vm-list, keystone-tenant-list, nova-usage-list,
+      cinder-list, nova-list, keystone-tenant-list, nova-usage-list,
       neutron-port-list]
   by_os_platform:
       ubuntu: [dmesg-t-ubuntu, packages-ubuntu]

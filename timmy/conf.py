@@ -12,9 +12,10 @@ def load_conf(filename):
                         '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
                         '-lroot', '-oBatchMode=yes']
     conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
-    conf['fuelip'] = 'localhost'
+    conf['fuelip'] = '127.0.0.1'
     conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
     conf['timeout'] = 15
+    conf['prefix'] = 'nice -n 19 ionice -c 3'
     rqdir = 'rq'
     rqfile = 'rq.yaml'
     dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', 'timmy')
@@ -29,6 +30,11 @@ def load_conf(filename):
     conf['compress_timeout'] = 3600
     conf['archives'] = os.path.join(gettempdir(), 'timmy', 'archives')
     conf['cmds_archive'] = ''
+    conf['put'] = []
+    conf['cmds'] = []
+    conf['scripts'] = []
+    conf['files'] = []
+    conf['filelists'] = []
     conf['logs'] = {'path': '/var/log',
                     'exclude': '[-_]\d{8}$|atop[-_]|\.gz$'}
     '''Shell mode - only run what was specified via command line.

@@ -26,6 +26,9 @@ import threading
 from multiprocessing import Process, Queue, BoundedSemaphore
 import subprocess
 import yaml
+from flock import FLock
+from tempfile import gettempdir
+from pipes import quote
 
 
 slowpipe = '''
@@ -58,20 +61,34 @@ def interrupt_wrapper(f):
     return wrapper
 
 
+def run_with_lock(f):
+    def wrapper(*args, **kwargs):
+        lock = FLock(os.path.join(gettempdir(), 'timmy_%s.lock' % f.__name__))
+        if not lock.lock():
+            logging.warning('Unable to obtain lock, skipping "%s"' %
+                            f.__name__)
+            return ''
+        f(*args, **kwargs)
+        lock.unlock()
+    return wrapper
+
+
 class RunItem():
-    def __init__(self, target, args, key=None):
+    def __init__(self, target, args=None, key=None):
         self.target = target
         self.args = args
+        self.key = key
         self.process = None
         self.queue = None
-        self.key = key
 
 
 class SemaphoreProcess(Process):
-    def __init__(self, semaphore, target, args, queue=None):
+    def __init__(self, semaphore, target, args=None, queue=None):
         Process.__init__(self)
         self.semaphore = semaphore
         self.target = target
+        if not args:
+            args = {}
         self.args = args
         self.queue = queue
 
@@ -173,7 +190,17 @@ def mdir(directory):
             sys.exit(3)
 
 
-def launch_cmd(command, timeout, input=None):
+def launch_cmd(cmd, timeout, input=None, ok_codes=None):
+    def _log_msg(cmd, stderr, code, debug=False, stdin=None, stdout=None):
+        message = (u'launch_cmd:\n'
+                   '___command: %s\n'
+                   '______code: %s\n'
+                   '____stderr: %s' % (cmd, code, stderr.decode('utf-8')))
+        if debug:
+            message += '\n_____stdin: %s\n' % stdin
+            message += '____stdout: %s' % stdout
+        return message
+
     def _timeout_terminate(pid):
         try:
             os.kill(pid, 15)
@@ -181,8 +208,8 @@ def launch_cmd(command, timeout, input=None):
         except:
             pass
 
-    logging.info('launch_cmd: command %s' % command)
-    p = subprocess.Popen(command,
+    logging.info('launch_cmd: cmd %s' % cmd)
+    p = subprocess.Popen(cmd,
                          shell=True,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
@@ -200,21 +227,26 @@ def launch_cmd(command, timeout, input=None):
             pass
         outs, errs = p.communicate()
         errs = errs.rstrip('\n')
-        logging.error("command: %s err: %s, returned: %s" %
-                      (command, errs, p.returncode))
+        logging.error(_log_msg(cmd, errs, p.returncode))
     finally:
         if timeout_killer:
             timeout_killer.cancel()
-    logging.debug("ssh return: err:%s\nouts:%s\ncode:%s" %
-                  (errs, outs, p.returncode))
-    logging.info("ssh return: err:%s\ncode:%s" %
-                 (errs, p.returncode))
+    logging.info(_log_msg(cmd, errs, p.returncode))
+    logging.debug(_log_msg(cmd, errs, p.returncode, debug=True,
+                           stdin=input, stdout=outs))
+    if p.returncode:
+        if not ok_codes or p.returncode not in ok_codes:
+            logging.warning(_log_msg(cmd, errs, p.returncode))
     return outs, errs, p.returncode
 
 
-def ssh_node(ip, command='', ssh_opts=[], env_vars=[], timeout=15,
+def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
              filename=None, inputfile=None, outputfile=None,
-             prefix='nice -n 19 ionice -c 3'):
+             ok_codes=None, input=None, prefix=None):
+    if not ssh_opts:
+        ssh_opts = ''
+    if not env_vars:
+        env_vars = ''
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
     if type(env_vars) is list:
@@ -225,21 +257,24 @@ def ssh_node(ip, command='', ssh_opts=[], env_vars=[], timeout=15,
                env_vars, timeout)
     else:
         logging.info("exec ssh")
-        # base cmd str
         bstr = "timeout '%s' ssh -t -T %s '%s' '%s' " % (
                timeout, ssh_opts, ip, env_vars)
     if filename is None:
-        cmd = bstr + '"' + prefix + ' ' + command + '"'
+        cmd = '%s %s' % (bstr, quote(prefix + ' ' + command))
+        if inputfile is not None:
+            '''inputfile and stdin will not work together,
+            give priority to inputfile'''
+            input = None
+            cmd = "%s < '%s'" % (cmd, inputfile)
     else:
-        cmd = bstr + " '%s bash -s' < '%s'" % (prefix, filename)
-    if inputfile is not None:
-        cmd = bstr + '"' + prefix + " " + command + '" < ' + inputfile
+        cmd = "%s'%s bash -s' < '%s'" % (bstr, prefix, filename)
         logging.info("ssh_node: inputfile selected, cmd: %s" % cmd)
     if outputfile is not None:
-        cmd += ' > "' + outputfile + '"'
-    cmd = ("trap 'kill $pid' 15; " +
-           "trap 'kill $pid' 2; " + cmd + '&:; pid=$!; wait $!')
-    return launch_cmd(cmd, timeout)
+        cmd = "%s > '%s'" % (cmd, outputfile)
+    cmd = ("input=\"$(cat | xxd -p)\"; trap 'kill $pid' 15; " +
+           "trap 'kill $pid' 2; echo -n \"$input\" | xxd -r -p | " + cmd +
+           ' &:; pid=$!; wait $!')
+    return launch_cmd(cmd, timeout, input=input, ok_codes=ok_codes)
 
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
@@ -267,6 +302,12 @@ def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
     mdir(ddir)
     r = '-r ' if recursive else ''
     cmd = "timeout '%s' scp %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
+    return launch_cmd(cmd, timeout)
+
+
+def put_file_scp(ip, file, dest, timeout=600, recursive=True):
+    r = '-r ' if recursive else ''
+    cmd = "timeout '%s' scp %s'%s' '%s':'%s'" % (timeout, r, file, ip, dest)
     return launch_cmd(cmd, timeout)
 
 
