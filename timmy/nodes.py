@@ -352,7 +352,8 @@ class NodeManager(object):
                 logging.error(('NodeManager __init__: directory %s does not'
                                'exist') % self.rqdir)
                 sys.exit(1)
-            self.import_rq()
+            if self.conf['rqfile']:
+                self.import_rq()
         self.fuel_init()
         if nodes_json:
             try:
