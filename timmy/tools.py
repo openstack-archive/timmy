@@ -192,10 +192,10 @@ def mdir(directory):
 
 def launch_cmd(cmd, timeout, input=None, ok_codes=None):
     def _log_msg(cmd, stderr, code, debug=False, stdin=None, stdout=None):
-        message = (u'launch_cmd:\n'
+        message = ('launch_cmd:\n'
                    '___command: %s\n'
                    '______code: %s\n'
-                   '____stderr: %s' % (cmd, code, stderr.decode('utf-8')))
+                   '____stderr: %s' % (cmd, code, stderr))
         if debug:
             message += '\n_____stdin: %s\n' % stdin
             message += '____stdout: %s' % stdout
@@ -219,6 +219,8 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         timeout_killer = threading.Timer(timeout, _timeout_terminate, [p.pid])
         timeout_killer.start()
         outs, errs = p.communicate(input=input)
+        outs = outs.decode('utf-8')
+        errs = errs.decode('utf-8')
         errs = errs.rstrip('\n')
     except:
         try:
@@ -226,12 +228,15 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         except:
             pass
         outs, errs = p.communicate()
+        outs = outs.decode('utf-8')
+        errs = errs.decode('utf-8')
         errs = errs.rstrip('\n')
         logging.error(_log_msg(cmd, errs, p.returncode))
     finally:
         if timeout_killer:
             timeout_killer.cancel()
     logging.info(_log_msg(cmd, errs, p.returncode))
+    input = input.decode('utf-8') if input else None
     logging.debug(_log_msg(cmd, errs, p.returncode, debug=True,
                            stdin=input, stdout=outs))
     if p.returncode:
