@@ -184,7 +184,7 @@ class Node(object):
                     self.check_code(code, 'exec_cmd', c[cmd], ok_codes)
                     try:
                         with open(dfile, 'w') as df:
-                            df.write(outs)
+                            df.write(outs.encode('utf-8'))
                     except:
                         logging.error("exec_cmd: can't write to file %s" %
                                       dfile)
@@ -209,7 +209,7 @@ class Node(object):
                 self.check_code(code, 'exec_cmd', 'script %s' % f, ok_codes)
                 try:
                     with open(dfile, 'w') as df:
-                        df.write(outs)
+                        df.write(outs.encode('utf-8'))
                 except:
                     logging.error("exec_cmd: can't write to file %s" % dfile)
         return self

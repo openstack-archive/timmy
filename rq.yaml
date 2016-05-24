@@ -13,25 +13,38 @@ filelists:
     ubuntu: [etc-apt]
 scripts:
   by_release:
+    '4.1':
+      by_roles:
+        controller: [nova-manage-vm-list]
     '4.1.1':
       by_roles:
         fuel: [fuel-postgres-dump]
+        controller: [nova-manage-vm-list]
+    '5.0':
+      by_roles:
+        controller: [nova-manage-vm-list]
     '5.0.1':
       by_roles:
         fuel: [fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
-    '6.0':
+        controller: [nova-manage-vm-list]
+    '5.1':
       by_roles:
-        compute: [ipset-save, ipset-list]
-        controller: [ipset-save, ipset-list]
-    '6.1':
-      by_roles:
-        fuel: [fuel-notifications]
-    '7.0':
-      by_roles:
-        fuel: [fuel-notifications]
+        controller: [nova-manage-vm-list]
     '5.1.1':
       by_roles:
         fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+        controller: [nova-manage-vm-list]
+    '6.0':
+      by_roles:
+        compute: [ipset-save, ipset-list]
+        controller: [ipset-save, ipset-list, nova-manage-vm-list]
+    '6.1':
+      by_roles:
+        fuel: [fuel-notifications]
+        controller: [nova-manage-vm-list]
+    '7.0':
+      by_roles:
+        fuel: [fuel-notifications]
     '8.0':
       by_roles:
         fuel: [fuel-notifications]
