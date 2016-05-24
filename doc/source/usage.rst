@@ -52,6 +52,8 @@ If you want to do a set of actions on the nodes and you do not want to write a l
     01-my-first-command: 'uptime'
     02-disk-check: 'df -h'
     and-also-ram: 'free -m'
+  logs:
+    exclude: '.*' # exclude all logs by default
   by_roles:
     controller:
       scripts: # I use script here to not overwrite cmds we have already defined for all nodes earlier
@@ -85,6 +87,8 @@ Instead of setting all structure in a config file you can move actions (cmds, fi
     by_roles:
       fuel:
         include: 'crmd|lrmd|corosync|pacemaker'
+    __default:
+        exclude: '.*'
 
 Then the config should look like:
 
