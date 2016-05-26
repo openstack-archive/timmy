@@ -501,7 +501,7 @@ class NodeManager(object):
             if not node.filtered_out:
                 run_items.append(tools.RunItem(target=node.get_release,
                                                key=key))
-        tools.run_batch(run_items, 100)
+        result = tools.run_batch(run_items, 100, dict_result=True)
         for key in result:
             self.nodes[key] = result[key]
 
