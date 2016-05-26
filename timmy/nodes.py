@@ -58,6 +58,7 @@ class Node(object):
         self.online = online
         self.status = status
         self.ip = ip
+        self.release = None
         self.files = []
         self.filelists = []
         self.cmds = []
