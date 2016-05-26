@@ -497,9 +497,13 @@ class NodeManager(object):
 
     def nodes_get_release(self):
         run_items = []
-        for n in [n for n in self.nodes.values() if not n.filtered_out]:
-            run_items.append(tools.RunItem(target=n.get_release))
+        for key, node in self.nodes.items():
+            if not node.filtered_out:
+                run_items.append(tools.RunItem(target=node.get_release,
+                                               key=key))
         tools.run_batch(run_items, 100)
+        for key in result:
+            self.nodes[key] = result[key]
 
     def conf_assign_once(self):
         once = Node.conf_once_prefix
