@@ -159,6 +159,7 @@ class Node(object):
             self.release = release.strip('\n "\'')
         logging.info('get_release: node: %s, MOS release: %s' %
                      (self.id, self.release))
+        return self
 
     def exec_cmd(self, odir='info', fake=False, ok_codes=None):
         sn = 'node-%s' % self.id
