@@ -159,6 +159,7 @@ class Node(object):
             self.release = release.strip('\n "\'')
         logging.info('get_release: node: %s, MOS release: %s' %
                      (self.id, self.release))
+        return self
 
     def exec_cmd(self, odir='info', fake=False, ok_codes=None):
         sn = 'node-%s' % self.id
@@ -497,9 +498,13 @@ class NodeManager(object):
 
     def nodes_get_release(self):
         run_items = []
-        for n in [n for n in self.nodes.values() if not n.filtered_out]:
-            run_items.append(tools.RunItem(target=n.get_release))
-        tools.run_batch(run_items, 100)
+        for key, node in self.nodes.items():
+            if not node.filtered_out:
+                run_items.append(tools.RunItem(target=node.get_release,
+                                               key=key))
+        result = tools.run_batch(run_items, 100, dict_result=True)
+        for key in result:
+            self.nodes[key] = result[key]
 
     def conf_assign_once(self):
         once = Node.conf_once_prefix
