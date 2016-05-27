@@ -13,7 +13,6 @@ def load_conf(filename):
                         '-lroot', '-oBatchMode=yes']
     conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
     conf['fuelip'] = '127.0.0.1'
-    conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
     conf['timeout'] = 15
     conf['prefix'] = 'nice -n 19 ionice -c 3'
     rqdir = 'rq'
@@ -28,8 +27,11 @@ def load_conf(filename):
     else:
         conf['rqfile'] = rqfile
     conf['compress_timeout'] = 3600
-    conf['archives'] = os.path.join(gettempdir(), 'timmy', 'archives')
-    conf['cmds_archive'] = ''
+    conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
+    conf['archive_dir'] = os.path.join(gettempdir(), 'timmy', 'archives')
+    conf['archive_name'] = 'general.tar.gz'
+    conf['outputs_timestamp'] = False
+    conf['dir_timestamp'] = False
     conf['put'] = []
     conf['cmds'] = []
     conf['scripts'] = []
@@ -45,9 +47,9 @@ def load_conf(filename):
     Skip Fuel node;
     Print command execution results. Files and outputs will also be in a
     place specified by conf['outdir'], archive will also be created and put
-    in a place specified by conf['archives'].'''
+    in a place specified by conf['archive_dir'].'''
     conf['shell_mode'] = False
-    '''Clean - erase previous results in outdir and archives dir, if any.'''
+    '''Clean - erase previous results in outdir and archive_dir dir, if any.'''
     conf['clean'] = True
     if filename:
         conf_extra = load_yaml_file(filename)
