@@ -652,7 +652,7 @@ class NodeManager(object):
             node.archivelogsfile = os.path.join(self.conf['archive_dir'],
                                                 'logs-node-%s.tar.gz' %
                                                 str(node.id))
-            tools.mdir(self.conf['outdir'])
+            tools.mdir(self.conf['archive_dir'])
             input = ''
             for fn in node.logs_dict():
                 input += '%s\0' % fn.lstrip(os.path.abspath(os.sep))
