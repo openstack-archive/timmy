@@ -19,7 +19,7 @@
 main module
 """
 
-import json
+import yaml
 import os
 import shutil
 import logging
@@ -371,15 +371,9 @@ class NodeManager(object):
         self.nodes = {}
         self.fuel_init()
         if nodes_json:
-            try:
-                with open(nodes_json, 'r') as json_data:
-                    self.nodes_json = json.load(json_data)
-            except:
-                logging.error(('NodeManager __init__: cannot load data from'
-                               ' file "%s"') % nodes_json)
-                sys.exit(6)
+            self.nodes_json = tools.load_yaml_file(nodes_json)
         else:
-            self.nodes_json = json.loads(self.get_nodes_json())
+            self.nodes_json = yaml.load(self.get_nodes_json())
         self.nodes_init()
         # apply soft-filter on all nodes
         for node in self.nodes.values():
