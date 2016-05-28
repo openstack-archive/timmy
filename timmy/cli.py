@@ -33,12 +33,7 @@ def pretty_run(quiet, msg, f, args=[], kwargs={}):
         print('%s: done' % msg)
     return result
 
-
-@interrupt_wrapper
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv
-
+def parse_args():
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
                                                   ' manipulation tool'))
@@ -139,6 +134,14 @@ def main(argv=None):
     parser.add_argument('-d', '--debug',
                         help='Be extremely verbose.',
                         action='store_true')
+    return parser
+
+
+@interrupt_wrapper
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+    parser = parse_args()
     args = parser.parse_args(argv[1:])
     if args.quiet and not args.warning:
         loglevel = logging.ERROR

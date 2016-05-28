@@ -6,6 +6,7 @@ The easiest way to launch timmy would be running the ``timmy.py`` script.
 However, you need to :doc:`configure </configuration>` it first.
 
 Basically, the ``timmy.py`` is a simple wrapper that launches ``cli.py``.
+Full :doc:`reference </cli>` for command line interface
 
 Basic parameters:
 

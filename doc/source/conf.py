@@ -31,6 +31,9 @@ import shlex
 # ones.
 extensions = [
     'sphinx.ext.viewcode',
+#    'oslosphinx',
+    'sphinx.ext.autodoc',
+    'sphinxarg.ext',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -49,7 +52,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'timmy'
-copyright = u'2015, Mirantis'
+#copyright = u'2015, Mirantis'
 author = u'Mirantis'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -87,7 +90,7 @@ exclude_patterns = []
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
-#add_module_names = True
+add_module_names = True
 
 # If true, sectionauthor and moduleauthor directives will be shown in the
 # output. They are ignored by default.
@@ -110,12 +113,13 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'alabaster'
+html_theme = 'classic'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #html_theme_options = {}
+#html_theme_options = {'incubating': True}
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
@@ -139,7 +143,7 @@ html_theme = 'alabaster'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+#html_static_path = ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -177,7 +181,7 @@ html_static_path = ['_static']
 #html_show_sphinx = True
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
-#html_show_copyright = True
+html_show_copyright = False
 
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
