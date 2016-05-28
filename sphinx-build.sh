@@ -15,7 +15,9 @@
 #    under the License.
 
 # Builds a Sphinx documentation
+rm -rf doc/build/
 
 sphinx-build -b html doc/source/ doc/build/
+
 rm -f ./*.pyc
 rm -f ./timmy/*.pyc

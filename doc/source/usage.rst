@@ -26,18 +26,18 @@ Basic parameters:
 
 Shell mode - rqfile (``rq.yaml`` by default) is skipped, Fuel node is skipped, outputs of commands (specified with ``-C`` options) and scripts (specified with ``-S``) are printed on screen.
 
-=====
+========
 Examples
-=====
+========
 
 * ``timmy -C 'uptime; free -m'`` - check uptime and memory on all nodes
 * ``timmy -G /etc/nova/nova.conf`` - get nova.conf from all nodes
 * ``timmy -R controller -P package.deb '' -C 'dpkg -i package.deb' -C 'rm package.deb' -C 'dpkg -l | grep [p]ackage'`` - push a package to all nodes, install it, remove the file and check that it is installed
 * ``timmy -с myconf.yaml`` - use a custom config file and run according to it
 
-=====
+===============================
 Using custom configuration file
-=====
+===============================
 
 If you want to do a set of actions on the nodes and you do not want to write a long command line (or you want to use options only available in config), you may want to set up config file instead. An example config structure would be:
 
