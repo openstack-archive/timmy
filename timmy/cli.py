@@ -37,8 +37,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
                                                   ' manipulation tool'))
-    parser.add_argument('-c', '--conf',
-                        help='Path to YAML a configuration file.')
+    parser.add_argument('-c', '--config',
+                        help='Path to a YAML configuration file.')
     parser.add_argument('-j', '--nodes-json',
                         help=('Path to a json file retrieved via'
                               ' "fuel node --json". Useful to speed up'
@@ -154,7 +154,7 @@ def main(argv=None):
     logging.basicConfig(filename=args.log_file,
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
-    conf = load_conf(args.conf)
+    conf = load_conf(args.config)
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
     if args.no_clean:

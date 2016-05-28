@@ -631,7 +631,7 @@ class NodeManager(object):
     @run_with_lock
     def get_logs(self, timeout, fake=False, maxthreads=10, speed=100):
         if fake:
-            logging.info('get_logs: fake = True, skipping' % fake)
+            logging.info('get_logs: fake = True, skipping')
             return
         txtfl = []
         speed = self.find_adm_interface_speed(speed)
