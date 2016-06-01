@@ -14,7 +14,8 @@ Contents:
    specification
    configuration
    usage
-
+   cli
+   tools
 
 Indices and tables
 ==================

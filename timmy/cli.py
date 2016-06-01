@@ -33,17 +33,12 @@ def pretty_run(quiet, msg, f, args=[], kwargs={}):
         print('%s: done' % msg)
     return result
 
-
-@interrupt_wrapper
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv
-
+def parse_args():
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
                                                   ' manipulation tool'))
-    parser.add_argument('-c', '--conf',
-                        help='Path to YAML a configuration file.')
+    parser.add_argument('-c', '--config',
+                        help='Path to a YAML configuration file.')
     parser.add_argument('-j', '--nodes-json',
                         help=('Path to a json file retrieved via'
                               ' "fuel node --json". Useful to speed up'
@@ -51,7 +46,9 @@ def main(argv=None):
     parser.add_argument('-o', '--dest-file',
                         help=('Output filename for the archive in tar.gz'
                               ' format for command outputs and collected'
-                              ' files. Overrides "archives" config option.'))
+                              ' files. Overrides "archive_" config options.'
+                              ' If logs are collected they will be placed'
+                              ' in the same folder (but separate archives).'))
     parser.add_argument('--log-file', default=None,
                         help='Redirect Timmy log to a file.')
     parser.add_argument('-e', '--env', type=int,
@@ -86,6 +83,9 @@ def main(argv=None):
                         help=('Collect logs from nodes. Logs are not collected'
                               ' by default due to their size.'),
                         action='store_true', dest='getlogs')
+    parser.add_argument('--fuel-ip', help='fuel ip address')
+    parser.add_argument('--fuel-user', help='fuel username')
+    parser.add_argument('--fuel-pass', help='fuel password')
     parser.add_argument('--only-logs',
                         action='store_true',
                         help=('Only collect logs, do not run commands or'
@@ -114,6 +114,20 @@ def main(argv=None):
                               'execution.'))
     parser.add_argument('-L', '--logs-maxthreads', type=int, default=100,
                         help='Maximum simultaneous nodes for log collection.')
+    parser.add_argument('-t', '--outputs-timestamp',
+                        help='Add timestamp to outputs - allows accumulating'
+                             ' outputs of identical commands/scripts across'
+                             ' runs. Only makes sense with --no-clean for'
+                             ' subsequent runs.',
+                        action='store_true')
+    parser.add_argument('-T', '--dir-timestamp',
+                        help='Add timestamp to output folders (defined by'
+                             ' "outdir" and "archive_dir" config options).'
+                             ' Makes each run store results in new folders.'
+                             ' This way Timmy will always preserve previous'
+                             ' results. Do not forget to clean up the results'
+                             ' manually when using this option.',
+                        action='store_true')
     parser.add_argument('-w', '--warning',
                         help='Sets log level to warning (default).',
                         action='store_true')
@@ -123,6 +137,14 @@ def main(argv=None):
     parser.add_argument('-d', '--debug',
                         help='Be extremely verbose.',
                         action='store_true')
+    return parser
+
+
+@interrupt_wrapper
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+    parser = parse_args()
     args = parser.parse_args(argv[1:])
     if args.quiet and not args.warning:
         loglevel = logging.ERROR
@@ -135,7 +157,13 @@ def main(argv=None):
     logging.basicConfig(filename=args.log_file,
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
-    conf = load_conf(args.conf)
+    conf = load_conf(args.config)
+    if args.fuel_ip:
+        conf['fuel_ip'] = args.fuel_ip
+    if args.fuel_user:
+        conf['fuel_user'] = args.fuel_user
+    if args.fuel_pass:
+        conf['fuel_pass'] = args.fuel_pass
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
     if args.no_clean:
@@ -168,9 +196,13 @@ def main(argv=None):
         filter['roles'] = args.role
     if args.env is not None:
         filter['cluster'] = [args.env]
-    main_arc = os.path.join(conf['archives'], 'general.tar.gz')
+    if args.outputs_timestamp:
+        conf['outputs_timestamp'] = True
+    if args.dir_timestamp:
+        conf['dir_timestamp'] = True
     if args.dest_file:
-        main_arc = args.dest_file
+        conf['archive_dir'] = os.path.split(args.dest_file)[0]
+        conf['archive_name'] = os.path.split(args.dest_file)[1]
     nm = pretty_run(args.quiet, 'Initializing node data',
                     NodeManager,
                     kwargs={'conf': conf, 'extended': args.extended,
@@ -180,15 +212,13 @@ def main(argv=None):
             pretty_run(args.quiet, 'Uploading files', nm.put_files)
         if nm.has(Node.ckey, Node.skey):
             pretty_run(args.quiet, 'Executing commands and scripts',
-                       nm.run_commands, args=(conf['outdir'],
-                                              args.maxthreads))
+                       nm.run_commands, args=(args.maxthreads,))
         if nm.has(Node.fkey, Node.flkey):
             pretty_run(args.quiet, 'Collecting files and filelists',
-                       nm.get_files, args=(conf['outdir'], args.maxthreads))
+                       nm.get_files, args=(args.maxthreads,))
         if not args.no_archive and nm.has(*Node.conf_archive_general):
             pretty_run(args.quiet, 'Creating outputs and files archive',
-                       nm.create_archive_general, args=(conf['outdir'],
-                                                        main_arc, 60))
+                       nm.create_archive_general, args=(60,))
     if args.only_logs or args.getlogs:
         size = pretty_run(args.quiet, 'Calculating logs size',
                           nm.calculate_log_size, args=(args.maxthreads,))
@@ -196,16 +226,15 @@ def main(argv=None):
             logging.warning('Size zero - no logs to collect.')
             return
         enough = pretty_run(args.quiet, 'Checking free space',
-                            nm.is_enough_space, args=(conf['archives'],))
+                            nm.is_enough_space)
         if enough:
             pretty_run(args.quiet, 'Collecting and packing logs', nm.get_logs,
-                       args=(conf['archives'], conf['compress_timeout']),
+                       args=(conf['compress_timeout'],),
                        kwargs={'maxthreads': args.logs_maxthreads,
                                'fake': args.fake_logs})
         else:
             logging.warning(('Not enough space for logs in "%s", skipping'
-                             'log collection.') %
-                            conf['archives'])
+                             'log collection.') % nm.conf['archive_dir'])
     logging.info("Nodes:\n%s" % nm)
     if not args.quiet:
         print('Run complete. Node information:')
@@ -217,11 +246,11 @@ def main(argv=None):
             for node in nm.sorted_nodes():
                 node.print_results(node.mapcmds)
                 node.print_results(node.mapscr)
-    if nm.has(Node.fkey, Node.flkey) and not args.quiet:
-        print('Outputs and files available in "%s".' % conf['outdir'])
+    if nm.has(Node.ckey, Node.skey, Node.fkey, Node.flkey) and not args.quiet:
+        print('Outputs and/or files available in "%s".' % nm.conf['outdir'])
     if all([not args.no_archive, nm.has(*Node.conf_archive_general),
             not args.quiet]):
-        print('Archives available in "%s".' % conf['archives'])
+        print('Archives available in "%s".' % nm.conf['archive_dir'])
     return 0
 
 if __name__ == '__main__':

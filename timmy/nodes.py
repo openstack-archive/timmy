@@ -19,12 +19,13 @@
 main module
 """
 
-import json
+import yaml
 import os
 import shutil
 import logging
 import sys
 import re
+from datetime import datetime
 import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
@@ -58,6 +59,7 @@ class Node(object):
         self.online = online
         self.status = status
         self.ip = ip
+        self.release = None
         self.files = []
         self.filelists = []
         self.cmds = []
@@ -69,6 +71,8 @@ class Node(object):
         self.mapcmds = {}
         self.mapscr = {}
         self.filtered_out = False
+        self.outputs_timestamp = False
+        self.outputs_timestamp_dir = None
         self.apply_conf(conf)
 
     def __str__(self):
@@ -161,11 +165,11 @@ class Node(object):
                      (self.id, self.release))
         return self
 
-    def exec_cmd(self, odir='info', fake=False, ok_codes=None):
+    def exec_cmd(self, fake=False, ok_codes=None):
         sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
-        logging.debug('%s/%s/%s/%s' % (odir, Node.ckey, cl, sn))
-        ddir = os.path.join(odir, Node.ckey, cl, sn)
+        logging.debug('%s/%s/%s/%s' % (self.outdir, Node.ckey, cl, sn))
+        ddir = os.path.join(self.outdir, Node.ckey, cl, sn)
         if self.cmds:
             tools.mdir(ddir)
         self.cmds = sorted(self.cmds)
@@ -173,6 +177,8 @@ class Node(object):
             for cmd in c:
                 dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                      (self.id, self.ip, cmd))
+                if self.outputs_timestamp:
+                        dfile += self.outputs_timestamp_str
                 logging.info('outfile: %s' % dfile)
                 self.mapcmds[cmd] = dfile
                 if not fake:
@@ -189,7 +195,6 @@ class Node(object):
                     except:
                         logging.error("exec_cmd: can't write to file %s" %
                                       dfile)
-        ddir = os.path.join(odir, Node.skey, cl, sn)
         if self.scripts:
             tools.mdir(ddir)
         self.scripts = sorted(self.scripts)
@@ -198,6 +203,8 @@ class Node(object):
             logging.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                  (self.id, self.ip, os.path.basename(f)))
+            if self.outputs_timestamp:
+                    dfile += self.outputs_timestamp_str
             logging.info('outfile: %s' % dfile)
             self.mapscr[scr] = dfile
             if not fake:
@@ -230,12 +237,12 @@ class Node(object):
                                               prefix=self.prefix)
             self.check_code(code, 'exec_simple_cmd', cmd, ok_codes)
 
-    def get_files(self, odir='info', timeout=15):
+    def get_files(self, timeout=15):
         logging.info('get_files: node: %s, IP: %s' % (self.id, self.ip))
         sn = 'node-%s' % self.id
         cl = 'cluster-%s' % self.cluster
         if self.files or self.filelists:
-            ddir = os.path.join(odir, Node.fkey, cl, sn)
+            ddir = os.path.join(self.outdir, Node.fkey, cl, sn)
             tools.mdir(ddir)
         if self.shell_mode:
             for f in self.files:
@@ -343,10 +350,16 @@ class NodeManager(object):
 
     def __init__(self, conf, extended=False, nodes_json=None):
         self.conf = conf
-        self.nodes = {}
+        if conf['outputs_timestamp'] or conf['dir_timestamp']:
+            timestamp_str = datetime.now().strftime('_%F_%H-%M-%S')
+            if conf['outputs_timestamp']:
+                conf['outputs_timestamp_str'] = timestamp_str
+            if conf['dir_timestamp']:
+                conf['outdir'] += timestamp_str
+                conf['archive_dir'] += timestamp_str
         if conf['clean']:
             shutil.rmtree(conf['outdir'], ignore_errors=True)
-            shutil.rmtree(conf['archives'], ignore_errors=True)
+            shutil.rmtree(conf['archive_dir'], ignore_errors=True)
         if not conf['shell_mode']:
             self.rqdir = conf['rqdir']
             if (not os.path.exists(self.rqdir)):
@@ -355,17 +368,12 @@ class NodeManager(object):
                 sys.exit(1)
             if self.conf['rqfile']:
                 self.import_rq()
+        self.nodes = {}
         self.fuel_init()
         if nodes_json:
-            try:
-                with open(nodes_json, 'r') as json_data:
-                    self.nodes_json = json.load(json_data)
-            except:
-                logging.error(('NodeManager __init__: cannot load data from'
-                               ' file "%s"') % nodes_json)
-                sys.exit(6)
+            self.nodes_json = tools.load_yaml_file(nodes_json)
         else:
-            self.nodes_json = json.loads(self.get_nodes_json())
+            self.nodes_json = yaml.load(self.get_nodes_json())
         self.nodes_init()
         # apply soft-filter on all nodes
         for node in self.nodes.values():
@@ -445,8 +453,8 @@ class NodeManager(object):
             r_sub(attr, src, attr, d, p, once_p, dst)
 
     def fuel_init(self):
-        if not self.conf['fuelip']:
-            logging.error('NodeManager fuel_init: fuelip not set')
+        if not self.conf['fuel_ip']:
+            logging.error('NodeManager fuel_init: fuel_ip not set')
             sys.exit(7)
         fuelnode = Node(id=0,
                         cluster=0,
@@ -455,16 +463,18 @@ class NodeManager(object):
                         roles=['fuel'],
                         status='ready',
                         online=True,
-                        ip=self.conf['fuelip'],
+                        ip=self.conf['fuel_ip'],
                         conf=self.conf)
         # soft-skip Fuel if it is hard-filtered
         if not self.filter(fuelnode, self.conf['hard_filter']):
             fuelnode.filtered_out = True
-        self.nodes[self.conf['fuelip']] = fuelnode
+        self.nodes[self.conf['fuel_ip']] = fuelnode
 
     def get_nodes_json(self):
-        fuelnode = self.nodes[self.conf['fuelip']]
-        fuel_node_cmd = 'fuel node list --json'
+        fuelnode = self.nodes[self.conf['fuel_ip']]
+        fuel_node_cmd = ('fuel node list --json --user %s --password %s' %
+                         (self.conf['fuel_user'],
+                          self.conf['fuel_pass']))
         nodes_json, err, code = tools.ssh_node(ip=fuelnode.ip,
                                                command=fuel_node_cmd,
                                                ssh_opts=fuelnode.ssh_opts,
@@ -545,14 +555,12 @@ class NodeManager(object):
             return all(checks)
 
     @run_with_lock
-    def run_commands(self, odir='info', timeout=15, fake=False,
-                     maxthreads=100):
+    def run_commands(self, timeout=15, fake=False, maxthreads=100):
         run_items = []
         for key, node in self.nodes.items():
             if not node.filtered_out:
                 run_items.append(tools.RunItem(target=node.exec_cmd,
-                                               args={'odir': odir,
-                                                     'fake': fake},
+                                               args={'fake': fake},
                                                key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:
@@ -576,9 +584,9 @@ class NodeManager(object):
         self.alogsize = total_size / 1024
         return self.alogsize
 
-    def is_enough_space(self, directory, coefficient=1.2):
-        tools.mdir(directory)
-        outs, errs, code = tools.free_space(directory, timeout=1)
+    def is_enough_space(self, coefficient=1.2):
+        tools.mdir(self.conf['outdir'])
+        outs, errs, code = tools.free_space(self.conf['outdir'], timeout=1)
         if code != 0:
             logging.error("Can't get free space: %s" % errs)
             return False
@@ -596,9 +604,11 @@ class NodeManager(object):
             return True
 
     @run_with_lock
-    def create_archive_general(self, directory, outfile, timeout):
-        cmd = "tar zcf '%s' -C %s %s" % (outfile, directory, ".")
-        tools.mdir(self.conf['archives'])
+    def create_archive_general(self, timeout):
+        outfile = os.path.join(self.conf['archive_dir'],
+                               self.conf['archive_name'])
+        cmd = "tar zcf '%s' -C %s %s" % (outfile, self.conf['outdir'], ".")
+        tools.mdir(self.conf['archive_dir'])
         logging.debug("create_archive_general: cmd: %s" % cmd)
         outs, errs, code = tools.launch_cmd(cmd, timeout)
         if code != 0:
@@ -621,9 +631,9 @@ class NodeManager(object):
                 return speed
 
     @run_with_lock
-    def get_logs(self, outdir, timeout, fake=False, maxthreads=10, speed=100):
+    def get_logs(self, timeout, fake=False, maxthreads=10, speed=100):
         if fake:
-            logging.info('get_logs: fake = True, skipping' % fake)
+            logging.info('get_logs: fake = True, skipping')
             return
         txtfl = []
         speed = self.find_adm_interface_speed(speed)
@@ -635,15 +645,13 @@ class NodeManager(object):
                 logging.info(("get_logs: node %s - no logs "
                              "to collect") % node.id)
                 continue
-            node.archivelogsfile = os.path.join(outdir,
+            node.archivelogsfile = os.path.join(self.conf['archive_dir'],
                                                 'logs-node-%s.tar.gz' %
                                                 str(node.id))
-            tools.mdir(outdir)
+            tools.mdir(self.conf['archive_dir'])
             input = ''
             for fn in node.logs_dict():
                 input += '%s\0' % fn.lstrip(os.path.abspath(os.sep))
-            with open('test-%s' % node.id, 'w') as fi:
-                fi.write(input)
             cmd = ("tar --gzip -C %s --create --warning=no-file-changed "
                    " --file - --null --files-from -" % os.path.abspath(os.sep))
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
@@ -664,11 +672,10 @@ class NodeManager(object):
                 logging.error("get_logs: can't delete file %s" % tfile)
 
     @run_with_lock
-    def get_files(self, odir=Node.fkey, timeout=15):
+    def get_files(self, timeout=15):
         run_items = []
         for n in [n for n in self.nodes.values() if not n.filtered_out]:
-            run_items.append(tools.RunItem(target=n.get_files,
-                                           args={'odir': odir}))
+            run_items.append(tools.RunItem(target=n.get_files))
         tools.run_batch(run_items, 10)
 
     @run_with_lock

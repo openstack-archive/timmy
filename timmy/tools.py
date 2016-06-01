@@ -164,6 +164,9 @@ def get_dir_structure(rootdir):
 
 
 def load_yaml_file(filename):
+    """
+    Loads yaml data from file
+    """
     try:
         with open(filename, 'r') as f:
             return yaml.load(f)
@@ -181,6 +184,9 @@ def load_yaml_file(filename):
 
 
 def mdir(directory):
+    """
+    Creates a directory if it doesn't exist
+    """
     if not os.path.exists(directory):
         logging.debug('creating directory %s' % directory)
         try:
