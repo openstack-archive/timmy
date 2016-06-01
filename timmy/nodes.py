@@ -453,8 +453,8 @@ class NodeManager(object):
             r_sub(attr, src, attr, d, p, once_p, dst)
 
     def fuel_init(self):
-        if not self.conf['fuelip']:
-            logging.error('NodeManager fuel_init: fuelip not set')
+        if not self.conf['fuel_ip']:
+            logging.error('NodeManager fuel_init: fuel_ip not set')
             sys.exit(7)
         fuelnode = Node(id=0,
                         cluster=0,
@@ -463,16 +463,18 @@ class NodeManager(object):
                         roles=['fuel'],
                         status='ready',
                         online=True,
-                        ip=self.conf['fuelip'],
+                        ip=self.conf['fuel_ip'],
                         conf=self.conf)
         # soft-skip Fuel if it is hard-filtered
         if not self.filter(fuelnode, self.conf['hard_filter']):
             fuelnode.filtered_out = True
-        self.nodes[self.conf['fuelip']] = fuelnode
+        self.nodes[self.conf['fuel_ip']] = fuelnode
 
     def get_nodes_json(self):
-        fuelnode = self.nodes[self.conf['fuelip']]
-        fuel_node_cmd = 'fuel node list --json'
+        fuelnode = self.nodes[self.conf['fuel_ip']]
+        fuel_node_cmd = ('fuel node list --json --user %s --password %s' %
+                         (self.conf['fuel_user'],
+                          self.conf['fuel_pass']))
         nodes_json, err, code = tools.ssh_node(ip=fuelnode.ip,
                                                command=fuel_node_cmd,
                                                ssh_opts=fuelnode.ssh_opts,

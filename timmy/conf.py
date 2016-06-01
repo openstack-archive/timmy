@@ -12,7 +12,9 @@ def load_conf(filename):
                         '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
                         '-lroot', '-oBatchMode=yes']
     conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
-    conf['fuelip'] = '127.0.0.1'
+    conf['fuel_ip'] = '127.0.0.1'
+    conf['fuel_user'] = 'admin'
+    conf['fuel_pass'] = 'admin'
     conf['timeout'] = 15
     conf['prefix'] = 'nice -n 19 ionice -c 3'
     rqdir = 'rq'

@@ -83,6 +83,9 @@ def parse_args():
                         help=('Collect logs from nodes. Logs are not collected'
                               ' by default due to their size.'),
                         action='store_true', dest='getlogs')
+    parser.add_argument('--fuel-ip', help='fuel ip address')
+    parser.add_argument('--fuel-user', help='fuel username')
+    parser.add_argument('--fuel-pass', help='fuel password')
     parser.add_argument('--only-logs',
                         action='store_true',
                         help=('Only collect logs, do not run commands or'
@@ -155,6 +158,12 @@ def main(argv=None):
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
     conf = load_conf(args.config)
+    if args.fuel_ip:
+        conf['fuel_ip'] = args.fuel_ip
+    if args.fuel_user:
+        conf['fuel_user'] = args.fuel_user
+    if args.fuel_pass:
+        conf['fuel_pass'] = args.fuel_pass
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
     if args.no_clean:

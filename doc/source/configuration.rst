@@ -12,7 +12,7 @@ Here is the description of available parameters in configuration file:
  * **opts** parameters to send to ssh command directly (recommended to leave at default)
  * **vars** environment variables to set for SSH
 
-* **fuelip** the IP address of the master node in the environment
+* **fuel_ip** the IP address of the master node in the environment
 * **rqdir** the path of *rqdir*, the directory containing info about commands to execute and logs to gather
 * **out-dir** directory to store output data
 * **timeout** timeout for SSH commands in seconds
