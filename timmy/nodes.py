@@ -363,8 +363,8 @@ class NodeManager(object):
         if not conf['shell_mode']:
             self.rqdir = conf['rqdir']
             if (not os.path.exists(self.rqdir)):
-                logging.error(('NodeManager __init__: directory %s does not'
-                               'exist') % self.rqdir)
+                logging.critical(('NodeManager __init__: directory %s does not'
+                                  ' exist') % self.rqdir)
                 sys.exit(1)
             if self.conf['rqfile']:
                 self.import_rq()
@@ -375,6 +375,8 @@ class NodeManager(object):
         else:
             self.nodes_json = yaml.load(self.get_nodes_json())
         self.nodes_init()
+        logging.info('Using rqdir: %s, rqfile: %s' %
+                     (conf['rqdir'], conf['rqfile']))
         # apply soft-filter on all nodes
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
@@ -454,7 +456,7 @@ class NodeManager(object):
 
     def fuel_init(self):
         if not self.conf['fuel_ip']:
-            logging.error('NodeManager fuel_init: fuel_ip not set')
+            logging.critical('NodeManager fuel_init: fuel_ip not set')
             sys.exit(7)
         fuelnode = Node(id=0,
                         cluster=0,
@@ -481,8 +483,8 @@ class NodeManager(object):
                                                timeout=fuelnode.timeout,
                                                prefix=fuelnode.prefix)
         if code != 0:
-            logging.error(('NodeManager get_nodes: cannot get '
-                           'fuel node list: %s') % err)
+            logging.critical(('NodeManager get_nodes: cannot get '
+                              'fuel node list: %s') % err)
             sys.exit(4)
         return nodes_json
 

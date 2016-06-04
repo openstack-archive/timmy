@@ -198,6 +198,8 @@ def main(argv=None):
     if args.dest_file:
         conf['archive_dir'] = os.path.split(args.dest_file)[0]
         conf['archive_name'] = os.path.split(args.dest_file)[1]
+    logging.info('Using rqdir: %s, rqfile: %s' %
+                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
                     NodeManager,
                     kwargs={'conf': conf, 'extended': args.extended,

@@ -127,7 +127,7 @@ def run_batch(item_list, maxthreads, dict_result=False):
         for run_item in item_list:
             run_item.result = run_item.queue.get()
             if isinstance(run_item.result, Exception):
-                logging.error('%s, exiting' % run_item.result)
+                logging.critical('%s, exiting' % run_item.result)
                 cleanup()
                 sys.exit(42)
             run_item.process.join()
@@ -158,7 +158,8 @@ def get_dir_structure(rootdir):
             parent = reduce(dict.get, folders[:-1], dir)
             parent[folders[-1]] = subdir
     except:
-        logging.error('failed to create list of the directory: %s' % rootdir)
+        logging.critical('failed to create list of the directory: %s' %
+                         rootdir)
         sys.exit(1)
     return dir
 
@@ -171,15 +172,15 @@ def load_yaml_file(filename):
         with open(filename, 'r') as f:
             return yaml.load(f)
     except IOError as e:
-        logging.error("load_conf: I/O error(%s): file: %s; msg: %s" %
-                      (e.errno, e.filename, e.strerror))
+        logging.critical("load_conf: I/O error(%s): file: %s; msg: %s" %
+                         (e.errno, e.filename, e.strerror))
         sys.exit(1)
     except ValueError:
-        logging.error("load_conf: Could not convert data")
+        logging.critical("load_conf: Could not convert data")
         sys.exit(1)
     except yaml.parser.ParserError as e:
-        logging.error("load_conf: Could not parse %s:\n%s" %
-                      (filename, str(e)))
+        logging.critical("load_conf: Could not parse %s:\n%s" %
+                         (filename, str(e)))
         sys.exit(1)
 
 
@@ -192,7 +193,7 @@ def mdir(directory):
         try:
             os.makedirs(directory)
         except:
-            logging.error("Can't create a directory: %s" % directory)
+            logging.critical("Can't create a directory: %s" % directory)
             sys.exit(3)
 
 
