@@ -172,14 +172,14 @@ def load_yaml_file(filename):
         with open(filename, 'r') as f:
             return yaml.load(f)
     except IOError as e:
-        logging.critical("load_conf: I/O error(%s): file: %s; msg: %s" %
+        logging.critical("I/O error(%s): file: %s; msg: %s" %
                          (e.errno, e.filename, e.strerror))
         sys.exit(1)
     except ValueError:
-        logging.critical("load_conf: Could not convert data")
+        logging.critical("Could not convert data")
         sys.exit(1)
     except yaml.parser.ParserError as e:
-        logging.critical("load_conf: Could not parse %s:\n%s" %
+        logging.critical("Could not parse %s:\n%s" %
                          (filename, str(e)))
         sys.exit(1)
 
@@ -215,7 +215,7 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         except:
             pass
 
-    logging.info('launch_cmd: cmd %s' % cmd)
+    logging.info('cmd %s' % cmd)
     p = subprocess.Popen(cmd,
                          shell=True,
                          stdin=subprocess.PIPE,
@@ -280,7 +280,7 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
             cmd = "%s < '%s'" % (cmd, inputfile)
     else:
         cmd = "%s'%s bash -s' < '%s'" % (bstr, prefix, filename)
-        logging.info("ssh_node: inputfile selected, cmd: %s" % cmd)
+        logging.info("inputfile selected, cmd: %s" % cmd)
     if outputfile is not None:
         cmd = "%s > '%s'" % (cmd, outputfile)
     cmd = ("input=\"$(cat | xxd -p)\"; trap 'kill $pid' 15; " +

@@ -149,9 +149,10 @@ def main(argv=None):
     loglevel = loglevels[min(len(loglevels)-1, args.verbose)]
     if args.quiet:
         loglevel = logging.ERROR
+    FORMAT = '%(asctime)s %(levelname)s %(module)s %(funcName)s(): %(message)s'
     logging.basicConfig(filename=args.log_file,
                         level=loglevel,
-                        format='%(asctime)s %(levelname)s %(message)s')
+                        format=FORMAT)
     conf = load_conf(args.config)
     if args.fuel_ip:
         conf['fuel_ip'] = args.fuel_ip
