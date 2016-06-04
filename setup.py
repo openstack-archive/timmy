@@ -20,5 +20,5 @@ setup(name=pname,
       packages=[pname],
       data_files=rqfiles,
       include_package_data=True,
-      entry_points={'console_scripts': ['%s=%s.cli:main' %(pname, pname) ]},
+      entry_points={'console_scripts': ['%s=%s.cli:main' % (pname, pname)]},
       )
