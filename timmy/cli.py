@@ -33,6 +33,7 @@ def pretty_run(quiet, msg, f, args=[], kwargs={}):
         print('%s: done' % msg)
     return result
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
@@ -107,7 +108,8 @@ def parse_args():
     parser.add_argument('-q', '--quiet',
                         help=('Print only command execution results and log'
                               ' messages. Good for quick runs / "watch" wrap.'
-                              ' Also sets default loglevel to ERROR.'),
+                              ' Also sets default loglevel to ERROR.'
+                              'This option disables any -v parameters.'),
                         action='store_true')
     parser.add_argument('-m', '--maxthreads', type=int, default=100,
                         help=('Maximum simultaneous nodes for command'
@@ -128,15 +130,12 @@ def parse_args():
                              ' results. Do not forget to clean up the results'
                              ' manually when using this option.',
                         action='store_true')
-    parser.add_argument('-w', '--warning',
-                        help='Sets log level to warning (default).',
-                        action='store_true')
-    parser.add_argument('-v', '--verbose',
-                        help='Be verbose.',
-                        action='store_true')
-    parser.add_argument('-d', '--debug',
-                        help='Be extremely verbose.',
-                        action='store_true')
+    parser.add_argument('-v', '--verbose', action='count', default=0,
+                        help=('This works for -vvvv, -vvv, -vv, -v, -v -v,'
+                              'etc, If no -v then logging.WARNING is '
+                              'selected if more -v are provided it will '
+                              'step to INFO and DEBUG unless the option '
+                              '-q(--quiet) is specified'))
     return parser
 
 
@@ -146,14 +145,10 @@ def main(argv=None):
         argv = sys.argv
     parser = parse_args()
     args = parser.parse_args(argv[1:])
-    if args.quiet and not args.warning:
+    loglevels = [logging.WARNING, logging.INFO, logging.DEBUG]
+    loglevel = loglevels[min(len(loglevels)-1, args.verbose)]
+    if args.quiet:
         loglevel = logging.ERROR
-    else:
-        loglevel = logging.WARNING
-    if args.verbose:
-        loglevel = logging.INFO
-    if args.debug:
-        loglevel = logging.DEBUG
     logging.basicConfig(filename=args.log_file,
                         level=loglevel,
                         format='%(asctime)s %(levelname)s %(message)s')
