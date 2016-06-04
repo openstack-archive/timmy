@@ -375,8 +375,6 @@ class NodeManager(object):
         else:
             self.nodes_json = yaml.load(self.get_nodes_json())
         self.nodes_init()
-        logging.info('Using rqdir: %s, rqfile: %s' %
-                     (conf['rqdir'], conf['rqfile']))
         # apply soft-filter on all nodes
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
