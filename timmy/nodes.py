@@ -19,7 +19,7 @@
 main module
 """
 
-import yaml
+import json
 import os
 import shutil
 import logging
@@ -375,9 +375,9 @@ class NodeManager(object):
         self.nodes = {}
         self.fuel_init()
         if nodes_json:
-            self.nodes_json = tools.load_yaml_file(nodes_json)
+            self.nodes_json = tools.load_json_file(nodes_json)
         else:
-            self.nodes_json = yaml.load(self.get_nodes_json())
+            self.nodes_json = json.loads(self.get_nodes_json())
         self.nodes_init()
         # apply soft-filter on all nodes
         for node in self.nodes.values():

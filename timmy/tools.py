@@ -26,6 +26,7 @@ import threading
 from multiprocessing import Process, Queue, BoundedSemaphore
 import subprocess
 import yaml
+import json
 from flock import FLock
 from tempfile import gettempdir
 from pipes import quote
@@ -170,6 +171,23 @@ def get_dir_structure(rootdir):
                         rootdir)
         sys.exit(1)
     return dir
+
+
+def load_json_file(filename):
+    """
+    Loads json data from file
+    """
+    logger = logging.getLogger(__name__)
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except IOError as e:
+        logger.critical("I/O error(%s): file: %s; msg: %s" %
+                        (e.errno, e.filename, e.strerror))
+        sys.exit(1)
+    except ValueError:
+        logger.critical("Could not convert data")
+        sys.exit(1)
 
 
 def load_yaml_file(filename):
