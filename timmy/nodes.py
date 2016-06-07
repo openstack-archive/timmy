@@ -568,7 +568,7 @@ class NodeManager(object):
                                                key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:
-            self.nodes[key].mapscmds = result[key][0]
+            self.nodes[key].mapcmds = result[key][0]
             self.nodes[key].mapscr = result[key][1]
 
     def calculate_log_size(self, timeout=15, maxthreads=100):
