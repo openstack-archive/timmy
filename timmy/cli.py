@@ -108,8 +108,7 @@ def parse_args():
     parser.add_argument('-q', '--quiet',
                         help=('Print only command execution results and log'
                               ' messages. Good for quick runs / "watch" wrap.'
-                              ' Also sets default loglevel to ERROR.'
-                              'This option disables any -v parameters.'),
+                              ' This option disables any -v parameters.'),
                         action='store_true')
     parser.add_argument('-m', '--maxthreads', type=int, default=100,
                         help=('Maximum simultaneous nodes for command'
@@ -146,13 +145,15 @@ def main(argv=None):
     parser = parse_args()
     args = parser.parse_args(argv[1:])
     loglevels = [logging.WARNING, logging.INFO, logging.DEBUG]
-    loglevel = loglevels[min(len(loglevels)-1, args.verbose)]
     if args.quiet:
-        loglevel = logging.ERROR
-    FORMAT = '%(asctime)s %(levelname)s %(module)s %(funcName)s(): %(message)s'
+        args.verbose = 0
+    loglevel = loglevels[min(len(loglevels)-1, args.verbose)]
+    FORMAT = ('%(asctime)s %(levelname)s: %(module)s: '
+              '%(funcName)s(): %(message)s')
     logging.basicConfig(filename=args.log_file,
                         level=loglevel,
                         format=FORMAT)
+    logger = logging.getLogger(__name__)
     conf = load_conf(args.config)
     if args.fuel_ip:
         conf['fuel_ip'] = args.fuel_ip
@@ -199,8 +200,8 @@ def main(argv=None):
     if args.dest_file:
         conf['archive_dir'] = os.path.split(args.dest_file)[0]
         conf['archive_name'] = os.path.split(args.dest_file)[1]
-    logging.info('Using rqdir: %s, rqfile: %s' %
-                 (conf['rqdir'], conf['rqfile']))
+    logger.info('Using rqdir: %s, rqfile: %s' %
+                (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
                     NodeManager,
                     kwargs={'conf': conf, 'extended': args.extended,
@@ -221,7 +222,7 @@ def main(argv=None):
         size = pretty_run(args.quiet, 'Calculating logs size',
                           nm.calculate_log_size, args=(args.maxthreads,))
         if size == 0:
-            logging.warning('Size zero - no logs to collect.')
+            logger.warning('Size zero - no logs to collect.')
             return
         enough = pretty_run(args.quiet, 'Checking free space',
                             nm.is_enough_space)
@@ -231,9 +232,9 @@ def main(argv=None):
                        kwargs={'maxthreads': args.logs_maxthreads,
                                'fake': args.fake_logs})
         else:
-            logging.warning(('Not enough space for logs in "%s", skipping'
-                             'log collection.') % nm.conf['archive_dir'])
-    logging.info("Nodes:\n%s" % nm)
+            logger.warning(('Not enough space for logs in "%s", skipping'
+                            'log collection.') % nm.conf['archive_dir'])
+    logger.info("Nodes:\n%s" % nm)
     if not args.quiet:
         print('Run complete. Node information:')
         print(nm)
