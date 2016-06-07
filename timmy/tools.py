@@ -31,6 +31,7 @@ from tempfile import gettempdir
 from pipes import quote
 
 
+logger = logging.getLogger(__name__)
 slowpipe = '''
 import sys
 import time
