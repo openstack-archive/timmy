@@ -51,6 +51,8 @@ def load_conf(filename):
     place specified by conf['outdir'], archive will also be created and put
     in a place specified by conf['archive_dir'].'''
     conf['shell_mode'] = False
+    '''Print output of commands and scripts to stdout'''
+    conf['do_print_results'] = False
     '''Clean - erase previous results in outdir and archive_dir dir, if any.'''
     conf['clean'] = True
     if filename:

@@ -33,6 +33,7 @@ def pretty_run(quiet, msg, f, args=[], kwargs={}):
         print('%s: done' % msg)
     return result
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
@@ -107,7 +108,7 @@ def parse_args():
     parser.add_argument('-q', '--quiet',
                         help=('Print only command execution results and log'
                               ' messages. Good for quick runs / "watch" wrap.'
-                              ' Also sets default loglevel to ERROR.'),
+                              ' This option disables any -v parameters.'),
                         action='store_true')
     parser.add_argument('-m', '--maxthreads', type=int, default=100,
                         help=('Maximum simultaneous nodes for command'
@@ -128,15 +129,12 @@ def parse_args():
                              ' results. Do not forget to clean up the results'
                              ' manually when using this option.',
                         action='store_true')
-    parser.add_argument('-w', '--warning',
-                        help='Sets log level to warning (default).',
-                        action='store_true')
-    parser.add_argument('-v', '--verbose',
-                        help='Be verbose.',
-                        action='store_true')
-    parser.add_argument('-d', '--debug',
-                        help='Be extremely verbose.',
-                        action='store_true')
+    parser.add_argument('-v', '--verbose', action='count', default=0,
+                        help=('This works for -vvvv, -vvv, -vv, -v, -v -v,'
+                              'etc, If no -v then logging.WARNING is '
+                              'selected if more -v are provided it will '
+                              'step to INFO and DEBUG unless the option '
+                              '-q(--quiet) is specified'))
     return parser
 
 
@@ -146,17 +144,16 @@ def main(argv=None):
         argv = sys.argv
     parser = parse_args()
     args = parser.parse_args(argv[1:])
-    if args.quiet and not args.warning:
-        loglevel = logging.ERROR
-    else:
-        loglevel = logging.WARNING
-    if args.verbose:
-        loglevel = logging.INFO
-    if args.debug:
-        loglevel = logging.DEBUG
+    loglevels = [logging.WARNING, logging.INFO, logging.DEBUG]
+    if args.quiet:
+        args.verbose = 0
+    loglevel = loglevels[min(len(loglevels)-1, args.verbose)]
+    FORMAT = ('%(asctime)s %(levelname)s: %(module)s: '
+              '%(funcName)s(): %(message)s')
     logging.basicConfig(filename=args.log_file,
                         level=loglevel,
-                        format='%(asctime)s %(levelname)s %(message)s')
+                        format=FORMAT)
+    logger = logging.getLogger(__name__)
     conf = load_conf(args.config)
     if args.fuel_ip:
         conf['fuel_ip'] = args.fuel_ip
@@ -166,6 +163,7 @@ def main(argv=None):
         conf['fuel_pass'] = args.fuel_pass
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
+        conf['do_print_results'] = True
     if args.no_clean:
         conf['clean'] = False
     if conf['shell_mode']:
@@ -203,6 +201,8 @@ def main(argv=None):
     if args.dest_file:
         conf['archive_dir'] = os.path.split(args.dest_file)[0]
         conf['archive_name'] = os.path.split(args.dest_file)[1]
+    logger.info('Using rqdir: %s, rqfile: %s' %
+                (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
                     NodeManager,
                     kwargs={'conf': conf, 'extended': args.extended,
@@ -223,7 +223,7 @@ def main(argv=None):
         size = pretty_run(args.quiet, 'Calculating logs size',
                           nm.calculate_log_size, args=(args.maxthreads,))
         if size == 0:
-            logging.warning('Size zero - no logs to collect.')
+            logger.warning('Size zero - no logs to collect.')
             return
         enough = pretty_run(args.quiet, 'Checking free space',
                             nm.is_enough_space)
@@ -233,14 +233,14 @@ def main(argv=None):
                        kwargs={'maxthreads': args.logs_maxthreads,
                                'fake': args.fake_logs})
         else:
-            logging.warning(('Not enough space for logs in "%s", skipping'
-                             'log collection.') % nm.conf['archive_dir'])
-    logging.info("Nodes:\n%s" % nm)
+            logger.warning(('Not enough space for logs in "%s", skipping'
+                            'log collection.') % nm.conf['archive_dir'])
+    logger.info("Nodes:\n%s" % nm)
     if not args.quiet:
         print('Run complete. Node information:')
         print(nm)
-    if conf['shell_mode']:
-        if args.command or args.script:
+    if conf['do_print_results']:
+        if nm.has(Node.ckey, Node.skey):
             if not args.quiet:
                 print('Results:')
             for node in nm.sorted_nodes():

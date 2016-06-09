@@ -26,11 +26,13 @@ import threading
 from multiprocessing import Process, Queue, BoundedSemaphore
 import subprocess
 import yaml
+import json
 from flock import FLock
 from tempfile import gettempdir
 from pipes import quote
 
 
+logger = logging.getLogger(__name__)
 slowpipe = '''
 import sys
 import time
@@ -49,15 +51,15 @@ def interrupt_wrapper(f):
         try:
             f(*args, **kwargs)
         except KeyboardInterrupt:
-            logging.warning('Interrupted, exiting.')
+            logger.warning('Interrupted, exiting.')
         except Exception as e:
-            logging.error('Error: %s' % e, exc_info=True)
+            logger.error('Error: %s' % e, exc_info=True)
             for k in dir(e):
                 '''debug: print all exception attrs except internal
                 and except 'message', which is deprecated since Python 2.6'''
                 if not k.startswith('__') and k != 'message':
                     v = getattr(e, k)
-                    logging.debug('Error details: %s = %s' % (k, v))
+                    logger.debug('Error details: %s = %s' % (k, v))
     return wrapper
 
 
@@ -65,8 +67,8 @@ def run_with_lock(f):
     def wrapper(*args, **kwargs):
         lock = FLock(os.path.join(gettempdir(), 'timmy_%s.lock' % f.__name__))
         if not lock.lock():
-            logging.warning('Unable to obtain lock, skipping "%s"' %
-                            f.__name__)
+            logger.warning('Unable to obtain lock, skipping "%s"' %
+                           f.__name__)
             return ''
         f(*args, **kwargs)
         lock.unlock()
@@ -74,17 +76,19 @@ def run_with_lock(f):
 
 
 class RunItem():
-    def __init__(self, target, args=None, key=None):
+    def __init__(self, target, args=None, key=None, logger=None):
         self.target = target
         self.args = args
         self.key = key
         self.process = None
         self.queue = None
+        self.logger = logger or logging.getLogger(__name__)
 
 
 class SemaphoreProcess(Process):
-    def __init__(self, semaphore, target, args=None, queue=None):
+    def __init__(self, semaphore, target, args=None, queue=None, logger=None):
         Process.__init__(self)
+        self.logger = logger or logging.getLogger(__name__)
         self.semaphore = semaphore
         self.target = target
         if not args:
@@ -98,18 +102,18 @@ class SemaphoreProcess(Process):
             if self.queue:
                 self.queue.put_nowait(result)
         except Exception as error:
-            logging.exception(error)
+            self.logger.exception(error)
             if self.queue:
                 self.queue.put_nowait(error)
         finally:
-            logging.debug('finished call: %s' % self.target)
+            self.logger.debug('finished call: %s' % self.target)
             self.semaphore.release()
-            logging.debug('semaphore released')
+            self.logger.debug('semaphore released')
 
 
 def run_batch(item_list, maxthreads, dict_result=False):
     def cleanup():
-        logging.debug('cleanup processes')
+        logger.debug('cleanup processes')
         for run_item in item_list:
             if run_item.process:
                 run_item.process.terminate()
@@ -127,7 +131,7 @@ def run_batch(item_list, maxthreads, dict_result=False):
         for run_item in item_list:
             run_item.result = run_item.queue.get()
             if isinstance(run_item.result, Exception):
-                logging.error('%s, exiting' % run_item.result)
+                logger.critical('%s, exiting' % run_item.result)
                 cleanup()
                 sys.exit(42)
             run_item.process.join()
@@ -158,9 +162,26 @@ def get_dir_structure(rootdir):
             parent = reduce(dict.get, folders[:-1], dir)
             parent[folders[-1]] = subdir
     except:
-        logging.error('failed to create list of the directory: %s' % rootdir)
+        logger.critical('failed to create list of the directory: %s' %
+                        rootdir)
         sys.exit(1)
     return dir
+
+
+def load_json_file(filename):
+    """
+    Loads json data from file
+    """
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except IOError as e:
+        logger.critical("I/O error(%s): file: %s; msg: %s" %
+                        (e.errno, e.filename, e.strerror))
+        sys.exit(1)
+    except ValueError:
+        logger.critical("Could not convert data")
+        sys.exit(1)
 
 
 def load_yaml_file(filename):
@@ -171,15 +192,15 @@ def load_yaml_file(filename):
         with open(filename, 'r') as f:
             return yaml.load(f)
     except IOError as e:
-        logging.error("load_conf: I/O error(%s): file: %s; msg: %s" %
-                      (e.errno, e.filename, e.strerror))
+        logger.critical("I/O error(%s): file: %s; msg: %s" %
+                        (e.errno, e.filename, e.strerror))
         sys.exit(1)
     except ValueError:
-        logging.error("load_conf: Could not convert data")
+        logger.critical("Could not convert data")
         sys.exit(1)
     except yaml.parser.ParserError as e:
-        logging.error("load_conf: Could not parse %s:\n%s" %
-                      (filename, str(e)))
+        logger.critical("Could not parse %s:\n%s" %
+                        (filename, str(e)))
         sys.exit(1)
 
 
@@ -188,11 +209,11 @@ def mdir(directory):
     Creates a directory if it doesn't exist
     """
     if not os.path.exists(directory):
-        logging.debug('creating directory %s' % directory)
+        logger.debug('creating directory %s' % directory)
         try:
             os.makedirs(directory)
         except:
-            logging.error("Can't create a directory: %s" % directory)
+            logger.critical("Can't create a directory: %s" % directory)
             sys.exit(3)
 
 
@@ -210,11 +231,11 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
     def _timeout_terminate(pid):
         try:
             os.kill(pid, 15)
-            logging.error("launch_cmd: pid %d killed by timeout" % pid)
+            logger.error("launch_cmd: pid %d killed by timeout" % pid)
         except:
             pass
 
-    logging.info('launch_cmd: cmd %s' % cmd)
+    logger.info('cmd %s' % cmd)
     p = subprocess.Popen(cmd,
                          shell=True,
                          stdin=subprocess.PIPE,
@@ -233,21 +254,22 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
             p.kill()
         except:
             pass
+        p.stdin = None
         outs, errs = p.communicate()
         outs = outs.decode('utf-8')
         errs = errs.decode('utf-8')
         errs = errs.rstrip('\n')
-        logging.error(_log_msg(cmd, errs, p.returncode))
+        logger.error(_log_msg(cmd, errs, p.returncode))
     finally:
         if timeout_killer:
             timeout_killer.cancel()
-    logging.info(_log_msg(cmd, errs, p.returncode))
+    logger.info(_log_msg(cmd, errs, p.returncode))
     input = input.decode('utf-8') if input else None
-    logging.debug(_log_msg(cmd, errs, p.returncode, debug=True,
-                           stdin=input, stdout=outs))
+    logger.debug(_log_msg(cmd, errs, p.returncode, debug=True,
+                          stdin=input, stdout=outs))
     if p.returncode:
         if not ok_codes or p.returncode not in ok_codes:
-            logging.warning(_log_msg(cmd, errs, p.returncode))
+            logger.warning(_log_msg(cmd, errs, p.returncode))
     return outs, errs, p.returncode
 
 
@@ -263,11 +285,11 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
     if type(env_vars) is list:
         env_vars = ' '.join(env_vars)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
-        logging.info("skip ssh")
+        logger.info("skip ssh")
         bstr = "%s timeout '%s' bash -c " % (
                env_vars, timeout)
     else:
-        logging.info("exec ssh")
+        logger.info("exec ssh")
         bstr = "timeout '%s' ssh -t -T %s '%s' '%s' " % (
                timeout, ssh_opts, ip, env_vars)
     if filename is None:
@@ -279,7 +301,7 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
             cmd = "%s < '%s'" % (cmd, inputfile)
     else:
         cmd = "%s'%s bash -s' < '%s'" % (bstr, prefix, filename)
-        logging.info("ssh_node: inputfile selected, cmd: %s" % cmd)
+        logger.info("inputfile selected, cmd: %s" % cmd)
     if outputfile is not None:
         cmd = "%s > '%s'" % (cmd, outputfile)
     cmd = ("input=\"$(cat | xxd -p)\"; trap 'kill $pid' 15; " +
@@ -292,7 +314,7 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
-        logging.info("skip ssh rsync")
+        logger.info("skip ssh rsync")
         cmd = ("timeout '%s' rsync -avzr --files-from=- / '%s'"
                " --progress --partial --delete-before" %
                (timeout, dpath))
@@ -301,7 +323,7 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
                " -oCompression=no' --files-from=- '%s':/ '%s'"
                " --progress --partial --delete-before"
                ) % (timeout, ssh_opts, ip, dpath)
-    logging.debug("command:%s\ndata:\n%s" % (cmd, data))
+    logger.debug("command:%s\ndata:\n%s" % (cmd, data))
     if data == '':
         return cmd, '', 127
     return launch_cmd(cmd, timeout, input=data)
