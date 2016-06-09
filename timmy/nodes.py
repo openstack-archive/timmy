@@ -501,7 +501,9 @@ class NodeManager(object):
                 roles = str(node_roles).split(', ')
             keys = "mac os_platform status online ip".split()
             params = {'id': int(node_data['id']),
-                      'cluster': int(node_data['cluster']),
+                      # please do NOT convert cluster id to int type
+                      # because None can be valid
+                      'cluster': node_data['cluster'],
                       'roles': roles,
                       'conf': self.conf}
             for key in keys:
@@ -611,6 +613,10 @@ class NodeManager(object):
 
     @run_with_lock
     def create_archive_general(self, timeout):
+        if not os.path.isdir(self.conf['outdir']):
+            logging.warning("Nothing to do, directory %s doesn't exist" %
+                            self.conf['outdir'])
+            return
         outfile = os.path.join(self.conf['archive_dir'],
                                self.conf['archive_name'])
         cmd = "tar zcf '%s' -C %s %s" % (outfile, self.conf['outdir'], ".")

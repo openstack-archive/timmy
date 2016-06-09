@@ -48,7 +48,6 @@ while 1:
 
 def interrupt_wrapper(f):
     def wrapper(*args, **kwargs):
-        logger = logging.getLogger(__name__)
         try:
             f(*args, **kwargs)
         except KeyboardInterrupt:
@@ -66,7 +65,6 @@ def interrupt_wrapper(f):
 
 def run_with_lock(f):
     def wrapper(*args, **kwargs):
-        logger = logging.getLogger(__name__)
         lock = FLock(os.path.join(gettempdir(), 'timmy_%s.lock' % f.__name__))
         if not lock.lock():
             logger.warning('Unable to obtain lock, skipping "%s"' %
@@ -115,12 +113,10 @@ class SemaphoreProcess(Process):
 
 def run_batch(item_list, maxthreads, dict_result=False):
     def cleanup():
-        logger = logging.getLogger(__name__)
         logger.debug('cleanup processes')
         for run_item in item_list:
             if run_item.process:
                 run_item.process.terminate()
-    logger = logging.getLogger(__name__)
     semaphore = BoundedSemaphore(maxthreads)
     try:
         for run_item in item_list:
@@ -156,7 +152,6 @@ def get_dir_structure(rootdir):
     """
     Creates a nested dictionary that represents the folder structure of rootdir
     """
-    logger = logging.getLogger(__name__)
     dir = {}
     try:
         rootdir = rootdir.rstrip(os.sep)
@@ -177,7 +172,6 @@ def load_json_file(filename):
     """
     Loads json data from file
     """
-    logger = logging.getLogger(__name__)
     try:
         with open(filename, 'r') as f:
             return json.load(f)
@@ -194,7 +188,6 @@ def load_yaml_file(filename):
     """
     Loads yaml data from file
     """
-    logger = logging.getLogger(__name__)
     try:
         with open(filename, 'r') as f:
             return yaml.load(f)
@@ -215,7 +208,6 @@ def mdir(directory):
     """
     Creates a directory if it doesn't exist
     """
-    logger = logging.getLogger(__name__)
     if not os.path.exists(directory):
         logger.debug('creating directory %s' % directory)
         try:
@@ -237,14 +229,12 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         return message
 
     def _timeout_terminate(pid):
-        logger = logging.getLogger(__name__)
         try:
             os.kill(pid, 15)
             logger.error("launch_cmd: pid %d killed by timeout" % pid)
         except:
             pass
 
-    logger = logging.getLogger(__name__)
     logger.info('cmd %s' % cmd)
     p = subprocess.Popen(cmd,
                          shell=True,
@@ -286,7 +276,6 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
 def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
              filename=None, inputfile=None, outputfile=None,
              ok_codes=None, input=None, prefix=None):
-    logger = logging.getLogger(__name__)
     if not ssh_opts:
         ssh_opts = ''
     if not env_vars:
@@ -322,7 +311,6 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
 
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
-    logger = logging.getLogger(__name__)
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
