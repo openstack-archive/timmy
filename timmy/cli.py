@@ -163,6 +163,7 @@ def main(argv=None):
         conf['fuel_pass'] = args.fuel_pass
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
+        conf['do_print_results'] = True
     if args.no_clean:
         conf['clean'] = False
     if conf['shell_mode']:
@@ -238,8 +239,8 @@ def main(argv=None):
     if not args.quiet:
         print('Run complete. Node information:')
         print(nm)
-    if conf['shell_mode']:
-        if args.command or args.script:
+    if conf['do_print_results']:
+        if nm.has(Node.ckey, Node.skey):
             if not args.quiet:
                 print('Results:')
             for node in nm.sorted_nodes():
