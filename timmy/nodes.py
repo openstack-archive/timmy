@@ -548,16 +548,27 @@ class NodeManager(object):
 
     def filter(self, node, node_filter):
         f = node_filter
-        # soft-skip Fuel node for shell mode, otherwise always include
-        if node.id == 0:
-            return False if self.conf['shell_mode'] else True
+        # soft-skip Fuel node for shell mode
+        if node.id == 0 and self.conf['shell_mode']:
+            return False
         else:
-            fnames = [k for k in f if hasattr(node, k) and f[k]]
+            elems = []
+            for k in f:
+                if k.startswith('no_') and hasattr(node, k[3:]):
+                    elems.append({'node_k': k[3:], 'k': k, 'negative': True})
+                elif hasattr(node, k) and f[k]:
+                    elems.append({'node_k': k, 'k': k, 'negative': False})
             checks = []
-            for fn in fnames:
-                node_v = w_list(getattr(node, fn))
-                filter_v = w_list(f[fn])
-                checks.append(not set(node_v).isdisjoint(filter_v))
+            for el in elems:
+                node_v = w_list(getattr(node, el['node_k']))
+                filter_v = w_list(f[el['k']])
+                if el['negative']:
+                    checks.append(set(node_v).isdisjoint(filter_v))
+                elif node.id != 0:
+                    '''Do not apply normal (positive) filters to Fuel node
+                    , Fuel node will only be filtered by negative filters
+                    such as no_id = [0] or no_roles = ['fuel']'''
+                    checks.append(not set(node_v).isdisjoint(filter_v))
             return all(checks)
 
     @run_with_lock

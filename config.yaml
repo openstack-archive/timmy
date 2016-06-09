@@ -16,6 +16,8 @@ rqfile: './rq.yaml'
 soft_filter:
     status:  ['ready']
     online: True
+    # no_id: [0] # skip Fuel
+    # no_roles: ['fuel'] # another way to skip Fuel
 timeout: 15
 compress_timeout: 3600
 logs:
