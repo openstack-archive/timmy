@@ -548,9 +548,9 @@ class NodeManager(object):
 
     def filter(self, node, node_filter):
         f = node_filter
-        # soft-skip Fuel node if shell mode is enabled
-        if node.id == 0 and self.conf['shell_mode']:
-            return False
+        # soft-skip Fuel node for shell mode, otherwise always include
+        if node.id == 0:
+            return False if self.conf['shell_mode'] else True
         else:
             fnames = [k for k in f if hasattr(node, k) and f[k]]
             checks = []
