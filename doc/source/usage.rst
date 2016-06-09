@@ -44,7 +44,7 @@ If you want to do a set of actions on the nodes and you do not want to write a l
 ::
 
   rqdir: './pacemaker-debug' # a folder which should contain any filelists and/or scripts if they are defined later, should contain folders 'filelists' and/or 'scripts' 
-  rqfile: None # explicitly undefine rqfile to skip default filelists and scripts
+  rqfile: null # explicitly undefine rqfile to skip default filelists and scripts
   hard_filter:
     roles: # only execute on Fuel and controllers
       - fuel
