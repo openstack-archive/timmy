@@ -202,7 +202,10 @@ class Node(object):
         self.scripts = sorted(self.scripts)
         mapscr = {}
         for scr in self.scripts:
-            f = os.path.join(self.rqdir, Node.skey, scr)
+            if os.path.sep in scr:
+                f = scr
+            else:
+                f = os.path.join(self.rqdir, Node.skey, scr)
             self.logger.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                  (self.id, self.ip, os.path.basename(f)))
@@ -257,7 +260,10 @@ class Node(object):
         else:
             data = ''
             for f in self.filelists:
-                fname = os.path.join(self.rqdir, Node.flkey, f)
+                if os.path.sep in f:
+                    fname = f
+                else:
+                    fname = os.path.join(self.rqdir, Node.flkey, f)
                 try:
                     with open(fname, 'r') as df:
                         for line in df:
