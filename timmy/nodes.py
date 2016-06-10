@@ -46,10 +46,10 @@ class Node(object):
     conf_match_prefix = 'by_'
     conf_default_key = '__default'
     conf_priority_section = conf_match_prefix + 'id'
-    print_template = '{0:<14} {1:<3} {2:<16} {3:<18} {4:<10} {5:<30}'
-    print_template += ' {6:<6} {7}'
+    header = ['node-id', 'env', 'ip', 'mac', 'os',
+              'roles', 'online', 'status', 'name', 'fqdn']
 
-    def __init__(self, id, mac, cluster, roles, os_platform,
+    def __init__(self, id, name, fqdn, mac, cluster, roles, os_platform,
                  online, status, ip, conf, logger=None):
         self.id = id
         self.mac = mac
@@ -70,6 +70,8 @@ class Node(object):
         self.logsize = 0
         self.mapcmds = {}
         self.mapscr = {}
+        self.name = name
+        self.fqdn = fqdn
         self.filtered_out = False
         self.outputs_timestamp = False
         self.outputs_timestamp_dir = None
@@ -77,14 +79,18 @@ class Node(object):
         self.logger = logger or logging.getLogger(__name__)
 
     def __str__(self):
+        fields = self.print_table()
+        return self.pt.format(*fields)
+
+    def print_table(self):
         if not self.filtered_out:
             my_id = self.id
         else:
             my_id = str(self.id) + ' [skipped]'
-        pt = self.print_template
-        return pt.format(my_id, self.cluster, self.ip, self.mac,
-                         self.os_platform, ','.join(self.roles),
-                         str(self.online), self.status)
+        return [str(my_id), str(self.cluster), str(self.ip), str(self.mac),
+                self.os_platform, ','.join(self.roles),
+                str(self.online), str(self.status),
+                str(self.name), str(self.fqdn)]
 
     def apply_conf(self, conf, clean=True):
 
@@ -401,15 +407,30 @@ class NodeManager(object):
                 pass
 
     def __str__(self):
-        pt = Node.print_template
-        header = pt.format('node-id', 'env', 'ip/hostname', 'mac', 'os',
-                           'roles', 'online', 'status') + '\n'
-        nodestrings = []
-        # f3flight: I only did this to not print Fuel when it is hard-filtered
+        def ml_column(matrix, i):
+            a = [row[i] for row in matrix]
+            mc = 0
+            for word in a:
+                lw = len(word)
+                mc = lw if (lw > mc) else mc
+            return mc + 2
+        header = Node.header
+        nodestrings = [header]
         for n in self.sorted_nodes():
             if self.filter(n, self.conf['hard_filter']):
+                nodestrings.append(n.print_table())
+        colwidth = []
+        for i in range(len(header)):
+            colwidth.append(ml_column(nodestrings, i))
+        pt = ''
+        for i in range(len(colwidth)):
+            pt += '{%s:<%s}' % (i, str(colwidth[i]))
+        nodestrings = [(pt.format(*header))]
+        for n in self.sorted_nodes():
+            if self.filter(n, self.conf['hard_filter']):
+                n.pt = pt
                 nodestrings.append(str(n))
-        return header + '\n'.join(nodestrings)
+        return '\n'.join(nodestrings)
 
     def sorted_nodes(self):
         s = [n for n in sorted(self.nodes.values(), key=lambda x: x.id)]
@@ -468,6 +489,8 @@ class NodeManager(object):
             sys.exit(7)
         fuelnode = Node(id=0,
                         cluster=0,
+                        name='fuel',
+                        fqdn='n/a',
                         mac='n/a',
                         os_platform='centos',
                         roles=['fuel'],
@@ -505,11 +528,12 @@ class NodeManager(object):
                 roles = node_roles
             else:
                 roles = str(node_roles).split(', ')
-            keys = "mac os_platform status online ip".split()
+            keys = "fqdn name mac os_platform status online ip".split()
+            cl = int(node_data['cluster']) if node_data['cluster'] else None
             params = {'id': int(node_data['id']),
                       # please do NOT convert cluster id to int type
                       # because None can be valid
-                      'cluster': node_data['cluster'],
+                      'cluster': cl,
                       'roles': roles,
                       'conf': self.conf}
             for key in keys:
