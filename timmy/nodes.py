@@ -196,7 +196,7 @@ class Node(object):
                                                       env_vars=self.env_vars,
                                                       timeout=self.timeout,
                                                       prefix=self.prefix)
-                    self.check_code(code, 'exec_cmd', c[cmd], ok_codes)
+                    self.check_code(code, 'exec_cmd', c[cmd], errs, ok_codes)
                     try:
                         with open(dfile, 'w') as df:
                             df.write(outs.encode('utf-8'))
@@ -226,7 +226,8 @@ class Node(object):
                                                   env_vars=self.env_vars,
                                                   timeout=self.timeout,
                                                   prefix=self.prefix)
-                self.check_code(code, 'exec_cmd', 'script %s' % f, ok_codes)
+                self.check_code(code, 'exec_cmd', 'script %s' % f, errs,
+                                ok_codes)
                 try:
                     with open(dfile, 'w') as df:
                         df.write(outs.encode('utf-8'))
@@ -247,7 +248,7 @@ class Node(object):
                                               ok_codes=ok_codes,
                                               input=input,
                                               prefix=self.prefix)
-            self.check_code(code, 'exec_simple_cmd', cmd, ok_codes)
+            self.check_code(code, 'exec_simple_cmd', cmd, errs, ok_codes)
 
     def get_files(self, timeout=15):
         self.logger.info('node: %s, IP: %s' % (self.id, self.ip))
@@ -262,7 +263,7 @@ class Node(object):
                                                       file=f,
                                                       ddir=ddir,
                                                       recursive=True)
-                self.check_code(code, 'get_files', 'tools.get_file_scp')
+                self.check_code(code, 'get_files', 'tools.get_file_scp', errs)
         else:
             data = ''
             for f in self.filelists:
@@ -285,7 +286,7 @@ class Node(object):
                                                 ssh_opts=self.ssh_opts,
                                                 dpath=ddir,
                                                 timeout=self.timeout)
-                self.check_code(c, 'get_files', 'tools.get_files_rsync')
+                self.check_code(c, 'get_files', 'tools.get_files_rsync', e)
 
     def put_files(self):
         self.logger.info('node: %s, IP: %s' % (self.id, self.ip))
@@ -344,12 +345,13 @@ class Node(object):
                         result[f] = s
         return result
 
-    def check_code(self, code, func_name, cmd, ok_codes=None):
+    def check_code(self, code, func_name, cmd, err, ok_codes=None):
         if code:
             if not ok_codes or code not in ok_codes:
-                self.logger.warning("%s: got bad exit code %s,"
-                                    " node: %s, ip: %s, cmd: %s" %
-                                    (func_name, code, self.id, self.ip, cmd))
+                self.logger.warning("id: %s, fqdn: %s, ip: %s, func: %s, "
+                                    "cmd: '%s' exited %d, error: %s" %
+                                    (self.id, self.fqdn, self.ip,
+                                     func_name, cmd, code, err))
 
     def print_results(self, result_map):
         # result_map should be either mapcmds or mapscr
