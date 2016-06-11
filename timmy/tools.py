@@ -323,13 +323,13 @@ def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
     ddir = os.path.join(os.path.normpath(ddir), dest)
     mdir(ddir)
     r = '-r ' if recursive else ''
-    cmd = "timeout '%s' scp %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
+    cmd = "timeout '%s' scp -q %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
     return launch_cmd(cmd, timeout)
 
 
 def put_file_scp(ip, file, dest, timeout=600, recursive=True):
     r = '-r ' if recursive else ''
-    cmd = "timeout '%s' scp %s'%s' '%s':'%s'" % (timeout, r, file, ip, dest)
+    cmd = "timeout '%s' scp -q %s'%s' '%s':'%s'" % (timeout, r, file, ip, dest)
     return launch_cmd(cmd, timeout)
 
 
