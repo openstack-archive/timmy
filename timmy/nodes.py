@@ -170,7 +170,7 @@ class Node(object):
             self.release = release.strip('\n "\'')
         self.logger.info('node: %s, MOS release: %s' %
                          (self.id, self.release))
-        return release
+        return self.release
 
     def exec_cmd(self, fake=False, ok_codes=None):
         sn = 'node-%s' % self.id
