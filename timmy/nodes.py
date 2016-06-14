@@ -29,12 +29,17 @@ from datetime import datetime
 import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
+
 try:
     from fuelclient.client import Client
+except:
+    Client = None
+
+try:
     from fuelclient.client import logger
     logger.handlers = []
 except:
-    Client = None
+    pass
 
 
 class Node(object):
