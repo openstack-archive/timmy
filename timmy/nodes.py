@@ -657,8 +657,8 @@ class NodeManager(object):
     @run_with_lock
     def create_archive_general(self, timeout):
         if not os.path.isdir(self.conf['outdir']):
-            logging.warning("Nothing to do, directory %s doesn't exist" %
-                            self.conf['outdir'])
+            self.logger.warning("Nothing to do, directory %s doesn't exist" %
+                                self.conf['outdir'])
             return
         outfile = os.path.join(self.conf['archive_dir'],
                                self.conf['archive_name'])
