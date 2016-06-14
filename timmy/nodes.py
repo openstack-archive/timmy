@@ -29,6 +29,12 @@ from datetime import datetime
 import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
+try:
+    from fuelclient.client import Client
+    from fuelclient.client import logger
+    logger.handlers = []
+except:
+    Client = None
 
 
 class Node(object):
@@ -167,10 +173,10 @@ class Node(object):
             self.logger.warning('node: %s: could not determine'
                                 ' MOS release' % self.id)
         else:
-            self.release = release.strip('\n "\'')
+            release = release.strip('\n "\'')
         self.logger.info('node: %s, MOS release: %s' %
-                         (self.id, self.release))
-        return self.release
+                         (self.id, release))
+        return release
 
     def exec_cmd(self, fake=False, ok_codes=None):
         sn = 'node-%s' % self.id
@@ -391,7 +397,13 @@ class NodeManager(object):
         if nodes_json:
             self.nodes_json = tools.load_json_file(nodes_json)
         else:
-            self.nodes_json = json.loads(self.get_nodes_json())
+            if Client and conf['fuelclient']:
+                if ((not self.get_nodes_fuelclient()) and
+                        (not self.get_nodes_cli())):
+                    sys.exit(4)
+            else:
+                if not self.get_nodes_cli():
+                    sys.exit(4)
         self.nodes_init()
         # apply soft-filter on all nodes
         for node in self.nodes.values():
@@ -505,7 +517,25 @@ class NodeManager(object):
             fuelnode.filtered_out = True
         self.nodes[self.conf['fuel_ip']] = fuelnode
 
-    def get_nodes_json(self):
+    def get_nodes_fuelclient(self):
+        try:
+            self.logger.info('Setup fuelclient instance')
+            c = Client()
+            c.username = self.conf['fuel_user']
+            c.password = self.conf['fuel_pass']
+            c.tenant_name = self.conf['fuel_tenant']
+            # c.debug_mode(True)
+            self.nodes_json = c.get_request('nodes')
+            self.logger.debug(self.nodes_json)
+            return True
+        except Exception as e:
+            self.logger.warning(("NodeManager: can't "
+                                 "get node list from fuel client:\n%s" % (e)),
+                                exc_info=True)
+            return False
+
+    def get_nodes_cli(self):
+        self.logger.info('use CLI for getting node information')
         fuelnode = self.nodes[self.conf['fuel_ip']]
         fuel_node_cmd = ('fuel node list --json --user %s --password %s' %
                          (self.conf['fuel_user'],
@@ -516,10 +546,12 @@ class NodeManager(object):
                                                timeout=fuelnode.timeout,
                                                prefix=fuelnode.prefix)
         if code != 0:
-            self.logger.critical(('NodeManager: cannot get '
-                                  'fuel node list: %s') % err)
-            sys.exit(4)
-        return nodes_json
+            self.logger.warning(('NodeManager: cannot get '
+                                 'fuel node list from CLI: %s') % err)
+            self.nodes_json = None
+            return False
+        self.nodes_json = json.loads(nodes_json)
+        return True
 
     def nodes_init(self):
         for node_data in self.nodes_json:

@@ -31,7 +31,6 @@ from flock import FLock
 from tempfile import gettempdir
 from pipes import quote
 
-
 logger = logging.getLogger(__name__)
 slowpipe = '''
 import sys
@@ -342,6 +341,7 @@ def free_space(destdir, timeout):
 # wrap non-list into list
 def w_list(value):
     return value if type(value) == list else [value]
+
 
 if __name__ == '__main__':
     exit(0)
