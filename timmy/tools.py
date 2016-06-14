@@ -218,16 +218,6 @@ def mdir(directory):
 
 
 def launch_cmd(cmd, timeout, input=None, ok_codes=None):
-    def _log_msg(cmd, stderr, code, debug=False, stdin=None, stdout=None):
-        message = ('launch_cmd:\n'
-                   '___command: %s\n'
-                   '______code: %s\n'
-                   '____stderr: %s' % (cmd, code, stderr))
-        if debug:
-            message += '\n_____stdin: %s\n' % stdin
-            message += '____stdout: %s' % stdout
-        return message
-
     def _timeout_terminate(pid):
         try:
             os.kill(pid, 15)
@@ -235,7 +225,7 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         except:
             pass
 
-    logger.info('cmd %s' % cmd)
+    logger.info('launching cmd %s' % cmd)
     p = subprocess.Popen(cmd,
                          shell=True,
                          stdin=subprocess.PIPE,
@@ -259,17 +249,16 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         outs = outs.decode('utf-8')
         errs = errs.decode('utf-8')
         errs = errs.rstrip('\n')
-        logger.error(_log_msg(cmd, errs, p.returncode))
     finally:
         if timeout_killer:
             timeout_killer.cancel()
-    logger.info(_log_msg(cmd, errs, p.returncode))
-    input = input.decode('utf-8') if input else None
-    logger.debug(_log_msg(cmd, errs, p.returncode, debug=True,
-                          stdin=input, stdout=outs))
-    if p.returncode:
-        if not ok_codes or p.returncode not in ok_codes:
-            logger.warning(_log_msg(cmd, errs, p.returncode))
+        input = input.decode('utf-8') if input else None
+        logger.debug(('___command: %s\n'
+                      '_exit_code: %s\n'
+                      '_____stdin: %s\n'
+                      '____stdout: %s\n'
+                      '____stderr: %s') % (cmd, p.returncode, input, outs,
+                                           errs))
     return outs, errs, p.returncode
 
 
@@ -334,13 +323,13 @@ def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
     ddir = os.path.join(os.path.normpath(ddir), dest)
     mdir(ddir)
     r = '-r ' if recursive else ''
-    cmd = "timeout '%s' scp %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
+    cmd = "timeout '%s' scp -q %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
     return launch_cmd(cmd, timeout)
 
 
 def put_file_scp(ip, file, dest, timeout=600, recursive=True):
     r = '-r ' if recursive else ''
-    cmd = "timeout '%s' scp %s'%s' '%s':'%s'" % (timeout, r, file, ip, dest)
+    cmd = "timeout '%s' scp -q %s'%s' '%s':'%s'" % (timeout, r, file, ip, dest)
     return launch_cmd(cmd, timeout)
 
 

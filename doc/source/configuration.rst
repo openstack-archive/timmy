@@ -1,31 +1,120 @@
-=============
-Configuration
-=============
+=====================
+General configuration
+=====================
 
-There is default configuration file ``config.yaml``, which can be used by the scripts.
-If you wish to keep several configuration files, that is possible - just copy it and explicitly provide the name of it once you launch a script (``--config`` option).
+All default configuration values are defined in ``timmy/conf.py``. Timmy works with these values if no configuration file is provided.
+If a configuration file is provided via ``-c | --config`` option, it overlays the default configuration.
+An example of a configuration file is ``config.yaml``.
 
-Here is the description of available parameters in configuration file:
+Some of the parameters available in configuration file:
 
-* **ssh** parameters of *SSH*
-
- * **opts** parameters to send to ssh command directly (recommended to leave at default)
- * **vars** environment variables to set for SSH
-
+* **ssh_opts** parameters to send to ssh command directly (recommended to leave at default), such as connection timeout, etc. See ``timmy/conf.py`` to review defaults.
+* **env_vars** environment variables to pass to the commands and scripts - you can use this to expand variables in commands or scripts
 * **fuel_ip** the IP address of the master node in the environment
-* **rqdir** the path of *rqdir*, the directory containing info about commands to execute and logs to gather
-* **out-dir** directory to store output data
-* **timeout** timeout for SSH commands in seconds
-* **archives** directory to store the generated archives
-* **log_files** path and filters for log files
+* **fuel_user** username to use for accessing Nailgun API
+* **fuel_pass** password to access Nailgun API
+* **rqdir** the path of *rqdir*, the directory containing scripts to execute and filelists to pass to rsync
+* **out_dir** directory to store output data
+* **archive_dir** directory to put resulting archives into
+* **timeout** timeout for SSH commands and scripts in seconds
 
-Nodes which are stored in fuel database can be filtered by the following parameters:
- * roles,
- * online
- * status the list of statuses ex. ['ready', 'discover']
- * **node_ids** the list of ids, ex. [0,5,6]
+===================
+Configuring actions
+===================
 
-* **hard_filter** hard filter for nodes
-* **soft_filter** soft filters for nodes
+Actions can be configured in a separate yaml file (by default ``rq.yaml`` is used) and / or defind in the main config file or passed via command line options ``-P``, ``-C``, ``-S``, ``-G``.
+
+The following actions are available for definition:
+* **put** - a list of tuples / 2-element lists: [source, destination]. Passed to ``scp`` like so ``scp source <node-ip>:destination``. Wildcards supported for source.
+* **cmds** - a list of dicts: {'command-name':'command-string'}. Example: {'command-1': 'uptime'}. Command string is a bash string. Commands are executed in a sorted order of their names.
+* **scripts** - a list of script filenames located on a local system. If filename does not contain path separator, the script is expected ot be located inside ``rqdir/scripts``. Otherwise the provided path is used to read the script.
+* **files** - a list of filenames to collect. passed to ``scp``. Supports wildcards.
+* **filelists** - a list of filelist filenames located on a local system. Filelist is a text file containing files and directories to collect, passed to rsync. Does not support wildcards. If filename does not contain path separator, the filelist is expected to be located inside ``rqdir/filelists``. Otherwise the provided path is used to read the filelist.
+* **log_files**
+** **path** - base path to scan for logs
+** **include** - regexp string to match log files against for inclusion (if not set = include all)
+** **exclude** - regexp string to match log files against. Excludes matched files from collection.
+** **start** - date or datetime string to collect only files modified on or after the specified time. Format - ``YYYY-MM-DD`` or ``YYYY-MM-DD HH:MM:SS``
+
+===============
+Filtering nodes
+===============
+
+* **soft_filter** - use to skip any operations on non-matching nodes
+* **hard_filter** - same as above but also removes non-matching nodes from NodeManager.nodes dict - useful when using timmy as a module
+
+Nodes can be filtered by the following parameters defined inside **soft_filter** and/or **hard_filter**:
+ * **roles** - the list of roles, ex. **['controller','compute']**
+ * **online** - enabled by default to skip non-accessible nodes
+ * **status** - the list of statuses. Default: **['ready', 'discover']**
+ * **ids** - the list of ids, ex. **[0,5,6]**
+ * any other attribute of Node object which is a simple type (int, float, str, etc.) or a list containing simple types
+
+Lists match **any**, meaning that if any element of the filter list matches node value (if value is a list - any element in it), node passes.
+
+Negative filters are possible by pretending filter parameter with **no_**, example: **no_id = [0]** will filter out Fuel.
+
+Negative lists also match **any** - if any match / collision found, node is skipped.
+
+You can combine any number of positive and negative filters as long as their names differ (since this is a dict).
+
+You can use both positive and negative parameters to match the same node parameter (though it does not make much sense):
+**roles = ['controller', 'compute']**
+**no_roles = ['compute']**
+This will skip computes and run only on controllers. Like stated above, does not make much sense :)
+
+=============================
+Parameter-based configuration
+=============================
+
+It is possible to define special **by_<parameter-name>** dicts in config to (re)define node parameters based on other parameters. For example:
+
+::
+
+  by_roles:
+    controller:
+      cmds: {'check-uptime': 'uptime'}
+
+In this example for any controller node, cmds setting will be reset to the value above. For nodes without controller role, default (none) values will be used.
+
+=============
+rqfile format
+=============
+
+``rqfile`` format is a bit different from config. The basic difference:
+
+**config:**
+
+::
+
+  scripts: [a ,b, c]
+  by_roles:
+    compute:
+      scripts: [d, e, f]
+
+**rqfile:**
+
+::
+
+  scripts:
+    __default: [a, b, c]
+    by_roles:
+      compute: [d, e, f]
+
+The **config** and **rqfile** definitions presented above are equivalent. It is possible to define config in a config file using the **config** format, or in an **rqfile** using **rqfile** format, linking to the **rqfile** in config with ``rqfile`` setting. It is also possible to define part here and part there. Mixing identical parameters in both places is not recommended - results may be unpredictable (such scenario was not thoroughly tested). In general **rqfile** is good for fewer settings with more parameter-based variations (``by_``), and main config for more different settings with less such variations.
+
+===============================
+Configuration application order
+===============================
+
+Configuration is assembled and applied in a specific order:
+1. default configuration is initialized. See ``timmy/conf.py`` for details.
+2. command line parameters, if defined, are used to modify the configuration.
+3. **rqfile**, if defined (default - ``rq.yaml``), is converted and injected into the configuration. At this stage the configuration is in its final form.
+4. for every node, configuration is applied, except ``once_by_`` directives:
+4.1 first the top-level attributes are set
+4.2 then ``by_<attribute-name>`` parameters except ``by_id`` are iterated to override or append(accumulate) the attributes
+4.3 then ``by_id`` is iterated to override any matching attributes, redefining what was set before
+5. finally ``once_by_`<attribute-name>`` parameters are applied - only for one matching node for any set of matching values. This is useful for example if you want a specific file or command from only a single node matching a specific role, like running ``nova list`` only on one controller.
 
 Once you are done with the configuration, you might want to familiarize yourself with :doc:`Usage </usage>`.
