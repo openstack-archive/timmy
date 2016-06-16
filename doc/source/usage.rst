@@ -29,10 +29,10 @@ Basic parameters:
 
 The following parameters ("actions") are available, using any of them enables **Shell Mode**:
 
-* ``-C <command>`` enables ``shell mode``\*, Bash command (string) to execute on nodes. Using multiple ``-C`` statements will give the same result as using one with several commands separated by ``;`` (traditional Shell syntax), but for each ``-C`` statement a new SSH connection is established
-* ``-S <script>`` enables ``shell mode``, name of the Bash script file (you need to put it into ``scripts`` folder inside a path specified by ``rqdir`` config parameter, defaults to ``rq``) to execute on nodes
-* ``-P <file/path> <dest>`` enables ``shell mode``, upload local data to nodes (wildcards supported). You must specify 2 values for each ``-P`` switch.
-* ``-G <file/path>`` enables ``shell mode``, download (collect) data from nodes
+* ``-C <command>`` - Bash command (string) to execute on nodes. Using multiple ``-C`` statements will give the same result as using one with several commands separated by ``;`` (traditional Shell syntax), but for each ``-C`` statement a new SSH connection is established
+* ``-S <script>`` - name of the Bash script file (you need to put it into ``scripts`` folder inside a path specified by ``rqdir`` config parameter, defaults to ``rq``) to execute on nodes
+* ``-P <file/path> <dest>`` - upload local data to nodes (wildcards supported). You must specify 2 values for each ``-P`` switch.
+* ``-G <file/path>`` - download (collect) data from nodes
 
 ========
 Examples
