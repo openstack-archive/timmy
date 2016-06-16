@@ -77,6 +77,16 @@ It is possible to define special **by_<parameter-name>** dicts in config to (re)
 
 In this example for any controller node, cmds setting will be reset to the value above. For nodes without controller role, default (none) values will be used.
 
+It is also possible to define a special **once_by_<parameter-name>** which work similarly to the above, but will only assign attributes to single matching node. Example:
+
+::
+
+  once_by_roles:
+    controller:
+      cmds: {'check-uptime': 'uptime'}
+
+Such configuration will result in `uptime` being executed on only one node with controller role, not on every such node.
+
 =============
 rqfile format
 =============
