@@ -28,7 +28,9 @@ The following actions are available for definition:
 
 * **put** - a list of tuples / 2-element lists: [source, destination]. Passed to ``scp`` like so ``scp source <node-ip>:destination``. Wildcards supported for source.
 * **cmds** - a list of dicts: {'command-name':'command-string'}. Example: {'command-1': 'uptime'}. Command string is a bash string. Commands are executed in a sorted order of their names.
-* **scripts** - a list of script filenames located on a local system. If filename does not contain path separator, the script is expected ot be located inside ``rqdir/scripts``. Otherwise the provided path is used to read the script.
+* **scripts** - a list of elements, each of which can be a string or a dict:
+    * string - represents a script filename located on a local system. If filename does not contain a path separator, the script is expected ot be located inside ``rqdir/scripts``. Otherwise the provided path is used to access the script. Example: ``'./my-test-script.sh'``
+    * dict - use this option if you need to pass variables to your script. Script parameters are not supported, but instead you can use env variables. A dict should only contain one key which is the script filename (read above), and the value is a Bash space-separated variable assignment string. Example: ``'./my-test-script.sh': 'var1=123 var2="HELLO WORLD"'``
 * **files** - a list of filenames to collect. passed to ``scp``. Supports wildcards.
 * **filelists** - a list of filelist filenames located on a local system. Filelist is a text file containing files and directories to collect, passed to rsync. Does not support wildcards. If filename does not contain path separator, the filelist is expected to be located inside ``rqdir/filelists``. Otherwise the provided path is used to read the filelist.
 * **log_files**
