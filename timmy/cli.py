@@ -54,7 +54,7 @@ def parse_args():
                         help='Redirect Timmy log to a file.')
     parser.add_argument('-e', '--env', type=int,
                         help='Env ID. Run only on specific environment.')
-    parser.add_argument('-R', '--role', action='append',
+    parser.add_argument('-r', '--role', action='append',
                         help=('Can be specified multiple times.'
                               ' Run only on the specified role.'))
     parser.add_argument('-G', '--get', action='append',
@@ -80,6 +80,8 @@ def parse_args():
                               ' Each argument must contain two strings -'
                               ' source file/path/mask and dest. file/path.'
                               ' For help on shell mode, read timmy/conf.py.'))
+    parser.add_argument('--rqfile', help='Path to an rqfile in yaml format,'
+                                         ' overrides default.')
     parser.add_argument('-l', '--logs',
                         help=('Collect logs from nodes. Logs are not collected'
                               ' by default due to their size.'),
@@ -169,6 +171,8 @@ def main(argv=None):
         conf['do_print_results'] = True
     if args.no_clean:
         conf['clean'] = False
+    if args.rqfile:
+        conf['rqfile'] = args.rqfile
     if conf['shell_mode']:
         filter = conf['hard_filter']
         # config cleanup for shell mode
