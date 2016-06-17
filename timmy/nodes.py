@@ -306,6 +306,7 @@ class Node(object):
                                                   file=f[0],
                                                   dest=f[1],
                                                   recursive=True)
+            self.check_code(code, 'put_files', 'tools.put_file_scp', errs)
 
     def logs_populate(self, timeout=5):
 
