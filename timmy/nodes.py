@@ -216,9 +216,14 @@ class Node(object):
                                           dfile)
         if self.scripts:
             tools.mdir(ddir)
-        self.scripts = sorted(self.scripts)
+        scripts = sorted(self.scripts)
         mapscr = {}
-        for scr in self.scripts:
+        for scr in scripts:
+            if type(scr) is dict:
+                env_vars = scr.values()[0]
+                scr = scr.keys()[0]
+            else:
+                env_vars = self.env_vars
             if os.path.sep in scr:
                 f = scr
             else:
@@ -234,7 +239,7 @@ class Node(object):
                 outs, errs, code = tools.ssh_node(ip=self.ip,
                                                   filename=f,
                                                   ssh_opts=self.ssh_opts,
-                                                  env_vars=self.env_vars,
+                                                  env_vars=env_vars,
                                                   timeout=self.timeout,
                                                   prefix=self.prefix)
                 self.check_code(code, 'exec_cmd', 'script %s' % f, errs,
