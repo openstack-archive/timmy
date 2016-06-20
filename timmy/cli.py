@@ -150,7 +150,7 @@ def main(argv=None):
     parser = parse_args()
     args = parser.parse_args(argv[1:])
     loglevels = [logging.WARNING, logging.INFO, logging.DEBUG]
-    if args.quiet:
+    if args.quiet and not args.log_file:
         args.verbose = 0
     loglevel = loglevels[min(len(loglevels)-1, args.verbose)]
     FORMAT = ('%(asctime)s %(levelname)s: %(module)s: '
