@@ -31,9 +31,9 @@ from tools import w_list, run_with_lock
 from copy import deepcopy
 
 try:
-    from fuelclient.client import Client
+    from fuelclient.client import Client as FuelClient
 except:
-    Client = None
+    FuelClient = None
 
 try:
     from fuelclient.client import logger
@@ -177,6 +177,7 @@ class Node(object):
         if code != 0:
             self.logger.warning('node: %s: could not determine'
                                 ' MOS release' % self.id)
+            release = 'n/a'
         else:
             release = release.strip('\n "\'')
         self.logger.info('node: %s, MOS release: %s' %
@@ -405,23 +406,34 @@ class NodeManager(object):
                 self.import_rq()
         self.nodes = {}
         self.fuel_init()
+        if FuelClient and conf['fuelclient']:
+            try:
+                self.logger.info('Setup fuelclient instance')
+                self.fuelclient = FuelClient()
+                self.fuelclient.username = self.conf['fuel_user']
+                self.fuelclient.password = self.conf['fuel_pass']
+                self.fuelclient.tenant_name = self.conf['fuel_tenant']
+                # self.fuelclient.debug_mode(True)
+            except:
+                self.logger.info('Failed to setup fuelclient instance')
+                self.fuelclient = None
+        else:
+            self.logger.info('Skipping setup fuelclient instance')
+            self.fuelclient = None
         if nodes_json:
             self.nodes_json = tools.load_json_file(nodes_json)
         else:
-            if Client and conf['fuelclient']:
-                if ((not self.get_nodes_fuelclient()) and
-                        (not self.get_nodes_cli())):
-                    sys.exit(4)
-            else:
-                if not self.get_nodes_cli():
-                    sys.exit(4)
+            if (not self.get_nodes_fuelclient() and
+                    not self.get_nodes_cli()):
+                sys.exit(4)
         self.nodes_init()
         # apply soft-filter on all nodes
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
                 node.filtered_out = True
         if not conf['shell_mode']:
-            self.nodes_get_release()
+            if not self.get_release_fuel_client():
+                self.get_release_cli()
             self.nodes_reapply_conf()
             self.conf_assign_once()
             if extended:
@@ -529,14 +541,10 @@ class NodeManager(object):
         self.nodes[self.conf['fuel_ip']] = fuelnode
 
     def get_nodes_fuelclient(self):
+        if not self.fuelclient:
+            return False
         try:
-            self.logger.info('Setup fuelclient instance')
-            c = Client()
-            c.username = self.conf['fuel_user']
-            c.password = self.conf['fuel_pass']
-            c.tenant_name = self.conf['fuel_tenant']
-            # c.debug_mode(True)
-            self.nodes_json = c.get_request('nodes')
+            self.nodes_json = self.fuelclient.get_request('nodes')
             self.logger.debug(self.nodes_json)
             return True
         except Exception as e:
@@ -544,6 +552,36 @@ class NodeManager(object):
                                  "get node list from fuel client:\n%s" % (e)),
                                 exc_info=True)
             return False
+
+    def get_release_fuel_client(self):
+        if not self.fuelclient:
+            return False
+        try:
+            self.logger.info('getting release from fuel')
+            v = self.fuelclient.get_request('version')
+            fuel_version = v['release']
+            self.logger.debug('version response:%s' % v)
+            clusters = self.fuelclient.get_request('clusters')
+            self.logger.debug('clusters response:%s' % clusters)
+        except:
+            self.logger.warning(("Can't get fuel version or "
+                                 "clusters information"))
+            return False
+        self.nodes[self.conf['fuel_ip']].release = fuel_version
+        cldict = {}
+        for cluster in clusters:
+            cldict[cluster['id']] = cluster
+        if cldict:
+            for node in self.nodes.values():
+                if node.cluster:
+                    node.release = cldict[node.cluster]['fuel_version']
+                else:
+                    # set to n/a or may be fuel_version
+                    if node.id != 0:
+                        node.release = 'n/a'
+                self.logger.info('node: %s - release: %s' % (node.id,
+                                                             node.release))
+        return True
 
     def get_nodes_cli(self):
         self.logger.info('use CLI for getting node information')
@@ -563,6 +601,16 @@ class NodeManager(object):
             return False
         self.nodes_json = json.loads(nodes_json)
         return True
+
+    def get_release_cli(self):
+        run_items = []
+        for key, node in self.nodes.items():
+            if not node.filtered_out:
+                run_items.append(tools.RunItem(target=node.get_release,
+                                               key=key))
+        result = tools.run_batch(run_items, 100, dict_result=True)
+        for key in result:
+            self.nodes[key].release = result[key]
 
     def nodes_init(self):
         for node_data in self.nodes_json:
@@ -586,16 +634,6 @@ class NodeManager(object):
             node = Node(**params)
             if self.filter(node, self.conf['hard_filter']):
                 self.nodes[node.ip] = node
-
-    def nodes_get_release(self):
-        run_items = []
-        for key, node in self.nodes.items():
-            if not node.filtered_out:
-                run_items.append(tools.RunItem(target=node.get_release,
-                                               key=key))
-        result = tools.run_batch(run_items, 100, dict_result=True)
-        for key in result:
-            self.nodes[key].release = result[key]
 
     def conf_assign_once(self):
         once = Node.conf_once_prefix
