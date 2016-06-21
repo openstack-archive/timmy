@@ -30,6 +30,17 @@ import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
 
+try:
+    from fuelclient.client import Client as FuelClient
+except:
+    FuelClient = None
+
+try:
+    from fuelclient.client import logger
+    logger.handlers = []
+except:
+    pass
+
 
 class Node(object):
     ckey = 'cmds'
@@ -166,11 +177,12 @@ class Node(object):
         if code != 0:
             self.logger.warning('node: %s: could not determine'
                                 ' MOS release' % self.id)
+            release = 'n/a'
         else:
-            self.release = release.strip('\n "\'')
+            release = release.strip('\n "\'')
         self.logger.info('node: %s, MOS release: %s' %
-                         (self.id, self.release))
-        return self.release
+                         (self.id, release))
+        return release
 
     def exec_cmd(self, fake=False, ok_codes=None):
         sn = 'node-%s' % self.id
@@ -205,9 +217,14 @@ class Node(object):
                                           dfile)
         if self.scripts:
             tools.mdir(ddir)
-        self.scripts = sorted(self.scripts)
+        scripts = sorted(self.scripts)
         mapscr = {}
-        for scr in self.scripts:
+        for scr in scripts:
+            if type(scr) is dict:
+                env_vars = scr.values()[0]
+                scr = scr.keys()[0]
+            else:
+                env_vars = self.env_vars
             if os.path.sep in scr:
                 f = scr
             else:
@@ -223,7 +240,7 @@ class Node(object):
                 outs, errs, code = tools.ssh_node(ip=self.ip,
                                                   filename=f,
                                                   ssh_opts=self.ssh_opts,
-                                                  env_vars=self.env_vars,
+                                                  env_vars=env_vars,
                                                   timeout=self.timeout,
                                                   prefix=self.prefix)
                 self.check_code(code, 'exec_cmd', 'script %s' % f, errs,
@@ -295,6 +312,7 @@ class Node(object):
                                                   file=f[0],
                                                   dest=f[1],
                                                   recursive=True)
+            self.check_code(code, 'put_files', 'tools.put_file_scp', errs)
 
     def logs_populate(self, timeout=5):
 
@@ -388,17 +406,42 @@ class NodeManager(object):
                 self.import_rq()
         self.nodes = {}
         self.fuel_init()
+        # save os environment variables
+        environ = os.environ
+        if FuelClient and conf['fuelclient']:
+            try:
+                if self.conf['fuel_skip_proxy']:
+                    os.environ['HTTPS_PROXY'] = ''
+                    os.environ['HTTP_PROXY'] = ''
+                    os.environ['https_proxy'] = ''
+                    os.environ['http_proxy'] = ''
+                self.logger.info('Setup fuelclient instance')
+                self.fuelclient = FuelClient()
+                self.fuelclient.username = self.conf['fuel_user']
+                self.fuelclient.password = self.conf['fuel_pass']
+                self.fuelclient.tenant_name = self.conf['fuel_tenant']
+                # self.fuelclient.debug_mode(True)
+            except Exception as e:
+                self.logger.info('Failed to setup fuelclient instance:%s' % e,
+                                 exc_info=True)
+                self.fuelclient = None
+        else:
+            self.logger.info('Skipping setup fuelclient instance')
+            self.fuelclient = None
         if nodes_json:
             self.nodes_json = tools.load_json_file(nodes_json)
         else:
-            self.nodes_json = json.loads(self.get_nodes_json())
+            if (not self.get_nodes_fuelclient() and
+                    not self.get_nodes_cli()):
+                sys.exit(4)
         self.nodes_init()
         # apply soft-filter on all nodes
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
                 node.filtered_out = True
         if not conf['shell_mode']:
-            self.nodes_get_release()
+            if not self.get_release_fuel_client():
+                self.get_release_cli()
             self.nodes_reapply_conf()
             self.conf_assign_once()
             if extended:
@@ -407,6 +450,8 @@ class NodeManager(object):
                 do additional apply_conf(clean=False) with this yaml.
                 Move some stuff from rq.yaml to extended.yaml'''
                 pass
+        # restore os environment variables
+        os.environ = environ
 
     def __str__(self):
         def ml_column(matrix, i):
@@ -505,7 +550,51 @@ class NodeManager(object):
             fuelnode.filtered_out = True
         self.nodes[self.conf['fuel_ip']] = fuelnode
 
-    def get_nodes_json(self):
+    def get_nodes_fuelclient(self):
+        if not self.fuelclient:
+            return False
+        try:
+            self.nodes_json = self.fuelclient.get_request('nodes')
+            self.logger.debug(self.nodes_json)
+            return True
+        except Exception as e:
+            self.logger.warning(("NodeManager: can't "
+                                 "get node list from fuel client:\n%s" % (e)),
+                                exc_info=True)
+            return False
+
+    def get_release_fuel_client(self):
+        if not self.fuelclient:
+            return False
+        try:
+            self.logger.info('getting release from fuel')
+            v = self.fuelclient.get_request('version')
+            fuel_version = v['release']
+            self.logger.debug('version response:%s' % v)
+            clusters = self.fuelclient.get_request('clusters')
+            self.logger.debug('clusters response:%s' % clusters)
+        except:
+            self.logger.warning(("Can't get fuel version or "
+                                 "clusters information"))
+            return False
+        self.nodes[self.conf['fuel_ip']].release = fuel_version
+        cldict = {}
+        for cluster in clusters:
+            cldict[cluster['id']] = cluster
+        if cldict:
+            for node in self.nodes.values():
+                if node.cluster:
+                    node.release = cldict[node.cluster]['fuel_version']
+                else:
+                    # set to n/a or may be fuel_version
+                    if node.id != 0:
+                        node.release = 'n/a'
+                self.logger.info('node: %s - release: %s' % (node.id,
+                                                             node.release))
+        return True
+
+    def get_nodes_cli(self):
+        self.logger.info('use CLI for getting node information')
         fuelnode = self.nodes[self.conf['fuel_ip']]
         fuel_node_cmd = ('fuel node list --json --user %s --password %s' %
                          (self.conf['fuel_user'],
@@ -516,10 +605,22 @@ class NodeManager(object):
                                                timeout=fuelnode.timeout,
                                                prefix=fuelnode.prefix)
         if code != 0:
-            self.logger.critical(('NodeManager: cannot get '
-                                  'fuel node list: %s') % err)
-            sys.exit(4)
-        return nodes_json
+            self.logger.warning(('NodeManager: cannot get '
+                                 'fuel node list from CLI: %s') % err)
+            self.nodes_json = None
+            return False
+        self.nodes_json = json.loads(nodes_json)
+        return True
+
+    def get_release_cli(self):
+        run_items = []
+        for key, node in self.nodes.items():
+            if not node.filtered_out:
+                run_items.append(tools.RunItem(target=node.get_release,
+                                               key=key))
+        result = tools.run_batch(run_items, 100, dict_result=True)
+        for key in result:
+            self.nodes[key].release = result[key]
 
     def nodes_init(self):
         for node_data in self.nodes_json:
@@ -543,16 +644,6 @@ class NodeManager(object):
             node = Node(**params)
             if self.filter(node, self.conf['hard_filter']):
                 self.nodes[node.ip] = node
-
-    def nodes_get_release(self):
-        run_items = []
-        for key, node in self.nodes.items():
-            if not node.filtered_out:
-                run_items.append(tools.RunItem(target=node.get_release,
-                                               key=key))
-        result = tools.run_batch(run_items, 100, dict_result=True)
-        for key in result:
-            self.nodes[key].release = result[key]
 
     def conf_assign_once(self):
         once = Node.conf_once_prefix

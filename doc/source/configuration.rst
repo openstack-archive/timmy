@@ -25,16 +25,21 @@ Configuring actions
 Actions can be configured in a separate yaml file (by default ``rq.yaml`` is used) and / or defind in the main config file or passed via command line options ``-P``, ``-C``, ``-S``, ``-G``.
 
 The following actions are available for definition:
+
 * **put** - a list of tuples / 2-element lists: [source, destination]. Passed to ``scp`` like so ``scp source <node-ip>:destination``. Wildcards supported for source.
 * **cmds** - a list of dicts: {'command-name':'command-string'}. Example: {'command-1': 'uptime'}. Command string is a bash string. Commands are executed in a sorted order of their names.
-* **scripts** - a list of script filenames located on a local system. If filename does not contain path separator, the script is expected ot be located inside ``rqdir/scripts``. Otherwise the provided path is used to read the script.
+* **scripts** - a list of elements, each of which can be a string or a dict:
+    * string - represents a script filename located on a local system. If filename does not contain a path separator, the script is expected ot be located inside ``rqdir/scripts``. Otherwise the provided path is used to access the script. Example: ``'./my-test-script.sh'``
+    * dict - use this option if you need to pass variables to your script. Script parameters are not supported, but instead you can use env variables. A dict should only contain one key which is the script filename (read above), and the value is a Bash space-separated variable assignment string. Example: ``'./my-test-script.sh': 'var1=123 var2="HELLO WORLD"'``
+    * **LIMITATION**: if you use a script with the same name more than once for a given node, the collected output will only contain the last execution's result.
+    * **INFO**: Scripts are not copied to the destination system - script code is passed as stdin to `bash -s` executed via ssh or locally. Therefore passing parameters to scripts is not supported (unlike cmds where you can write any Bash string). You can use variables in your scripts instead. Scripts are executed in the following order: all scripts without variables, sorted by their full filename, then all scripts with variables, also sorted by full filename. Therefore if the order matters, it's better to put all scripts into the same folder and name them according to the order in which you want them executed on the same node, and mind that scripts with variables are executed after all scripts without variables. If you need to mix scripts with variables and without and maintain order, just use dict structure for all scripts, and set `null` as the value for those which do not need variables.
 * **files** - a list of filenames to collect. passed to ``scp``. Supports wildcards.
 * **filelists** - a list of filelist filenames located on a local system. Filelist is a text file containing files and directories to collect, passed to rsync. Does not support wildcards. If filename does not contain path separator, the filelist is expected to be located inside ``rqdir/filelists``. Otherwise the provided path is used to read the filelist.
 * **log_files**
-** **path** - base path to scan for logs
-** **include** - regexp string to match log files against for inclusion (if not set = include all)
-** **exclude** - regexp string to match log files against. Excludes matched files from collection.
-** **start** - date or datetime string to collect only files modified on or after the specified time. Format - ``YYYY-MM-DD`` or ``YYYY-MM-DD HH:MM:SS``
+    * **path** - base path to scan for logs
+    * **include** - regexp string to match log files against for inclusion (if not set = include all)
+    * **exclude** - regexp string to match log files against. Excludes matched files from collection.
+    * **start** - date or datetime string to collect only files modified on or after the specified time. Format - ``YYYY-MM-DD`` or ``YYYY-MM-DD HH:MM:SS``
 
 ===============
 Filtering nodes
@@ -77,6 +82,16 @@ It is possible to define special **by_<parameter-name>** dicts in config to (re)
 
 In this example for any controller node, cmds setting will be reset to the value above. For nodes without controller role, default (none) values will be used.
 
+It is also possible to define a special **once_by_<parameter-name>** which works similarly, but will only result in attributes being assigned to single (first in the list) matching node. Example:
+
+::
+
+  once_by_roles:
+    controller:
+      cmds: {'check-uptime': 'uptime'}
+
+Such configuration will result in `uptime` being executed on only one node with controller role, not on every controller.
+
 =============
 rqfile format
 =============
@@ -108,13 +123,14 @@ Configuration application order
 ===============================
 
 Configuration is assembled and applied in a specific order:
+
 1. default configuration is initialized. See ``timmy/conf.py`` for details.
 2. command line parameters, if defined, are used to modify the configuration.
 3. **rqfile**, if defined (default - ``rq.yaml``), is converted and injected into the configuration. At this stage the configuration is in its final form.
 4. for every node, configuration is applied, except ``once_by_`` directives:
-4.1 first the top-level attributes are set
-4.2 then ``by_<attribute-name>`` parameters except ``by_id`` are iterated to override or append(accumulate) the attributes
-4.3 then ``by_id`` is iterated to override any matching attributes, redefining what was set before
+    1. first the top-level attributes are set
+    2. then ``by_<attribute-name>`` parameters except ``by_id`` are iterated to override or append(accumulate) the attributes
+    3. then ``by_id`` is iterated to override any matching attributes, redefining what was set before
 5. finally ``once_by_`<attribute-name>`` parameters are applied - only for one matching node for any set of matching values. This is useful for example if you want a specific file or command from only a single node matching a specific role, like running ``nova list`` only on one controller.
 
 Once you are done with the configuration, you might want to familiarize yourself with :doc:`Usage </usage>`.

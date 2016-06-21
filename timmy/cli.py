@@ -54,7 +54,7 @@ def parse_args():
                         help='Redirect Timmy log to a file.')
     parser.add_argument('-e', '--env', type=int,
                         help='Env ID. Run only on specific environment.')
-    parser.add_argument('-R', '--role', action='append',
+    parser.add_argument('-r', '--role', action='append',
                         help=('Can be specified multiple times.'
                               ' Run only on the specified role.'))
     parser.add_argument('-G', '--get', action='append',
@@ -80,6 +80,8 @@ def parse_args():
                               ' Each argument must contain two strings -'
                               ' source file/path/mask and dest. file/path.'
                               ' For help on shell mode, read timmy/conf.py.'))
+    parser.add_argument('--rqfile', help='Path to an rqfile in yaml format,'
+                                         ' overrides default.')
     parser.add_argument('-l', '--logs',
                         help=('Collect logs from nodes. Logs are not collected'
                               ' by default due to their size.'),
@@ -87,6 +89,9 @@ def parse_args():
     parser.add_argument('--fuel-ip', help='fuel ip address')
     parser.add_argument('--fuel-user', help='fuel username')
     parser.add_argument('--fuel-pass', help='fuel password')
+    parser.add_argument('--fuel-proxy',
+                        help='use os system proxy variables for fuelclient',
+                        action='store_true')
     parser.add_argument('--only-logs',
                         action='store_true',
                         help=('Only collect logs, do not run commands or'
@@ -135,6 +140,9 @@ def parse_args():
                               'selected if more -v are provided it will '
                               'step to INFO and DEBUG unless the option '
                               '-q(--quiet) is specified'))
+    parser.add_argument('--fuel-cli', action='store_true',
+                        help=('Use fuel command line client instead of '
+                              'fuelclient library'))
     return parser
 
 
@@ -145,7 +153,7 @@ def main(argv=None):
     parser = parse_args()
     args = parser.parse_args(argv[1:])
     loglevels = [logging.WARNING, logging.INFO, logging.DEBUG]
-    if args.quiet:
+    if args.quiet and not args.log_file:
         args.verbose = 0
     loglevel = loglevels[min(len(loglevels)-1, args.verbose)]
     FORMAT = ('%(asctime)s %(levelname)s: %(module)s: '
@@ -161,11 +169,15 @@ def main(argv=None):
         conf['fuel_user'] = args.fuel_user
     if args.fuel_pass:
         conf['fuel_pass'] = args.fuel_pass
+    if args.fuel_proxy:
+        conf['fuel_skip_proxy'] = False
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
         conf['do_print_results'] = True
     if args.no_clean:
         conf['clean'] = False
+    if args.rqfile:
+        conf['rqfile'] = args.rqfile
     if conf['shell_mode']:
         filter = conf['hard_filter']
         # config cleanup for shell mode
@@ -201,6 +213,8 @@ def main(argv=None):
     if args.dest_file:
         conf['archive_dir'] = os.path.split(args.dest_file)[0]
         conf['archive_name'] = os.path.split(args.dest_file)[1]
+    if args.fuel_cli:
+        conf['fuelclient'] = False
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',

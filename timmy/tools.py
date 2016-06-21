@@ -31,7 +31,6 @@ from flock import FLock
 from tempfile import gettempdir
 from pipes import quote
 
-
 logger = logging.getLogger(__name__)
 slowpipe = '''
 import sys
@@ -146,26 +145,6 @@ def run_batch(item_list, maxthreads, dict_result=False):
     except KeyboardInterrupt:
         cleanup()
         raise KeyboardInterrupt()
-
-
-def get_dir_structure(rootdir):
-    """
-    Creates a nested dictionary that represents the folder structure of rootdir
-    """
-    dir = {}
-    try:
-        rootdir = rootdir.rstrip(os.sep)
-        start = rootdir.rfind(os.sep) + 1
-        for path, dirs, files in os.walk(rootdir):
-            folders = path[start:].split(os.sep)
-            subdir = dict.fromkeys(files)
-            parent = reduce(dict.get, folders[:-1], dir)
-            parent[folders[-1]] = subdir
-    except:
-        logger.critical('failed to create list of the directory: %s' %
-                        rootdir)
-        sys.exit(1)
-    return dir
 
 
 def load_json_file(filename):
@@ -342,6 +321,7 @@ def free_space(destdir, timeout):
 # wrap non-list into list
 def w_list(value):
     return value if type(value) == list else [value]
+
 
 if __name__ == '__main__':
     exit(0)
