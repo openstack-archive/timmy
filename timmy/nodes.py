@@ -406,16 +406,24 @@ class NodeManager(object):
                 self.import_rq()
         self.nodes = {}
         self.fuel_init()
+        # save os environment variables
+        environ = os.environ
         if FuelClient and conf['fuelclient']:
             try:
+                if self.conf['fuel_skip_proxy']:
+                    os.environ['HTTPS_PROXY'] = ''
+                    os.environ['HTTP_PROXY'] = ''
+                    os.environ['https_proxy'] = ''
+                    os.environ['http_proxy'] = ''
                 self.logger.info('Setup fuelclient instance')
                 self.fuelclient = FuelClient()
                 self.fuelclient.username = self.conf['fuel_user']
                 self.fuelclient.password = self.conf['fuel_pass']
                 self.fuelclient.tenant_name = self.conf['fuel_tenant']
                 # self.fuelclient.debug_mode(True)
-            except:
-                self.logger.info('Failed to setup fuelclient instance')
+            except Exception as e:
+                self.logger.info('Failed to setup fuelclient instance:%s' % e,
+                                 exc_info=True)
                 self.fuelclient = None
         else:
             self.logger.info('Skipping setup fuelclient instance')
@@ -442,6 +450,8 @@ class NodeManager(object):
                 do additional apply_conf(clean=False) with this yaml.
                 Move some stuff from rq.yaml to extended.yaml'''
                 pass
+        # restore os environment variables
+        os.environ = environ
 
     def __str__(self):
         def ml_column(matrix, i):

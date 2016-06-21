@@ -89,6 +89,9 @@ def parse_args():
     parser.add_argument('--fuel-ip', help='fuel ip address')
     parser.add_argument('--fuel-user', help='fuel username')
     parser.add_argument('--fuel-pass', help='fuel password')
+    parser.add_argument('--fuel-proxy',
+                        help='use os system proxy variables for fuelclient',
+                        action='store_true')
     parser.add_argument('--only-logs',
                         action='store_true',
                         help=('Only collect logs, do not run commands or'
@@ -166,6 +169,8 @@ def main(argv=None):
         conf['fuel_user'] = args.fuel_user
     if args.fuel_pass:
         conf['fuel_pass'] = args.fuel_pass
+    if args.fuel_proxy:
+        conf['fuel_skip_proxy'] = False
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
         conf['do_print_results'] = True
