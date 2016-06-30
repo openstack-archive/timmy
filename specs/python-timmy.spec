@@ -1,7 +1,6 @@
 %{!?__python2: %global __python2 /usr/bin/python2}
 %{!?python2_sitelib: %global python2_sitelib %(%{__python2} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")}
 %{!?python2_sitearch: %global python2_sitearch %(%{__python2} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(1))")}
-%endif
 
 %define name python-timmy
 %{!?version: %define version 1.8.1}
@@ -42,3 +41,12 @@ cd %{_builddir}/%{name}-%{version} && %{__python2} setup.py install --single-ver
 
 %clean
 rm -rf $RPM_BUILD_ROOT
+
+%files -n python-timmy
+/usr/bin/timmy
+/usr/share/timmy/*
+/usr/lib/python2.7/site-packages/timmy*
+
+%changelog
+* Thu Jun 30 2016 Aleksandr Dobdin <adobdin@mirantis.com> - 1.8.1
+- Created spec
