@@ -45,7 +45,7 @@ rm -rf $RPM_BUILD_ROOT
 %files -n python-timmy
 /usr/bin/timmy
 /usr/share/timmy/*
-/usr/lib/python2.7/site-packages/timmy*
+%{python2_sitelib}/timmy*
 
 %changelog
 * Thu Jun 30 2016 Aleksandr Dobdin <adobdin@mirantis.com> - 1.8.1
