@@ -35,7 +35,7 @@ The following parameters ("actions") are available, the usage of any of them ena
 * ``-G <file/path>`` - download (collect) data from nodes
 
 ========
-   Examples
+Examples
 ========
 
 * ``timmy`` - run according to the default configuration and default actions. Default actions are defined in ``rq.yaml`` (``/usr/share/timmy/rq.yaml``). Logs are not collected.
