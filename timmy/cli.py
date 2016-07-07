@@ -242,7 +242,8 @@ def main(argv=None):
         enough = pretty_run(args.quiet, 'Checking free space',
                             nm.is_enough_space)
         if enough:
-            pretty_run(args.quiet, 'Collecting and packing logs', nm.get_logs,
+            msg = 'Collecting and packing %dMB of logs' % (nm.alogsize / 1024)
+            pretty_run(args.quiet, msg, nm.get_logs,
                        args=(conf['compress_timeout'],),
                        kwargs={'maxthreads': args.logs_maxthreads,
                                'fake': args.fake_logs})
