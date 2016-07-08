@@ -35,11 +35,11 @@ The following actions are available for definition:
     * **INFO**: Scripts are not copied to the destination system - script code is passed as stdin to `bash -s` executed via ssh or locally. Therefore passing parameters to scripts is not supported (unlike cmds where you can write any Bash string). You can use variables in your scripts instead. Scripts are executed in the following order: all scripts without variables, sorted by their full filename, then all scripts with variables, also sorted by full filename. Therefore if the order matters, it's better to put all scripts into the same folder and name them according to the order in which you want them executed on the same node, and mind that scripts with variables are executed after all scripts without variables. If you need to mix scripts with variables and without and maintain order, just use dict structure for all scripts, and set `null` as the value for those which do not need variables.
 * **files** - a list of filenames to collect. passed to ``scp``. Supports wildcards.
 * **filelists** - a list of filelist filenames located on a local system. Filelist is a text file containing files and directories to collect, passed to rsync. Does not support wildcards. If filename does not contain path separator, the filelist is expected to be located inside ``rqdir/filelists``. Otherwise the provided path is used to read the filelist.
-* **log_files**
+* **logs**
     * **path** - base path to scan for logs
     * **include** - regexp string to match log files against for inclusion (if not set = include all)
     * **exclude** - regexp string to match log files against. Excludes matched files from collection.
-    * **start** - date or datetime string to collect only files modified on or after the specified time. Format - ``YYYY-MM-DD`` or ``YYYY-MM-DD HH:MM:SS``
+    * **start** - date or datetime string to collect only files modified on or after the specified time. Format - ``YYYY-MM-DD`` or ``YYYY-MM-DD HH:MM:SS`` or ``-N`` where N = number of days from now (number should be negative, meaning last N days).
 
 ===============
 Filtering nodes
