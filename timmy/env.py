@@ -16,7 +16,7 @@
 #    under the License.
 
 project_name = 'timmy'
-version = '1.8.2'
+version = '1.8.3'
 
 if __name__ == '__main__':
     exit(0)
