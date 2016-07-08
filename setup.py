@@ -40,7 +40,7 @@ setup(name=pname,
       url='https://github.com/adobdin/timmy',
       description = ('Mirantis OpenStack Ansible-like tool for parallel node '
                      'operations: two-way data transfer, log collection, '
-                     'remote command execution')
+                     'remote command execution'),
       long_description=open('README.md').read(),
       packages=[pname],
       install_requires=['pyyaml'],
