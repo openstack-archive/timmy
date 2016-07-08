@@ -27,7 +27,7 @@ rqfiles = [(os.path.join(dtm, root), [os.path.join(root, f) for f in files])
 rqfiles.append((os.path.join(dtm, 'configs'), ['config.yaml', 'rq.yaml']))
 package_data = True
 
-if os.environ.get("READTHEDOCS", True):
+if os.environ.get("READTHEDOCS", False):
     rqfiles = None
     package_data = False
 
