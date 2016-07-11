@@ -39,7 +39,7 @@ The following actions are available for definition:
     * **path** - base path to scan for logs
     * **include** - regexp string to match log files against for inclusion (if not set = include all)
     * **exclude** - regexp string to match log files against. Excludes matched files from collection.
-    * **start** - date or datetime string to collect only files modified on or after the specified time. Format - ``YYYY-MM-DD`` or ``YYYY-MM-DD HH:MM:SS``
+    * **start** - date or datetime string to collect only files modified on or after the specified time. Format - ``YYYY-MM-DD`` or ``YYYY-MM-DD HH:MM:SS`` or ``-N`` where N = number of days from now (number should be negative, meaning last N days).
 
 ===============
 Filtering nodes
