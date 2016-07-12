@@ -325,14 +325,16 @@ class Node(object):
         for item in self.logs:
             start_str = ''
             if 'start' in item:
-                if item['start'].startswith('-'):
-                    days = int(item['start'][1:])
+                start = item['start']
+                if any([type(start) is str and re.match(r'-?\d+', start),
+                        type(start) is int]):
+                    days = abs(int(str(start)))
                     start_str = str(date.today() - timedelta(days=days))
                 else:
                     for format in ['%Y-%m-%d', '%Y-%m-%d %H:%M:%S']:
                         try:
-                            if datetime.strptime(start_str, format):
-                                start_str = item['start']
+                            if datetime.strptime(start, format):
+                                start_str = start
                                 break
                         except ValueError:
                             pass
@@ -340,7 +342,7 @@ class Node(object):
                         self.logger.warning(('incorrect value of "start"'
                                              ' parameter in "logs": "%s" -'
                                              ' ignoring...')
-                                            % item['start'])
+                                            % start)
             if start_str:
                 start_param = ' -newermt "$(date -d \'%s\')"' % start_str
             else:

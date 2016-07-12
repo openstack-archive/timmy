@@ -57,6 +57,11 @@ def parse_args():
     parser.add_argument('-r', '--role', action='append',
                         help=('Can be specified multiple times.'
                               ' Run only on the specified role.'))
+    parser.add_argument('-d', '--days', type=int,
+                        help=('Define log collection period in days.'
+                              ' Timmy will collect only logs updated on or'
+                              ' more recently then today minus the given'
+                              ' number of days. Default - 30.'))
     parser.add_argument('-G', '--get', action='append',
                         help=('Enables shell mode. Can be specified multiple'
                               ' times. Filemask to collect via "scp -r".'
@@ -178,6 +183,8 @@ def main(argv=None):
         conf['clean'] = False
     if args.rqfile:
         conf['rqfile'] = args.rqfile
+    if args.days:
+        conf['logs']['start'] = -args.days
     if conf['shell_mode']:
         filter = conf['hard_filter']
         # config cleanup for shell mode
