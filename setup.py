@@ -25,6 +25,12 @@ dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', pname)
 rqfiles = [(os.path.join(dtm, root), [os.path.join(root, f) for f in files])
            for root, dirs, files in os.walk('rq')]
 rqfiles.append((os.path.join(dtm, 'configs'), ['config.yaml', 'rq.yaml']))
+package_data = True
+
+if os.environ.get("READTHEDOCS", False):
+    rqfiles = None
+    package_data = False
+
 
 setup(name=pname,
       version=version,
@@ -32,10 +38,13 @@ setup(name=pname,
       author_email='dobdin@gmail.com',
       license='Apache2',
       url='https://github.com/adobdin/timmy',
+      description = ('Mirantis OpenStack Ansible-like tool for parallel node '
+                     'operations: two-way data transfer, log collection, '
+                     'remote command execution'),
       long_description=open('README.md').read(),
       packages=[pname],
       install_requires=['pyyaml'],
       data_files=rqfiles,
-      include_package_data=True,
+      include_package_data=package_data,
       entry_points={'console_scripts': ['%s=%s.cli:main' % (pname, pname)]},
       )

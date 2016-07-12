@@ -25,7 +25,7 @@ import shutil
 import logging
 import sys
 import re
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
@@ -323,12 +323,32 @@ class Node(object):
                      re.search(item['exclude'], string)))
 
         for item in self.logs:
+            start_str = ''
             if 'start' in item:
-                start = ' -newermt \\"$(date -d \'%s\')\\"' % item['start']
+                start = item['start']
+                if any([type(start) is str and re.match(r'-?\d+', start),
+                        type(start) is int]):
+                    days = abs(int(str(start)))
+                    start_str = str(date.today() - timedelta(days=days))
+                else:
+                    for format in ['%Y-%m-%d', '%Y-%m-%d %H:%M:%S']:
+                        try:
+                            if datetime.strptime(start, format):
+                                start_str = start
+                                break
+                        except ValueError:
+                            pass
+                    if not start_str:
+                        self.logger.warning(('incorrect value of "start"'
+                                             ' parameter in "logs": "%s" -'
+                                             ' ignoring...')
+                                            % start)
+            if start_str:
+                start_param = ' -newermt "$(date -d \'%s\')"' % start_str
             else:
-                start = ''
+                start_param = ''
             cmd = ("find '%s' -type f%s -exec du -b {} +" % (item['path'],
-                                                             start))
+                                                             start_param))
             self.logger.info('node: %s, logs du-cmd: %s' %
                              (self.id, cmd))
             outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -349,6 +369,8 @@ class Node(object):
                         size, f = line.split('\t')
                         if filter_by_re(item, f):
                             item['files'][f] = int(size)
+                        else:
+                            self.logger.debug('log file "%s" excluded' % f)
                 self.logger.debug('logs: %s' % (item['files']))
         return self.logs
 
