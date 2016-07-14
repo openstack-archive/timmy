@@ -40,14 +40,20 @@ scripts:
         controller: [ipset-save, ipset-list, nova-manage-vm-list]
     '6.1':
       by_roles:
-        fuel: [fuel-notifications]
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check,
+          fuel-docker-db-archive]
         controller: [nova-manage-vm-list]
     '7.0':
       by_roles:
-        fuel: [fuel-notifications]
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check,
+          fuel-docker-db-archive]
     '8.0':
       by_roles:
-        fuel: [fuel-notifications]
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check,
+          fuel-docker-db-archive]
+    '9.0':
+      by_roles:
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check]
   by_roles:
     fuel: [fuel-release, fuel-task-list, fuel-environment-list]
     cinder: [ovs-vsctl-show, cinder-manage]
