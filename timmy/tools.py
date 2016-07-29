@@ -218,16 +218,16 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         outs = outs.decode('utf-8')
         errs = errs.decode('utf-8')
         errs = errs.rstrip('\n')
-    except:
-        try:
-            p.kill()
-        except:
-            pass
-        p.stdin = None
-        outs, errs = p.communicate()
-        outs = outs.decode('utf-8')
-        errs = errs.decode('utf-8')
-        errs = errs.rstrip('\n')
+#    except:
+#        try:
+#            p.kill()
+#        except:
+#            pass
+#        p.stdin = None
+#        outs, errs = p.communicate()
+#        outs = outs.decode('utf-8')
+#        errs = errs.decode('utf-8')
+#        errs = errs.rstrip('\n')
     finally:
         if timeout_killer:
             timeout_killer.cancel()

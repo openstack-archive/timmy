@@ -1,3 +1,11 @@
+files:
+  __default: ['/etc/resolv.conf', '/etc/hiera', '/etc/mcollective', '/etc/astute.yaml', '/root/.ceph*', '/root/anaconda*', '/root/*.log', '/root/*.ks', '/var/lib/puppet/state/last_run_summary.yaml', '/var/run/pcap_dir', '/var/lib/cloud']
+  by_roles:
+    controller: ['/etc/apache2', '/etc/keystone', '/etc/swift']
+    fuel: ['/etc/astute', '/etc/dnsmasq.conf', '/etc/centos-release', '/etc/fuel_build_number', '/etc/fuel_build_id', '/etc/cobbler', '/etc/cobbler.dnsmasq.conf', '/root/*.log']
+  by_os_platform:
+    ubuntu: ['/etc/lsb-release', '/etc/network']
+    centos: ['/etc/redhat-release', '/etc/sysconfig']
 filelists:
   by_roles:
     fuel: [etc-nailgun, etc-fuel]
@@ -22,60 +30,60 @@ scripts:
         controller: [nova-manage-vm-list]
     '5.0':
       by_roles:
+        fuel: [fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker]
         controller: [nova-manage-vm-list]
     '5.0.1':
       by_roles:
-        fuel: [fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+        fuel: [fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker]
         controller: [nova-manage-vm-list]
     '5.1':
       by_roles:
+        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker]
         controller: [nova-manage-vm-list]
     '5.1.1':
       by_roles:
-        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, fuel-docker-db-archive]
+        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker]
         controller: [nova-manage-vm-list]
     '6.0':
       by_roles:
+        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker, docker-images]
         compute: [ipset-save, ipset-list]
         controller: [ipset-save, ipset-list, nova-manage-vm-list]
     '6.1':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check,
-          fuel-docker-db-archive]
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker, docker-images]
         controller: [nova-manage-vm-list]
     '7.0':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check,
-          fuel-docker-db-archive]
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker, docker-images]
     '8.0':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check,
-          fuel-docker-db-archive]
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker, docker-images, fuel-bootstrap-list]
     '9.0':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check]
+        fuel: [fuel-notifications, fuel-postgres-dump, fuel-bootstrap-list, shotgun2-report]
   by_roles:
     fuel: [fuel-release, fuel-task-list, fuel-environment-list]
     cinder: [ovs-vsctl-show, cinder-manage]
     compute: [compute-iptables-nat, ovs-dump-flows, compute-iptables, ovs-ofctl-show-bridges,
       ovs-vsctl-show]
     controller: [rabbitmqctl-list-queues, nova-service-list, iptables-namespaces,
-      rabbitmqctl-cluster-status, crm-resource-status, ovs-dump-flows, neutron-agent-list,
+      rabbitmqctl-cluster-status, crm-resource-status, pcs-status, ovs-dump-flows, neutron-agent-list,
       mysql-status, ceph-mon-status, ovs-ofctl-show-bridges, rabbitmqctl-list-connections,
       ovs-vsctl-show, rabbitmqctl-report, mysql-size, rabbitmqctl-status, crm-resource-list,
       cinder-manage]
     mongo: [mongo-replication-status, ipa, mongo-replica-conf, mongo-status, ovs-vsctl-show]
   once_by_roles:
     ceph-osd: [ceph-df, ceph-osd-status, ceph-osd-tree, ceph-pg-dump, ovs-vsctl-show,
-      ceph-health-detail]
+      ceph-health-detail, ceph-health]
     controller: [neutron-router-list, neutron-net-list, neutron-subnet-list, keystone-endpoint-list,
       cinder-list, nova-list, keystone-tenant-list, nova-usage-list,
       neutron-port-list]
   by_os_platform:
-      ubuntu: [dmesg-t-ubuntu, packages-ubuntu]
-      centos: [dmesg-centos, packages-centos]
+      ubuntu: [dmesg-t-ubuntu, dpkg-l, apt-cache-policy]
+      centos: [dmesg-centos, yum-list-installed, yum-v-repolist]
   __default:
-    [ip-ne, iptables, ipnetns, ss, ipa, iptables-nat, df-m, services-status, cpuinfo, df-i, ipro]
+    [ip-ne, iptables, ipnetns, ss, ipa, iptables-nat, df-m, services-status, cpuinfo, df-i, ipro, mount, sysctl-a, pvdisplay, vgdisplay, lvdisplay, lsmod, dmidecode, cat-proc-interrupts, arp-an, uname-a, ps-auxwwf, uptime, dmsetup-info, brctl-show, blkid-o-list]
 # cmds:
 #   __default:
 #     test:
