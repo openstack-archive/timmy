@@ -31,6 +31,7 @@ def load_conf(filename):
     conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
     conf['fuel_ip'] = '127.0.0.1'
     conf['fuel_user'] = 'admin'
+    conf['fuel_port'] = '8000'
     conf['fuel_pass'] = 'admin'
     conf['fuel_tenant'] = 'admin'
     conf['fuelclient'] = True  # use fuelclient library by default

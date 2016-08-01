@@ -31,15 +31,17 @@ from tools import w_list, run_with_lock
 from copy import deepcopy
 
 try:
-    from fuelclient.client import Client as FuelClient
+    import fuelclient.client
+    if type(fuelclient.client.APIClient) is type:
+        # fuel 9.1+ (originally 10.0+)
+        from fuelclient.client import APIClient as FuelClient
+        FUEL_10 = True
+    elif type(fuelclient.client.APIClient) is fuelclient.client.Client:
+        # fuel 9.0 and below
+        from fuelclient.client import Client as FuelClient
+        FUEL_10 = False
 except:
     FuelClient = None
-
-try:
-    from fuelclient.client import logger
-    logger.handlers = []
-except:
-    pass
 
 
 class Node(object):
@@ -438,11 +440,19 @@ class NodeManager(object):
                     os.environ['https_proxy'] = ''
                     os.environ['http_proxy'] = ''
                 self.logger.info('Setup fuelclient instance')
-                self.fuelclient = FuelClient()
-                self.fuelclient.username = self.conf['fuel_user']
-                self.fuelclient.password = self.conf['fuel_pass']
-                self.fuelclient.tenant_name = self.conf['fuel_tenant']
-                # self.fuelclient.debug_mode(True)
+                if FUEL_10:
+                    self.fuelclient = FuelClient(
+                        host=self.conf['fuel_ip'],
+                        port=self.conf['fuel_port'],
+                        os_username=self.conf['fuel_user'],
+                        os_password=self.conf['fuel_pass'],
+                        os_tenant_name=self.conf['fuel_tenant'])
+                else:
+                    self.fuelclient = FuelClient()
+                    self.fuelclient.username = self.conf['fuel_user']
+                    self.fuelclient.password = self.conf['fuel_pass']
+                    self.fuelclient.tenant_name = self.conf['fuel_tenant']
+                    # self.fuelclient.debug_mode(True)
             except Exception as e:
                 self.logger.info('Failed to setup fuelclient instance:%s' % e,
                                  exc_info=True)
