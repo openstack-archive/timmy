@@ -200,14 +200,12 @@ def main(argv=None):
     if args.rqfile:
         conf['rqfile'] = args.rqfile
     if args.days:
-        conf['logs']['start'] = args.days
+        conf['logs'][0]['start'] = args.days
     if args.logs_no_default:
         conf['logs'] = []
         args.logs = True
     if args.get_logs:
         args.logs = True
-        if type(conf['logs']) is not list:
-            conf['logs'] = [conf['logs']]
         for logs in args.get_logs:
             logs_conf = {}
             logs_conf['path'] = logs[0]
