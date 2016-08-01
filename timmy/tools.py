@@ -211,23 +211,14 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
     timeout_killer = None
+    outs = None
+    errs = None
     try:
         timeout_killer = threading.Timer(timeout, _timeout_terminate, [p.pid])
         timeout_killer.start()
         outs, errs = p.communicate(input=input)
         outs = outs.decode('utf-8')
-        errs = errs.decode('utf-8')
-        errs = errs.rstrip('\n')
-#    except:
-#        try:
-#            p.kill()
-#        except:
-#            pass
-#        p.stdin = None
-#        outs, errs = p.communicate()
-#        outs = outs.decode('utf-8')
-#        errs = errs.decode('utf-8')
-#        errs = errs.rstrip('\n')
+        errs = errs.decode('utf-8').rstrip('\n')
     finally:
         if timeout_killer:
             timeout_killer.cancel()
