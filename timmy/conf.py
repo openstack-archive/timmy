@@ -59,9 +59,9 @@ def load_conf(filename):
     conf['scripts'] = []
     conf['files'] = []
     conf['filelists'] = []
-    conf['logs'] = {'path': '/var/log',
+    conf['logs'] = [{'path': '/var/log',
                     'exclude': '\.[^12]\.gz$|\.\d{2,}\.gz$',
-                    'start': '30'}
+                    'start': '30'}]
     '''Shell mode - only run what was specified via command line.
     Skip actionable conf fields (see timmy/nodes.py -> Node.conf_actionable);
     Skip rqfile import;
