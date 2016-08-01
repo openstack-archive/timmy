@@ -317,9 +317,9 @@ class Node(object):
     def logs_populate(self, timeout=5):
 
         def filter_by_re(item, string):
-            return (('include' not in item or
+            return (('include' not in item or not item['include'] or
                      re.search(item['include'], string)) and
-                    ('exclude' not in item or not
+                    ('exclude' not in item or not item['exclude'] or not
                      re.search(item['exclude'], string)))
 
         for item in self.logs:
@@ -790,7 +790,7 @@ class NodeManager(object):
                        ('cat /sys/class/net/', node.ip))
                 out, err, code = tools.launch_cmd(cmd, node.timeout)
                 if code != 0:
-                    self.logger.error("can't get iface speed: error: %s" % err)
+                    self.logger.warning("can't get iface speed: error: %s" % err)
                     return defspeed
                 try:
                     speed = int(out)
