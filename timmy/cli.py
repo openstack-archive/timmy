@@ -85,12 +85,25 @@ def parse_args():
                               ' Each argument must contain two strings -'
                               ' source file/path/mask and dest. file/path.'
                               ' For help on shell mode, read timmy/conf.py.'))
+    parser.add_argument('-L', '--get-logs', nargs=3, action='append',
+                        help=('Define specific logs to collect. Implies "-l".'
+                              ' Each -L option requires 4 values in the'
+                              ' following order: path, include, exclude.'
+                              ' See configuration doc for details on each of'
+                              ' these parameters. Values except path can be'
+                              ' skipped by passing empty strings. Example: -L'
+                              ' "/var/mylogs/" "" "exclude-string"'))
     parser.add_argument('--rqfile', help='Path to an rqfile in yaml format,'
                                          ' overrides default.')
     parser.add_argument('-l', '--logs',
                         help=('Collect logs from nodes. Logs are not collected'
                               ' by default due to their size.'),
-                        action='store_true', dest='getlogs')
+                        action='store_true')
+    parser.add_argument('--logs-no-default',
+                        help=('Do not use default log collection parameters,'
+                              ' only use what has been set up either via -L'
+                              ' or in rqfile(s).'),
+                        action='store_true')
     parser.add_argument('--fuel-ip', help='fuel ip address')
     parser.add_argument('--fuel-user', help='fuel username')
     parser.add_argument('--fuel-pass', help='fuel password')
@@ -123,7 +136,7 @@ def parse_args():
     parser.add_argument('-m', '--maxthreads', type=int, default=100,
                         help=('Maximum simultaneous nodes for command'
                               'execution.'))
-    parser.add_argument('-L', '--logs-maxthreads', type=int, default=100,
+    parser.add_argument('--logs-maxthreads', type=int, default=100,
                         help='Maximum simultaneous nodes for log collection.')
     parser.add_argument('-t', '--outputs-timestamp',
                         help='Add timestamp to outputs - allows accumulating'
@@ -184,7 +197,21 @@ def main(argv=None):
     if args.rqfile:
         conf['rqfile'] = args.rqfile
     if args.days:
-        conf['logs']['start'] = -args.days
+        conf['logs']['start'] = args.days
+    if args.logs_no_default:
+        conf['logs'] = []
+    if args.get_logs:
+        args.logs = True
+        if type(conf['logs']) is not list:
+            conf['logs'] = [conf['logs']]
+        for logs in args.get_logs:
+            logs_conf = {}
+            logs_conf['path'] = logs[0]
+            logs_conf['include'] = logs[1]
+            logs_conf['exclude'] = logs[2]
+            if args.days:
+                logs_conf['start'] = args.days
+            conf['logs'].append(logs_conf)
     if conf['shell_mode']:
         filter = conf['hard_filter']
         # config cleanup for shell mode
@@ -240,7 +267,7 @@ def main(argv=None):
         if not args.no_archive and nm.has(*Node.conf_archive_general):
             pretty_run(args.quiet, 'Creating outputs and files archive',
                        nm.create_archive_general, args=(60,))
-    if args.only_logs or args.getlogs:
+    if args.only_logs or args.logs:
         size = pretty_run(args.quiet, 'Calculating logs size',
                           nm.calculate_log_size, args=(args.maxthreads,))
         if size == 0:
@@ -249,7 +276,8 @@ def main(argv=None):
         enough = pretty_run(args.quiet, 'Checking free space',
                             nm.is_enough_space)
         if enough:
-            msg = 'Collecting and packing %dMB of logs' % (nm.alogsize / 1024)
+            print('Total logs size to collect: %dMB.' % (nm.alogsize / 1024))
+            msg = 'Collecting and packing logs'
             pretty_run(args.quiet, msg, nm.get_logs,
                        args=(conf['compress_timeout'],),
                        kwargs={'maxthreads': args.logs_maxthreads,
