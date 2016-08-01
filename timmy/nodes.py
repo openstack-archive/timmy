@@ -790,7 +790,7 @@ class NodeManager(object):
                        ('cat /sys/class/net/', node.ip))
                 out, err, code = tools.launch_cmd(cmd, node.timeout)
                 if code != 0:
-                    self.logger.warning("can't get iface speed: error: %s" % err)
+                    self.logger.warning("can't get iface speed: err: %s" % err)
                     return defspeed
                 try:
                     speed = int(out)
