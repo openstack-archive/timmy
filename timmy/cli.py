@@ -102,7 +102,7 @@ def parse_args():
     parser.add_argument('--logs-no-default',
                         help=('Do not use default log collection parameters,'
                               ' only use what has been set up either via -L'
-                              ' or in rqfile(s).'),
+                              ' or in rqfile(s). Implies "-l".'),
                         action='store_true')
     parser.add_argument('--fuel-ip', help='fuel ip address')
     parser.add_argument('--fuel-user', help='fuel username')
@@ -200,6 +200,7 @@ def main(argv=None):
         conf['logs']['start'] = args.days
     if args.logs_no_default:
         conf['logs'] = []
+        args.logs = True
     if args.get_logs:
         args.logs = True
         if type(conf['logs']) is not list:
