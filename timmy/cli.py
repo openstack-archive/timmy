@@ -57,6 +57,9 @@ def parse_args():
     parser.add_argument('-r', '--role', action='append',
                         help=('Can be specified multiple times.'
                               ' Run only on the specified role.'))
+    parser.add_argument('-i', '--id', type=int, action='append',
+                        help=('Can be specified multiple times.'
+                              ' Run only on the node(s) with given IDs.'))
     parser.add_argument('-d', '--days', type=int,
                         help=('Define log collection period in days.'
                               ' Timmy will collect only logs updated on or'
@@ -241,6 +244,8 @@ def main(argv=None):
         filter['roles'] = args.role
     if args.env is not None:
         filter['cluster'] = [args.env]
+    if args.id:
+        filter['id'] = args.id
     if args.outputs_timestamp:
         conf['outputs_timestamp'] = True
     if args.dir_timestamp:
