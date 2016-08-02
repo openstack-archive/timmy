@@ -60,12 +60,12 @@ def parse_args():
     parser.add_argument('-i', '--id', type=int, action='append',
                         help=('Can be specified multiple times.'
                               ' Run only on the node(s) with given IDs.'))
-    parser.add_argument('-d', '--days', type=int,
+    parser.add_argument('-d', '--days', type=int, metavar='NUMBER',
                         help=('Define log collection period in days.'
                               ' Timmy will collect only logs updated on or'
                               ' more recently then today minus the given'
                               ' number of days. Default - 30.'))
-    parser.add_argument('-G', '--get', action='append',
+    parser.add_argument('-G', '--get', action='append', metavar='PATH',
                         help=('Enables shell mode. Can be specified multiple'
                               ' times. Filemask to collect via "scp -r".'
                               ' Result is placed into a folder specified'
@@ -83,21 +83,24 @@ def parse_args():
                               ' parameter. For help on shell mode, read'
                               ' timmy/conf.py.') % Node.skey)
     parser.add_argument('-P', '--put', nargs=2, action='append',
+                        metavar=('SOURCE', 'DESTINATION'),
                         help=('Enables shell mode. Can be specified multiple'
                               ' times. Upload filemask via"scp -r" to node(s).'
                               ' Each argument must contain two strings -'
                               ' source file/path/mask and dest. file/path.'
                               ' For help on shell mode, read timmy/conf.py.'))
     parser.add_argument('-L', '--get-logs', nargs=3, action='append',
+                        metavar=('PATH', 'INCLUDE', 'EXCLUDE'),
                         help=('Define specific logs to collect. Implies "-l".'
-                              ' Each -L option requires 4 values in the'
+                              ' Each -L option requires 3 values in the'
                               ' following order: path, include, exclude.'
                               ' See configuration doc for details on each of'
                               ' these parameters. Values except path can be'
                               ' skipped by passing empty strings. Example: -L'
                               ' "/var/mylogs/" "" "exclude-string"'))
-    parser.add_argument('--rqfile', help='Path to an rqfile in yaml format,'
-                                         ' overrides default.')
+    parser.add_argument('--rqfile', metavar='PATH',
+                        help=('Path to an rqfile in yaml format, overrides'
+                              ' default.'))
     parser.add_argument('-l', '--logs',
                         help=('Collect logs from nodes. Logs are not collected'
                               ' by default due to their size.'),
@@ -137,9 +140,11 @@ def parse_args():
                               ' This option disables any -v parameters.'),
                         action='store_true')
     parser.add_argument('-m', '--maxthreads', type=int, default=100,
+                        metavar='NUMBER',
                         help=('Maximum simultaneous nodes for command'
                               'execution.'))
     parser.add_argument('--logs-maxthreads', type=int, default=100,
+                        metavar='NUMBER',
                         help='Maximum simultaneous nodes for log collection.')
     parser.add_argument('-t', '--outputs-timestamp',
                         help='Add timestamp to outputs - allows accumulating'
