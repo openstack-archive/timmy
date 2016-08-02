@@ -542,7 +542,7 @@ class NodeManager(object):
                         dst[k] = w_list(dst[k])
                         dst[k] += w_list(el[k][d])
                     else:
-                        dst[k] = w_list(el[k][d])
+                        dst[k] = el[k][d]
                 elif k.startswith(p) or k.startswith(once_p):
                     dst[k][d] = {attr: el[k][d]}
                 else:
