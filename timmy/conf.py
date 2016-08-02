@@ -34,6 +34,7 @@ def load_conf(filename):
     conf['fuel_port'] = '8000'
     conf['fuel_pass'] = 'admin'
     conf['fuel_tenant'] = 'admin'
+    conf['fuel_keystone_port'] = '5000'
     conf['fuelclient'] = True  # use fuelclient library by default
     conf['fuel_skip_proxy'] = True
     conf['timeout'] = 15

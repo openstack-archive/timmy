@@ -26,6 +26,7 @@ import logging
 import sys
 import re
 from datetime import datetime, date, timedelta
+import urllib2
 import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
@@ -438,6 +439,7 @@ class NodeManager(object):
             if self.conf['rqfile']:
                 self.import_rq()
         self.nodes = {}
+        self.token = None
         self.fuel_init()
         # save os environment variables
         environ = os.environ
@@ -644,6 +646,54 @@ class NodeManager(object):
                 self.logger.info('node: %s - release: %s' % (node.id,
                                                              node.release))
         return True
+
+    def auth_token(self):
+        '''Get keystone token to access Nailgun API. Requires Fuel 7.0+'''
+        if self.token:
+            return True
+        req_data = ('{ "auth": {'
+                    '  "scope": {'
+                    '    "project": {'
+                    '      "name": "%s",'
+                    '      "domain": { "id": "default" }'
+                    '    }'
+                    '  },'
+                    '  "identity": {'
+                    '    "methods": ["password"],'
+                    '    "password": {'
+                    '      "user": {'
+                    '        "name": "%s",'
+                    '        "domain": { "id": "default" },'
+                    '        "password": "%s"'
+                    '      }'
+                    '    }'
+                    '  }'
+                    '}}' % (self.conf['fuel_tenant'],
+                            self.conf['fuel_user'],
+                            self.conf['fuel_pass']))
+        req = urllib2.Request("http://%s:%s/v3/auth/tokens" %
+                              (self.conf['fuel_ip'],
+                               self.conf['fuel_keystone_port']), req_data,
+                              {'Content-Type': 'application/json'})
+        try:
+            token = urllib2.urlopen(req).info().getheader('X-Subject-Token')
+            self.token = token
+            return True
+        except:
+            return False
+
+    def get_api_request(self, request):
+        if self.auth_token():
+            url = "http://%s:%s/api/%s" % (self.conf['fuel_ip'],
+                                           self.conf['fuel_port'],
+                                           request)
+            req = urllib2.Request(url, None, {'X-Auth-Token': self.token})
+            try:
+                if urllib2.urlopen(req).getcode() == 200:
+                    return urllib2.urlopen(req).read()
+                else:
+                    self.logger.error('NodeManager: cannot get response'
+                                      ' from %s' % url)
 
     def get_nodes_cli(self):
         self.logger.info('use CLI for getting node information')
