@@ -31,24 +31,25 @@ import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
 
-try:
-    import fuelclient.client
-    if type(fuelclient.client.APIClient) is type:
-        # fuel 9.1+ (originally 10.0+)
-        from fuelclient.client import APIClient as FuelClient
-        FUEL_10 = True
-    elif type(fuelclient.client.APIClient) is fuelclient.client.Client:
-        # fuel 9.0 and below
-        from fuelclient.client import Client as FuelClient
-        FUEL_10 = False
-except:
-    FuelClient = None
-
-try:
-    from fuelclient.client import logger
-    logger.handlers = []
-except:
-    pass
+#try:
+#    import fuelclient.client
+#    if type(fuelclient.client.APIClient) is type:
+#        # fuel 9.1+ (originally 10.0+)
+#        from fuelclient.client import APIClient as FuelClient
+#        FUEL_10 = True
+#    elif type(fuelclient.client.APIClient) is fuelclient.client.Client:
+#        # fuel 9.0 and below
+#        from fuelclient.client import Client as FuelClient
+#        FUEL_10 = False
+#except:
+#    FuelClient = None
+#
+#try:
+#    from fuelclient.client import logger
+#    logger.handlers = []
+#except:
+#    pass
+FuelClient = None
 
 
 class Node(object):
@@ -474,7 +475,8 @@ class NodeManager(object):
         if nodes_json:
             self.nodes_json = tools.load_json_file(nodes_json)
         else:
-            if (not self.get_nodes_fuelclient() and
+            if (#not self.get_nodes_fuelclient() and
+                    not self.get_nodes_api() and
                     not self.get_nodes_cli()):
                 sys.exit(4)
         self.nodes_init()
@@ -482,18 +484,13 @@ class NodeManager(object):
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
                 node.filtered_out = True
-        if not conf['shell_mode']:
-            if not self.get_release_fuel_client():
-                self.get_release_cli()
+        if (#not self.get_release_fuel_client() and
+                not self.get_release_api() and
+                not self.get_release_cli()):
+            self.logger.warning('could not get Fuel and MOS versions')
+        else:
             self.nodes_reapply_conf()
             self.conf_assign_once()
-            if extended:
-                self.logger.info('NodeManager: extended mode enabled')
-                '''TO-DO: load smth like extended.yaml
-                do additional apply_conf(clean=False) with this yaml.
-                Move some stuff from rq.yaml to extended.yaml'''
-                pass
-        # restore os environment variables
         os.environ = environ
 
     def __str__(self):
@@ -608,6 +605,7 @@ class NodeManager(object):
         if not self.fuelclient:
             return False
         try:
+            self.logger.info('using fuelclient to get nodes json')
             self.nodes_json = self.fuelclient.get_request('nodes')
             self.logger.debug(self.nodes_json)
             return True
@@ -617,11 +615,28 @@ class NodeManager(object):
                                 exc_info=True)
             return False
 
+    def get_release_api(self):
+        self.logger.info('getting release via API')
+        version_json = self.get_api_request('version')
+        if version_json:
+            version = json.loads(version_json)
+            fuel = self.nodes[self.conf['fuel_ip']]
+            fuel.release = version['release']
+        else:
+            return False
+        clusters_json = self.get_api_request('clusters')
+        if clusters_json:
+            clusters = json.loads(clusters_json)
+            self.set_nodes_release(clusters)
+            return True
+        else:
+            return False
+
     def get_release_fuel_client(self):
         if not self.fuelclient:
             return False
+        self.logger.info('getting release via fuelclient')
         try:
-            self.logger.info('getting release from fuel')
             v = self.fuelclient.get_request('version')
             fuel_version = v['release']
             self.logger.debug('version response:%s' % v)
@@ -632,6 +647,10 @@ class NodeManager(object):
                                  "clusters information"))
             return False
         self.nodes[self.conf['fuel_ip']].release = fuel_version
+        self.set_nodes_release(clusters)
+        return True
+
+    def set_nodes_release(self, clusters):
         cldict = {}
         for cluster in clusters:
             cldict[cluster['id']] = cluster
@@ -645,7 +664,6 @@ class NodeManager(object):
                         node.release = 'n/a'
                 self.logger.info('node: %s - release: %s' % (node.id,
                                                              node.release))
-        return True
 
     def auth_token(self):
         '''Get keystone token to access Nailgun API. Requires Fuel 7.0+'''
@@ -688,15 +706,28 @@ class NodeManager(object):
                                            self.conf['fuel_port'],
                                            request)
             req = urllib2.Request(url, None, {'X-Auth-Token': self.token})
-            try:
-                if urllib2.urlopen(req).getcode() == 200:
-                    return urllib2.urlopen(req).read()
-                else:
-                    self.logger.error('NodeManager: cannot get response'
-                                      ' from %s' % url)
+            #try:
+            result = urllib2.urlopen(req)
+            code = result.getcode()
+            if code == 200:
+                return result.read()
+            else:
+                self.logger.error('NodeManager: cannot get API response'
+                                  ' from %s, code %s' % (url, code))
+            #except:
+            #    pass
+
+    def get_nodes_api(self):
+        self.logger.info('using API to get nodes json')
+        nodes_json = self.get_api_request('nodes')
+        if nodes_json:
+            self.nodes_json = json.loads(nodes_json)
+            return True
+        else:
+            return False
 
     def get_nodes_cli(self):
-        self.logger.info('use CLI for getting node information')
+        self.logger.info('using CLI to get nodes json')
         fuelnode = self.nodes[self.conf['fuel_ip']]
         fuel_node_cmd = ('fuel node list --json --user %s --password %s' %
                          (self.conf['fuel_user'],
