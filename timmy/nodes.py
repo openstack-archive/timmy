@@ -43,6 +43,12 @@ try:
 except:
     FuelClient = None
 
+try:
+    from fuelclient.client import logger
+    logger.handlers = []
+except:
+    pass
+
 
 class Node(object):
     ckey = 'cmds'
@@ -326,7 +332,7 @@ class Node(object):
 
         for item in self.logs:
             start_str = None
-            if 'start' in item or hasattr(self,'logs_days'):
+            if 'start' in item or hasattr(self, 'logs_days'):
                 if hasattr(self, 'logs_days') and 'start' not in item:
                     start = self.logs_days
                 else:
