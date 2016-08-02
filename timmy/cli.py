@@ -99,8 +99,8 @@ def parse_args():
                               ' skipped by passing empty strings. Example: -L'
                               ' "/var/mylogs/" "" "exclude-string"'))
     parser.add_argument('--rqfile', metavar='PATH', action='append',
-                        help=('Path to an rqfile in yaml format, overrides'
-                              ' default.'))
+                        help=('Can be specified multiple times. Path to'
+                              ' rqfile(s) in yaml format, overrides default.'))
     parser.add_argument('-l', '--logs',
                         help=('Collect logs from nodes. Logs are not collected'
                               ' by default due to their size.'),
