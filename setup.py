@@ -24,7 +24,7 @@ pname = project_name
 dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', pname)
 rqfiles = [(os.path.join(dtm, root), [os.path.join(root, f) for f in files])
            for root, dirs, files in os.walk('rq')]
-rqfiles.append((os.path.join(dtm, 'configs'), ['config.yaml', 'rq.yaml']))
+rqfiles.append((os.path.join(dtm, 'configs'), ['config.yaml']))
 package_data = True
 
 if os.environ.get("READTHEDOCS", False):
