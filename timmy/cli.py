@@ -98,7 +98,7 @@ def parse_args():
                               ' these parameters. Values except path can be'
                               ' skipped by passing empty strings. Example: -L'
                               ' "/var/mylogs/" "" "exclude-string"'))
-    parser.add_argument('--rqfile', metavar='PATH',
+    parser.add_argument('--rqfile', metavar='PATH', action='append',
                         help=('Path to an rqfile in yaml format, overrides'
                               ' default.'))
     parser.add_argument('-l', '--logs',
@@ -206,6 +206,7 @@ def main(argv=None):
         conf['rqfile'] = args.rqfile
     if args.days:
         conf['logs'][0]['start'] = args.days
+        conf['logs_days'] = args.days
     if args.logs_no_default:
         conf['logs'] = []
         args.logs = True

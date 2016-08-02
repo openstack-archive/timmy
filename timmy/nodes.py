@@ -325,9 +325,12 @@ class Node(object):
                      re.search(item['exclude'], string)))
 
         for item in self.logs:
-            start_str = ''
-            if 'start' in item:
-                start = item['start']
+            start_str = None
+            if 'start' in item or hasattr(self,'logs_days'):
+                if hasattr(self, 'logs_days') and 'start' not in item:
+                    start = self.logs_days
+                else:
+                    start = item['start']
                 if any([type(start) is str and re.match(r'-?\d+', start),
                         type(start) is int]):
                     days = abs(int(str(start)))
@@ -535,7 +538,11 @@ class NodeManager(object):
                 dst[k] = {}
             if d in el[k]:
                 if k == attr:
-                    dst[k] = el[k][d]
+                    if k in Node.conf_appendable:
+                        dst[k] = w_list(dst[k])
+                        dst[k] += w_list(el[k][d])
+                    else:
+                        dst[k] = w_list(el[k][d])
                 elif k.startswith(p) or k.startswith(once_p):
                     dst[k][d] = {attr: el[k][d]}
                 else:
@@ -554,13 +561,20 @@ class NodeManager(object):
             else:
                 dst[k][attr] = el[k]
 
+        def merge_rq(rqfile, dst):
+            src = tools.load_yaml_file(rqfile)
+            p = Node.conf_match_prefix
+            once_p = Node.conf_once_prefix + p
+            d = Node.conf_default_key
+            for attr in src:
+                r_sub(attr, src, attr, d, p, once_p, dst)
+
         dst = self.conf
-        src = tools.load_yaml_file(self.conf['rqfile'])
-        p = Node.conf_match_prefix
-        once_p = Node.conf_once_prefix + p
-        d = Node.conf_default_key
-        for attr in src:
-            r_sub(attr, src, attr, d, p, once_p, dst)
+        if type(self.conf['rqfile']) is list:
+            for rqfile in self.conf['rqfile']:
+                merge_rq(rqfile, dst)
+        else:
+            merge_rq(self.conf['rqfile'], dst)
 
     def fuel_init(self):
         if not self.conf['fuel_ip']:
