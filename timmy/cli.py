@@ -81,7 +81,7 @@ def parse_args():
                               ' Script must be placed in "%s" folder inside'
                               ' a path specified by "rqdir" configuration'
                               ' parameter. For help on shell mode, read'
-                              ' timmy/conf.py.' % Node.skey))
+                              ' timmy/conf.py.') % Node.skey)
     parser.add_argument('-P', '--put', nargs=2, action='append',
                         metavar=('SOURCE', 'DESTINATION'),
                         help=('Enables shell mode. Can be specified multiple'
@@ -109,10 +109,10 @@ def parse_args():
                               ' only use what has been provided either via -L'
                               ' or in rqfile(s). Implies "-l".'))
     parser.add_argument('--logs-speed', type=int, metavar='MBIT/S',
-                        help=('Limit log collection bandwidth to 90% of the'
+                        help=('Limit log collection bandwidth to 90%% of the'
                               ' specified speed in Mbit/s.'))
     parser.add_argument('--logs-speed-auto', action='store_true',
-                        help=('Limit log collection bandwidth to 90% of local'
+                        help=('Limit log collection bandwidth to 90%% of local'
                               ' admin interface speed. If speed detection'
                               ' fails, a default value will be used. See'
                               ' "logs_speed_default" in conf.py.'))
