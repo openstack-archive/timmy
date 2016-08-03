@@ -81,7 +81,7 @@ def parse_args():
                               ' Script must be placed in "%s" folder inside'
                               ' a path specified by "rqdir" configuration'
                               ' parameter. For help on shell mode, read'
-                              ' timmy/conf.py.') % Node.skey)
+                              ' timmy/conf.py.' % Node.skey))
     parser.add_argument('-P', '--put', nargs=2, action='append',
                         metavar=('SOURCE', 'DESTINATION'),
                         help=('Enables shell mode. Can be specified multiple'
@@ -153,18 +153,18 @@ def parse_args():
                         metavar='NUMBER',
                         help='Maximum simultaneous nodes for log collection.')
     parser.add_argument('-t', '--outputs-timestamp',
-                        help='Add timestamp to outputs - allows accumulating'
+                        help=('Add timestamp to outputs - allows accumulating'
                              ' outputs of identical commands/scripts across'
                              ' runs. Only makes sense with --no-clean for'
-                             ' subsequent runs.',
+                             ' subsequent runs.'),
                         action='store_true')
     parser.add_argument('-T', '--dir-timestamp',
-                        help='Add timestamp to output folders (defined by'
+                        help=('Add timestamp to output folders (defined by'
                              ' "outdir" and "archive_dir" config options).'
                              ' Makes each run store results in new folders.'
                              ' This way Timmy will always preserve previous'
                              ' results. Do not forget to clean up the results'
-                             ' manually when using this option.',
+                             ' manually when using this option.'),
                         action='store_true')
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help=('This works for -vvvv, -vvv, -vv, -v, -v -v,'
