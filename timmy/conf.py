@@ -62,6 +62,9 @@ def load_conf(filename):
     conf['logs'] = [{'path': '/var/log',
                     'exclude': '\.[^12]\.gz$|\.\d{2,}\.gz$'}]
     conf['logs_days'] = 30
+    conf['logs_speed_limit'] = False  # enable speed limiting of log transfers
+    conf['logs_speed_default'] = 100  # Mbit/s, used when autodetect fails
+    conf['logs_speed'] = 0  # To manually specify max bandwidth in Mbit/s
     '''Shell mode - only run what was specified via command line.
     Skip actionable conf fields (see timmy/nodes.py -> Node.conf_actionable);
     Skip rqfile import;

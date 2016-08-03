@@ -101,15 +101,21 @@ def parse_args():
     parser.add_argument('--rqfile', metavar='PATH', action='append',
                         help=('Can be specified multiple times. Path to'
                               ' rqfile(s) in yaml format, overrides default.'))
-    parser.add_argument('-l', '--logs',
+    parser.add_argument('-l', '--logs', action='store_true',
                         help=('Collect logs from nodes. Logs are not collected'
-                              ' by default due to their size.'),
-                        action='store_true')
-    parser.add_argument('--logs-no-default',
+                              ' by default due to their size.'))
+    parser.add_argument('--logs-no-default', action='store_true',
                         help=('Do not use default log collection parameters,'
-                              ' only use what has been set up either via -L'
-                              ' or in rqfile(s). Implies "-l".'),
-                        action='store_true')
+                              ' only use what has been provided either via -L'
+                              ' or in rqfile(s). Implies "-l".'))
+    parser.add_argument('--logs-speed', type=int, metavar='MBIT/S',
+                        help=('Limit log collection bandwidth to 90% of the'
+                              ' specified speed in Mbit/s.'))
+    parser.add_argument('--logs-speed-auto', action='store_true',
+                        help=('Limit log collection bandwidth to 90% of local'
+                              ' admin interface speed. If speed detection'
+                              ' fails, a default value will be used. See'
+                              ' "logs_speed_default" in conf.py.'))
     parser.add_argument('--fuel-ip', help='fuel ip address')
     parser.add_argument('--fuel-user', help='fuel username')
     parser.add_argument('--fuel-pass', help='fuel password')
@@ -220,6 +226,10 @@ def main(argv=None):
             if args.days:
                 logs_conf['start'] = args.days
             conf['logs'].append(logs_conf)
+    if args.logs_speed or args.logs_speed_auto:
+        conf['logs_speed_limit'] = True
+    if args.logs_speed:
+        conf['logs_speed'] = abs(args.logs_speed)
     if conf['shell_mode']:
         filter = conf['hard_filter']
         # config cleanup for shell mode
@@ -286,7 +296,7 @@ def main(argv=None):
         enough = pretty_run(args.quiet, 'Checking free space',
                             nm.is_enough_space)
         if enough:
-            print('Total logs size to collect: %dMB.' % (nm.alogsize / 1024))
+            print('Total logs size to collect: %dMB.' % (nm.alogsize / 1000))
             msg = 'Collecting and packing logs'
             pretty_run(args.quiet, msg, nm.get_logs,
                        args=(conf['compress_timeout'],),

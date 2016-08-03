@@ -31,25 +31,24 @@ import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
 
-#try:
-#    import fuelclient.client
-#    if type(fuelclient.client.APIClient) is type:
-#        # fuel 9.1+ (originally 10.0+)
-#        from fuelclient.client import APIClient as FuelClient
-#        FUEL_10 = True
-#    elif type(fuelclient.client.APIClient) is fuelclient.client.Client:
-#        # fuel 9.0 and below
-#        from fuelclient.client import Client as FuelClient
-#        FUEL_10 = False
-#except:
-#    FuelClient = None
-#
-#try:
-#    from fuelclient.client import logger
-#    logger.handlers = []
-#except:
-#    pass
-FuelClient = None
+try:
+    import fuelclient.client
+    if type(fuelclient.client.APIClient) is type:
+        # fuel 9.1+ (originally 10.0+)
+        from fuelclient.client import APIClient as FuelClient
+        FUEL_10 = True
+    elif type(fuelclient.client.APIClient) is fuelclient.client.Client:
+        # fuel 9.0 and below
+        from fuelclient.client import Client as FuelClient
+        FUEL_10 = False
+except:
+    FuelClient = None
+
+try:
+    from fuelclient.client import logger
+    logger.handlers = []
+except:
+    pass
 
 
 class Node(object):
@@ -475,7 +474,7 @@ class NodeManager(object):
         if nodes_json:
             self.nodes_json = tools.load_json_file(nodes_json)
         else:
-            if (#not self.get_nodes_fuelclient() and
+            if (not self.get_nodes_fuelclient() and
                     not self.get_nodes_api() and
                     not self.get_nodes_cli()):
                 sys.exit(4)
@@ -484,7 +483,7 @@ class NodeManager(object):
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
                 node.filtered_out = True
-        if (#not self.get_release_fuel_client() and
+        if (not self.get_release_fuel_client() and
                 not self.get_release_api() and
                 not self.get_release_cli()):
             self.logger.warning('could not get Fuel and MOS versions')
@@ -706,16 +705,16 @@ class NodeManager(object):
                                            self.conf['fuel_port'],
                                            request)
             req = urllib2.Request(url, None, {'X-Auth-Token': self.token})
-            #try:
-            result = urllib2.urlopen(req)
-            code = result.getcode()
-            if code == 200:
-                return result.read()
-            else:
-                self.logger.error('NodeManager: cannot get API response'
-                                  ' from %s, code %s' % (url, code))
-            #except:
-            #    pass
+            try:
+                result = urllib2.urlopen(req)
+                code = result.getcode()
+                if code == 200:
+                    return result.read()
+                else:
+                    self.logger.error('NodeManager: cannot get API response'
+                                      ' from %s, code %s' % (url, code))
+            except:
+                pass
 
     def get_nodes_api(self):
         self.logger.info('using API to get nodes json')
@@ -870,10 +869,13 @@ class NodeManager(object):
             self.logger.error("can't get free space\nouts: %s" %
                               outs)
             return False
-        self.logger.info('logsize: %s Kb, free space: %s Kb' %
-                         (self.alogsize, fs))
+        self.logger.info('logsize: %s Kb * %s, free space: %s Kb' %
+                         (self.alogsize, coefficient, fs))
         if (self.alogsize*coefficient > fs):
-            self.logger.error('Not enough space on device')
+            self.logger.error('Not enough space on device, logsize: %s Kb * %s'
+                              ', free space: %s Kb' % (self.alogsize,
+                                                       coefficient,
+                                                       fs))
             return False
         else:
             return True
@@ -893,7 +895,7 @@ class NodeManager(object):
         if code != 0:
             self.logger.error("Can't create archive %s" % (errs))
 
-    def find_adm_interface_speed(self, defspeed):
+    def find_adm_interface_speed(self):
         '''Returns interface speed through which logs will be dowloaded'''
         for node in self.nodes.values():
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
@@ -902,22 +904,27 @@ class NodeManager(object):
                 out, err, code = tools.launch_cmd(cmd, node.timeout)
                 if code != 0:
                     self.logger.warning("can't get iface speed: err: %s" % err)
-                    return defspeed
+                    return self.conf['logs_speed_default']
                 try:
                     speed = int(out)
                 except:
-                    speed = defspeed
+                    speed = self.conf['logs_speed_default']
                 return speed
 
     @run_with_lock
-    def get_logs(self, timeout, fake=False, maxthreads=10, speed=100):
+    def get_logs(self, timeout, fake=False, maxthreads=10):
         if fake:
             self.logger.info('fake = True, skipping')
             return
         txtfl = []
-        speed = self.find_adm_interface_speed(speed)
-        speed = int(speed * 0.9 / min(maxthreads, len(self.nodes)))
-        pythonslowpipe = tools.slowpipe % speed
+        if self.conf['logs_speed_limit']:
+            if self.conf['logs_speed'] > 0:
+                speed = self.conf['logs_speed']
+            else:
+                speed = self.find_adm_interface_speed()
+            speed = int(speed * 0.9 / min(maxthreads, len(self.nodes)))
+            py_slowpipe = tools.slowpipe % speed
+            limitcmd = "| python -c '%s'; exit ${PIPESTATUS}" % py_slowpipe
         run_items = []
         for node in [n for n in self.nodes.values() if not n.filtered_out]:
             if not node.logs_dict():
@@ -933,9 +940,9 @@ class NodeManager(object):
                 input += '%s\0' % fn.lstrip(os.path.abspath(os.sep))
             cmd = ("tar --gzip -C %s --create --warning=no-file-changed "
                    " --file - --null --files-from -" % os.path.abspath(os.sep))
-            if not (node.ip == 'localhost' or node.ip.startswith('127.')):
-                cmd = ' '.join([cmd, "| python -c '%s'; exit ${PIPESTATUS}" %
-                                pythonslowpipe])
+            if self.conf['logs_speed_limit']:
+                if  not (node.ip == 'localhost' or node.ip.startswith('127.')):
+                    cmd = ' '.join([cmd, limitcmd])
             args = {'cmd': cmd,
                     'timeout': timeout,
                     'outfile': node.archivelogsfile,
