@@ -65,7 +65,6 @@ class Node(object):
     conf_once_prefix = 'once_'
     conf_match_prefix = 'by_'
     conf_default_key = '__default'
-    conf_priority_section = conf_match_prefix + 'id'
     header = ['node-id', 'env', 'ip', 'mac', 'os',
               'roles', 'online', 'status', 'name', 'fqdn']
 
@@ -127,39 +126,38 @@ class Node(object):
             else:
                 setattr(self, k, deepcopy(v))
 
-        def r_apply(el, p, p_s, c_a, k_d, o, d, clean=False):
+        def r_apply(el, p, c_a, k_d, o, d, clean=False):
             # apply normal attributes
-            for k in [k for k in el if k != p_s and not k.startswith(p)]:
+            for k in [k for k in el if not k.startswith(p)]:
                 if el == conf and clean:
                     apply(k, el[k], c_a, k_d, o, default=True)
                 else:
                     apply(k, el[k], c_a, k_d, o)
-            # apply match attributes (by_xxx except by_id)
-            for k in [k for k in el if k != p_s and k.startswith(p)]:
+            # apply match attributes
+            for k in [k for k in el if k.startswith(p)]:
                 attr_name = k[len(p):]
                 if hasattr(self, attr_name):
                     attr = w_list(getattr(self, attr_name))
+                    matching_keys = []
+                    # negative matching ("not_")
+                    for nk in [nk for nk in el[k] if nk.startswith('not_')]:
+                        key = nk[4:]
+                        if key not in attr:
+                            matching_keys.append(nk)
+                    # positive matching
                     for v in attr:
                         if v in el[k]:
-                            subconf = el[k][v]
-                            if d in el:
-                                d_conf = el[d]
-                                for a in d_conf:
-                                    apply(a, d_conf[a], c_a, k_d, o)
-                            r_apply(subconf, p, p_s, c_a, k_d, o, d)
-            # apply priority attributes (by_id)
-            if p_s in el:
-                if self.id in el[p_s]:
-                    p_conf = el[p_s][self.id]
-                    if d in el[p_s]:
-                        d_conf = el[p_s][d]
-                        for k in d_conf:
-                            apply(k, d_conf[k], c_a, k_d, o)
-                    for k in [k for k in p_conf if k != d]:
-                        apply(k, p_conf[k], c_a, k_d, o, default=True)
+                            matching_keys.append(v)
+                    # apply matching keys
+                    for mk in matching_keys:
+                        subconf = el[k][mk]
+                        if d in el:
+                            d_conf = el[d]
+                            for a in d_conf:
+                                apply(a, d_conf[a], c_a, k_d, o)
+                        r_apply(subconf, p, c_a, k_d, o, d)
 
         p = Node.conf_match_prefix
-        p_s = Node.conf_priority_section
         c_a = Node.conf_appendable
         k_d = Node.conf_keep_default
         d = Node.conf_default_key
@@ -169,7 +167,7 @@ class Node(object):
             duplication if this function gets called more than once'''
             for f in set(c_a).intersection(k_d):
                 setattr(self, f, [])
-        r_apply(conf, p, p_s, c_a, k_d, overridden, d, clean=clean)
+        r_apply(conf, p, c_a, k_d, overridden, d, clean=clean)
 
     def get_release(self):
         if self.id == 0:
@@ -566,7 +564,11 @@ class NodeManager(object):
                 dst[k][attr] = el[k]
 
         def merge_rq(rqfile, dst):
-            src = tools.load_yaml_file(rqfile)
+            if os.path.sep in rqfile:
+                src = tools.load_yaml_file(rqfile)
+            else:
+                f = os.path.join(self.rqdir, rqfile)
+                src = tools.load_yaml_file(f)
             p = Node.conf_match_prefix
             once_p = Node.conf_once_prefix + p
             d = Node.conf_default_key

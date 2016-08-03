@@ -13,8 +13,20 @@ Some of the parameters available in configuration file:
 * **fuel_ip** the IP address of the master node in the environment
 * **fuel_user** username to use for accessing Nailgun API
 * **fuel_pass** password to access Nailgun API
-* **rqdir** the path of *rqdir*, the directory containing scripts to execute and filelists to pass to rsync
-* **out_dir** directory to store output data
+* **fuel_tenant** Fuel Keystone tenant to use when accessing Nailgun API
+* **fuel_port** port to use when connecting to Fuel Nailgun API
+* **fuel_keystone_port** port to use when getting a Keystone token to access Nailgun API
+* **fuelclient** True/False - whether to use fuelclient library to access Nailgun API
+* **fuel_skip_proxy** True/False - ignore ``http(s)_proxy`` environment variables when connecting to Nailgun API
+* **rqdir** the path to the directory containing rqfiles, scripts to execute, and filelists to pass to rsync
+* **rqfile** path(s) to rqfile(s) containing actions and/or other configuration parameters. Use list if more than one file is specifed.
+* **logs_days** how many past days of logs to collect. This option will set **start** parameter for each **logs** action if not defined in it.
+* **logs_speed_limit** True/False - enable speed limiting of log transfers (total transfer speed limit, not per-node)
+* **logs_speed_default** Mbit/s - used when autodetect fails
+* **logs_speed** Mbit/s - manually specify max bandwidth
+* **do_print_results** print outputs of commands and scripts to stdout
+* **clean** True/False - erase previous results in outdir and archive_dir dir, if any
+* **outdir** directory to store output data
 * **archive_dir** directory to put resulting archives into
 * **timeout** timeout for SSH commands and scripts in seconds
 
@@ -35,7 +47,7 @@ The following actions are available for definition:
     * **INFO**: Scripts are not copied to the destination system - script code is passed as stdin to `bash -s` executed via ssh or locally. Therefore passing parameters to scripts is not supported (unlike cmds where you can write any Bash string). You can use variables in your scripts instead. Scripts are executed in the following order: all scripts without variables, sorted by their full filename, then all scripts with variables, also sorted by full filename. Therefore if the order matters, it's better to put all scripts into the same folder and name them according to the order in which you want them executed on the same node. Mind that scripts with variables are executed after all scripts without variables. If you need to mix scripts with variables and without and maintain order, just use dict structure for all scripts, and set `null` as the value for those which do not need variables.
 * **files** - a list of filenames to collect. passed to ``scp``. Supports wildcards.
 * **filelists** - a list of filelist filenames located on a local system. Filelist is a text file containing files and directories to collect, passed to rsync. Does not support wildcards. If the filename does not contain path separator, the filelist is expected to be located inside ``rqdir/filelists``. Otherwise the provided path is used to read the filelist.
-* **log_files**
+* **logs**
     * **path** - base path to scan for logs
     * **include** - regexp string to match log files against for inclusion (if not set = include all)
     * **exclude** - regexp string to match log files against. Excludes matched files from collection.
@@ -81,6 +93,16 @@ It is possible to define special **by_<parameter-name>** dicts in config to (re)
       cmds: {'check-uptime': 'uptime'}
 
 In this example for any controller node, cmds setting will be reset to the value above. For nodes without controller role, default (none) values will be used.
+
+Negative matches are possible via **not_** prefix:
+
+::
+
+  by_roles:
+    not_fuel:
+      cmds: {'check-uptime': 'uptime'}
+
+In this example **uptime** command will be executed on all nodes except Fuel server.
 
 It is also possible to define a special **once_by_<parameter-name>** which works similarly, but will only result in attributes being assigned to a single (first in the list) matching node. Example:
 
@@ -129,8 +151,7 @@ Configuration is assembled and applied in a specific order:
 3. **rqfile**, if defined (default - ``rq.yaml``), is converted and injected into the configuration. At this stage the configuration is in its final form.
 4. for every node, configuration is applied, except ``once_by_`` directives:
     1. first the top-level attributes are set
-    2. then ``by_<attribute-name>`` parameters except ``by_id`` are iterated to override or append(accumulate) the attributes
-    3. then ``by_id`` is iterated to override any matching attributes, redefining what was set before
+    2. then ``by_<attribute-name>`` parameters are iterated to override settings and append(accumulate) actions
 5. finally ``once_by_`<attribute-name>`` parameters are applied - only for one matching node for any set of matching values. This is useful, for example, if you want a specific file or command from only a single node matching a specific role, like running ``nova list`` only on one controller.
 
 Once you are done with the configuration, you might want to familiarize yourself with :doc:`Usage </usage>`.
