@@ -943,7 +943,7 @@ class NodeManager(object):
             cmd = ("tar --gzip -C %s --create --warning=no-file-changed "
                    " --file - --null --files-from -" % os.path.abspath(os.sep))
             if self.conf['logs_speed_limit']:
-                if  not (node.ip == 'localhost' or node.ip.startswith('127.')):
+                if not (node.ip == 'localhost' or node.ip.startswith('127.')):
                     cmd = ' '.join([cmd, limitcmd])
             args = {'cmd': cmd,
                     'timeout': timeout,

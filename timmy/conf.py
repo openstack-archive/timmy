@@ -40,14 +40,13 @@ def load_conf(filename):
     conf['timeout'] = 15
     conf['prefix'] = 'nice -n 19 ionice -c 3'
     rqdir = 'rq'
-    rqfile = 'rq/default.yaml'
+    rqfile = 'default.yaml'
     dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', 'timmy')
     if os.path.isdir(os.path.join(dtm, rqdir)):
         conf['rqdir'] = os.path.join(dtm, rqdir)
-        conf['rqfile'] = os.path.join(conf['rqdir'], rqfile)
     else:
         conf['rqdir'] = rqdir
-        conf['rqfile'] = rqfile
+    conf['rqfile'] = os.path.join(conf['rqdir'], rqfile)
     conf['compress_timeout'] = 3600
     conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
     conf['archive_dir'] = os.path.join(gettempdir(), 'timmy', 'archives')
