@@ -47,6 +47,9 @@ def parse_args():
                         help=('Path to a json file retrieved via'
                               ' "fuel node --json". Useful to speed up'
                               ' initialization, skips "fuel node" call.'))
+    parser.add_argument('--fuel-ip', help='fuel ip address')
+    parser.add_argument('--fuel-user', help='fuel username')
+    parser.add_argument('--fuel-pass', help='fuel password')
     parser.add_argument('-o', '--dest-file',
                         help=('Output filename for the archive in tar.gz'
                               ' format for command outputs and collected'
@@ -119,9 +122,13 @@ def parse_args():
                               ' admin interface speed. If speed detection'
                               ' fails, a default value will be used. See'
                               ' "logs_speed_default" in conf.py.'))
-    parser.add_argument('--fuel-ip', help='fuel ip address')
-    parser.add_argument('--fuel-user', help='fuel username')
-    parser.add_argument('--fuel-pass', help='fuel password')
+    parser.add_argument('--logs-coeff', type=float, metavar='RATIO',
+                        help=('Estimated logs compression ratio - this value'
+                              ' is used during free space check. Set to a'
+                              ' lower value (default - 1.05) to collect logs'
+                              ' of a total size larger than locally available'
+                              '. Values lower than 0.3 are not recommended'
+                              ' and may result in filling up local disk.'))
     parser.add_argument('--fuel-proxy',
                         help='use os system proxy variables for fuelclient',
                         action='store_true')
@@ -189,7 +196,7 @@ def main(argv=None):
     args = parser.parse_args(argv[1:])
     if args.version:
         print(version)
-        exit(0)
+        sys.exit(0)
     loglevels = [logging.WARNING, logging.INFO, logging.DEBUG]
     if args.quiet and not args.log_file:
         args.verbose = 0
@@ -236,6 +243,8 @@ def main(argv=None):
         conf['logs_speed_limit'] = True
     if args.logs_speed:
         conf['logs_speed'] = abs(args.logs_speed)
+    if args.logs_coeff:
+        conf['logs_size_coefficient'] = args.logs_coeff
     if conf['shell_mode']:
         filter = conf['hard_filter']
         # config cleanup for shell mode
@@ -281,6 +290,19 @@ def main(argv=None):
                     NodeManager,
                     kwargs={'conf': conf, 'extended': args.extended,
                             'nodes_json': args.nodes_json})
+    if args.only_logs or args.logs:
+        size = pretty_run(args.quiet, 'Calculating logs size',
+                          nm.calculate_log_size, args=(args.maxthreads,))
+        if size == 0:
+            logger.warning('Size zero - no logs to collect.')
+        else:
+            print('Total logs size to collect: %dMB.' % (size / 1000))
+            enough = pretty_run(args.quiet, 'Checking free space',
+                                nm.is_enough_space)
+            if not enough:
+                logger.error('Not enough space for logs in "%s", exiting.' %
+                             nm.conf['archive_dir'])
+                return 2
     if not args.only_logs:
         if nm.has(Node.pkey):
             pretty_run(args.quiet, 'Uploading files', nm.put_files)
@@ -293,24 +315,12 @@ def main(argv=None):
         if not args.no_archive and nm.has(*Node.conf_archive_general):
             pretty_run(args.quiet, 'Creating outputs and files archive',
                        nm.create_archive_general, args=(60,))
-    if args.only_logs or args.logs:
-        size = pretty_run(args.quiet, 'Calculating logs size',
-                          nm.calculate_log_size, args=(args.maxthreads,))
-        if size == 0:
-            logger.warning('Size zero - no logs to collect.')
-            return
-        enough = pretty_run(args.quiet, 'Checking free space',
-                            nm.is_enough_space)
-        if enough:
-            print('Total logs size to collect: %dMB.' % (nm.alogsize / 1000))
-            msg = 'Collecting and packing logs'
-            pretty_run(args.quiet, msg, nm.get_logs,
-                       args=(conf['compress_timeout'],),
-                       kwargs={'maxthreads': args.logs_maxthreads,
-                               'fake': args.fake_logs})
-        else:
-            logger.warning(('Not enough space for logs in "%s", skipping'
-                            'log collection.') % nm.conf['archive_dir'])
+    if (args.only_logs or args.logs) and enough:
+        msg = 'Collecting and packing logs'
+        pretty_run(args.quiet, msg, nm.get_logs,
+                   args=(conf['compress_timeout'],),
+                   kwargs={'maxthreads': args.logs_maxthreads,
+                           'fake': args.fake_logs})
     logger.info("Nodes:\n%s" % nm)
     if not args.quiet:
         print('Run complete. Node information:')
@@ -327,7 +337,6 @@ def main(argv=None):
     if all([not args.no_archive, nm.has(*Node.conf_archive_general),
             not args.quiet]):
         print('Archives available in "%s".' % nm.conf['archive_dir'])
-    return 0
 
 if __name__ == '__main__':
-    exit(main(sys.argv))
+    sys.exit(main(sys.argv))
