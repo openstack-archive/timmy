@@ -22,6 +22,7 @@ import sys
 import os
 from timmy.conf import load_conf
 from timmy.tools import interrupt_wrapper
+from timmy.env import version
 
 
 def pretty_run(quiet, msg, f, args=[], kwargs={}):
@@ -38,6 +39,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
                                                   ' manipulation tool'))
+    parser.add_argument('-V', '--version', action='store_true',
+                        help='Print Timmy version and exit.')
     parser.add_argument('-c', '--config',
                         help='Path to a YAML configuration file.')
     parser.add_argument('-j', '--nodes-json',
@@ -184,6 +187,9 @@ def main(argv=None):
         argv = sys.argv
     parser = parse_args()
     args = parser.parse_args(argv[1:])
+    if args.version:
+        print(version)
+        exit(0)
     loglevels = [logging.WARNING, logging.INFO, logging.DEBUG]
     if args.quiet and not args.log_file:
         args.verbose = 0
