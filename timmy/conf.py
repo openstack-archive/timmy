@@ -24,7 +24,7 @@ def load_conf(filename):
     """Configuration parameters"""
     conf = {}
     conf['hard_filter'] = {}
-    conf['soft_filter'] = {'status': ['ready', 'discover'], 'online': True}
+    conf['soft_filter'] = {'online': True}
     conf['ssh_opts'] = ['-oConnectTimeout=2', '-oStrictHostKeyChecking=no',
                         '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
                         '-lroot', '-oBatchMode=yes']
