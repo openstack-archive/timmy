@@ -94,12 +94,12 @@ It is possible to define special **by_<parameter-name>** dicts in config to (re)
 
 In this example for any controller node, cmds setting will be reset to the value above. For nodes without controller role, default (none) values will be used.
 
-Negative matches are possible via **not_** prefix:
+Negative matches are possible via **no_** prefix:
 
 ::
 
   by_roles:
-    not_fuel:
+    no_fuel:
       cmds: {'check-uptime': 'uptime'}
 
 In this example **uptime** command will be executed on all nodes except Fuel server.

@@ -139,8 +139,8 @@ class Node(object):
                 if hasattr(self, attr_name):
                     attr = w_list(getattr(self, attr_name))
                     matching_keys = []
-                    # negative matching ("not_")
-                    for nk in [nk for nk in el[k] if nk.startswith('not_')]:
+                    # negative matching ("no_")
+                    for nk in [nk for nk in el[k] if nk.startswith('no_')]:
                         key = nk[4:]
                         if key not in attr:
                             matching_keys.append(nk)
