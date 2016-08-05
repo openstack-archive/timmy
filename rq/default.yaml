@@ -1,5 +1,5 @@
 files:
-  __default: ['/etc/resolv.conf', '/etc/hiera', '/etc/mcollective', '/etc/astute.yaml', '/root/anaconda*', '/root/*.log', '/root/*.ks', '/var/lib/puppet/state/last_run_summary.yaml', '/var/run/pcap_dir', '/var/lib/cloud']
+  __default: ['/etc/resolv.conf', '/etc/mcollective', '/etc/astute.yaml', '/root/anaconda*', '/root/*.log', '/root/*.ks', '/var/lib/puppet/state/last_run_summary.yaml', '/var/run/pcap_dir', '/var/lib/cloud']
   by_roles:
     controller: ['/etc/apache2', '/etc/keystone', '/etc/swift']
     fuel: ['/etc/astute', '/etc/dnsmasq.conf', '/etc/centos-release', '/etc/fuel_build_number', '/etc/fuel_build_id', '/etc/cobbler', '/etc/cobbler.dnsmasq.conf', '/root/*.log']
