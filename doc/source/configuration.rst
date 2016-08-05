@@ -24,6 +24,7 @@ Some of the parameters available in configuration file:
 * **logs_speed_limit** True/False - enable speed limiting of log transfers (total transfer speed limit, not per-node)
 * **logs_speed_default** Mbit/s - used when autodetect fails
 * **logs_speed** Mbit/s - manually specify max bandwidth
+* **logs_size_coefficient** a float value used to check local free space; 'logs size * coefficient' must be > free space; values lower than 0.3 are not recommended and will likely cause local disk fillup during log collection
 * **do_print_results** print outputs of commands and scripts to stdout
 * **clean** True/False - erase previous results in outdir and archive_dir dir, if any
 * **outdir** directory to store output data
