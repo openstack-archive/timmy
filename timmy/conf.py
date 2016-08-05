@@ -46,7 +46,8 @@ def load_conf(filename):
         conf['rqdir'] = os.path.join(dtm, rqdir)
     else:
         conf['rqdir'] = rqdir
-    conf['rqfile'] = os.path.join(conf['rqdir'], rqfile)
+    conf['rqfile'] = [{'file': os.path.join(conf['rqdir'], rqfile),
+                      'default': True}]
     conf['compress_timeout'] = 3600
     conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
     conf['archive_dir'] = os.path.join(gettempdir(), 'timmy', 'archives')
@@ -58,8 +59,10 @@ def load_conf(filename):
     conf['scripts'] = []
     conf['files'] = []
     conf['filelists'] = []
-    conf['logs'] = [{'path': '/var/log',
-                    'exclude': '\.[^12]\.gz$|\.\d{2,}\.gz$'}]
+    conf['logs'] = []
+    conf['logs_no_default'] = False  # skip logs defined in default.yaml
+    conf['logs_fuel_remote_dir'] = '/var/log/docker-logs/remote'
+    conf['logs_no_fuel_remote'] = False  # do not collect /var/log/remote
     conf['logs_days'] = 30
     conf['logs_speed_limit'] = False  # enable speed limiting of log transfers
     conf['logs_speed_default'] = 100  # Mbit/s, used when autodetect fails

@@ -114,6 +114,8 @@ def parse_args():
                         help=('Do not use default log collection parameters,'
                               ' only use what has been provided either via -L'
                               ' or in rqfile(s). Implies "-l".'))
+    parser.add_argument('--logs-no-fuel-remote', action='store_true',
+                        help='Do not collect remote logs from Fuel.')
     parser.add_argument('--logs-speed', type=int, metavar='MBIT/S',
                         help=('Limit log collection bandwidth to 90%% of the'
                               ' specified speed in Mbit/s.'))
@@ -222,13 +224,16 @@ def main(argv=None):
     if args.no_clean:
         conf['clean'] = False
     if args.rqfile:
-        conf['rqfile'] = args.rqfile
+        conf['rqfile'] = []
+        for file in args.rqfile:
+            conf['rqfile'].append({'file': file, 'default': False})
     if args.days:
-        conf['logs'][0]['start'] = args.days
         conf['logs_days'] = args.days
     if args.logs_no_default:
-        conf['logs'] = []
+        conf['logs_no_default'] = True
         args.logs = True
+    if args.logs_no_fuel_remote:
+        conf['logs_no_fuel_remote'] = True
     if args.get_logs:
         args.logs = True
         for logs in args.get_logs:
@@ -295,11 +300,13 @@ def main(argv=None):
                           nm.calculate_log_size, args=(args.maxthreads,))
         if size == 0:
             logger.warning('Size zero - no logs to collect.')
+            has_logs = False
         else:
+            has_logs = True
             print('Total logs size to collect: %dMB.' % (size / 1000))
-            enough = pretty_run(args.quiet, 'Checking free space',
-                                nm.is_enough_space)
-            if not enough:
+            enough_space = pretty_run(args.quiet, 'Checking free space',
+                                      nm.is_enough_space)
+            if not enough_space:
                 logger.error('Not enough space for logs in "%s", exiting.' %
                              nm.conf['archive_dir'])
                 return 2
@@ -315,7 +322,7 @@ def main(argv=None):
         if not args.no_archive and nm.has(*Node.conf_archive_general):
             pretty_run(args.quiet, 'Creating outputs and files archive',
                        nm.create_archive_general, args=(60,))
-    if (args.only_logs or args.logs) and enough:
+    if (args.only_logs or args.logs) and has_logs and enough_space:
         msg = 'Collecting and packing logs'
         pretty_run(args.quiet, msg, nm.get_logs,
                    args=(conf['compress_timeout'],),

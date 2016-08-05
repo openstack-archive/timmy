@@ -19,7 +19,9 @@ Some of the parameters available in configuration file:
 * **fuelclient** True/False - whether to use fuelclient library to access Nailgun API
 * **fuel_skip_proxy** True/False - ignore ``http(s)_proxy`` environment variables when connecting to Nailgun API
 * **rqdir** the path to the directory containing rqfiles, scripts to execute, and filelists to pass to rsync
-* **rqfile** path(s) to rqfile(s) containing actions and/or other configuration parameters. Use list if more than one file is specifed.
+* **rqfile** - list of dicts:
+    * **file** - path to an rqfile containing actions and/or other configuration parameters
+    * **default** - should always be False, except when included default.yaml is used. This option is used to make **logs_no_default** work
 * **logs_days** how many past days of logs to collect. This option will set **start** parameter for each **logs** action if not defined in it.
 * **logs_speed_limit** True/False - enable speed limiting of log transfers (total transfer speed limit, not per-node)
 * **logs_speed_default** Mbit/s - used when autodetect fails

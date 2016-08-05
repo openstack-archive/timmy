@@ -325,11 +325,16 @@ class Node(object):
 
         def filter_by_re(item, string):
             return (('include' not in item or not item['include'] or
-                     re.search(item['include'], string)) and
+                     any([re.search(i, string) for i in item['include']])) and
                     ('exclude' not in item or not item['exclude'] or not
-                     re.search(item['exclude'], string)))
+                     any([re.search(e, string) for e in item['exclude']])))
 
         for item in self.logs:
+            if self.logs_no_fuel_remote and 'fuel' in self.roles:
+                self.logger.debug('adding Fuel remote logs to exclude list')
+                if 'exclude' not in item:
+                    item['exclude'] = []
+                item['exclude'].append(self.logs_fuel_remote_dir)
             start_str = None
             if 'start' in item or hasattr(self, 'logs_days'):
                 if hasattr(self, 'logs_days') and 'start' not in item:
@@ -564,11 +569,15 @@ class NodeManager(object):
                 dst[k][attr] = el[k]
 
         def merge_rq(rqfile, dst):
-            if os.path.sep in rqfile:
-                src = tools.load_yaml_file(rqfile)
+            file = rqfile['file']
+            if os.path.sep in file:
+                src = tools.load_yaml_file(file)
             else:
-                f = os.path.join(self.rqdir, rqfile)
+                f = os.path.join(self.rqdir, file)
                 src = tools.load_yaml_file(f)
+            if self.conf['logs_no_default'] and rqfile['default']:
+                if 'logs' in src:
+                    src.pop('logs')
             p = Node.conf_match_prefix
             once_p = Node.conf_once_prefix + p
             d = Node.conf_default_key
@@ -576,11 +585,8 @@ class NodeManager(object):
                 r_sub(attr, src, attr, d, p, once_p, dst)
 
         dst = self.conf
-        if type(self.conf['rqfile']) is list:
-            for rqfile in self.conf['rqfile']:
-                merge_rq(rqfile, dst)
-        else:
-            merge_rq(self.conf['rqfile'], dst)
+        for rqfile in self.conf['rqfile']:
+            merge_rq(rqfile, dst)
 
     def fuel_init(self):
         if not self.conf['fuel_ip']:

@@ -86,6 +86,11 @@ scripts:
       centos: [dmesg-centos, yum-list-installed, yum-v-repolist]
   __default:
     [ip-ne, iptables, ipnetns, ss, ipa, iptables-nat, df-m, services-status, cpuinfo, df-i, ipro, mount, sysctl-a, pvdisplay, vgdisplay, lvdisplay, lsmod, dmidecode, cat-proc-interrupts, arp-an, uname-a, ps-auxwwf, uptime, dmsetup-info, brctl-show, blkid-o-list]
+logs:
+  __default:
+    path: '/var/log'
+    exclude:
+      - '\.[^12]\.gz$|\.\d{2,}\.gz$'
 # cmds:
 #   __default:
 #     test:
