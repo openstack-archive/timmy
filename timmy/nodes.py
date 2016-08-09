@@ -236,12 +236,12 @@ class Node(object):
                 f = scr
             else:
                 f = os.path.join(self.rqdir, Node.skey, scr)
-            self.logger.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
+            self.logger.debug('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                  (self.id, self.ip, os.path.basename(f)))
             if self.outputs_timestamp:
                     dfile += self.outputs_timestamp_str
-            self.logger.info('outfile: %s' % dfile)
+            self.logger.debug('outfile: %s' % dfile)
             mapscr[scr] = dfile
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -614,7 +614,6 @@ class NodeManager(object):
         try:
             self.logger.info('using fuelclient to get nodes json')
             self.nodes_json = self.fuelclient.get_request('nodes')
-            self.logger.debug(self.nodes_json)
             return True
         except Exception as e:
             self.logger.warning(("NodeManager: can't "

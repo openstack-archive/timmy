@@ -204,7 +204,7 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         except:
             pass
 
-    logger.info('launching cmd %s' % cmd)
+    logger.debug('cmd: %s' % cmd)
     p = subprocess.Popen(cmd,
                          shell=True,
                          stdin=subprocess.PIPE,
@@ -226,8 +226,7 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         logger.debug(('___command: %s\n'
                       '_exit_code: %s\n'
                       '_____stdin: %s\n'
-                      '____stdout: %s\n'
-                      '____stderr: %s') % (cmd, p.returncode, input, outs,
+                      '____stderr: %s') % (cmd, p.returncode, input,
                                            errs))
     return outs, errs, p.returncode
 
@@ -244,11 +243,10 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
     if type(env_vars) is list:
         env_vars = ' '.join(env_vars)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
-        logger.info("skip ssh")
+        logger.debug("skip ssh")
         bstr = "%s timeout '%s' bash -c " % (
                env_vars, timeout)
     else:
-        logger.info("exec ssh")
         bstr = "timeout '%s' ssh -t -T %s '%s' '%s' " % (
                timeout, ssh_opts, ip, env_vars)
     if filename is None:
