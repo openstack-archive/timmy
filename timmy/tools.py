@@ -260,8 +260,8 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
             cmd = "%s < '%s'" % (cmd, inputfile)
     else:
         cmd = "%s'%s bash -s' < '%s'" % (bstr, prefix, filename)
-        if outputfile is not None:
-            cmd = "%s > '%s'" % (cmd, outputfile)
+    if outputfile is not None:
+        cmd = "%s > '%s'" % (cmd, outputfile)
     logger.info("cmd: %s" % cmd)
     cmd = ("input=\"$(cat | xxd -p)\"; trap 'kill $pid' 15; " +
            "trap 'kill $pid' 2; echo -n \"$input\" | xxd -r -p | " + cmd +

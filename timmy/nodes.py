@@ -927,7 +927,6 @@ class NodeManager(object):
         if fake:
             self.logger.info('fake = True, skipping')
             return
-        txtfl = []
         if self.conf['logs_speed_limit']:
             if self.conf['logs_speed'] > 0:
                 speed = self.conf['logs_speed']
@@ -963,11 +962,6 @@ class NodeManager(object):
             run_items.append(tools.RunItem(target=node.exec_simple_cmd,
                                            args=args))
         tools.run_batch(run_items, maxthreads)
-        for tfile in txtfl:
-            try:
-                os.remove(tfile)
-            except:
-                self.logger.error("can't delete file %s" % tfile)
 
     @run_with_lock
     def get_files(self, timeout=15):
