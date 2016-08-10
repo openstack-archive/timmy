@@ -260,7 +260,7 @@ class Node(object):
         return mapcmds, mapscr
 
     def exec_simple_cmd(self, cmd, timeout=15, infile=None, outfile=None,
-                        fake=False, ok_codes=None, input=None):
+                        fake=False, ok_codes=None, input=None, decode=True):
         self.logger.info('node:%s(%s), exec: %s' % (self.id, self.ip, cmd))
         if not fake:
             outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -270,6 +270,7 @@ class Node(object):
                                               timeout=timeout,
                                               outputfile=outfile,
                                               ok_codes=ok_codes,
+                                              decode=decode,
                                               input=input,
                                               prefix=self.prefix)
             self.check_code(code, 'exec_simple_cmd', cmd, errs, ok_codes)
@@ -885,7 +886,7 @@ class NodeManager(object):
                               't config parameter (--logs-coeff CLI parameter)'
                               ' or free up space.' % (self.conf['outdir'],
                                                       self.alogsize, coeff,
-                                                         fs))
+                                                      fs))
             return False
         else:
             return True
@@ -957,7 +958,8 @@ class NodeManager(object):
                     'timeout': timeout,
                     'outfile': node.archivelogsfile,
                     'input': input,
-                    'ok_codes': [0, 1]}
+                    'ok_codes': [0, 1],
+                    'decode': False}
             run_items.append(tools.RunItem(target=node.exec_simple_cmd,
                                            args=args))
         tools.run_batch(run_items, maxthreads)

@@ -196,7 +196,7 @@ def mdir(directory):
             sys.exit(3)
 
 
-def launch_cmd(cmd, timeout, input=None, ok_codes=None):
+def launch_cmd(cmd, timeout, input=None, ok_codes=None, decode=True):
     def _timeout_terminate(pid):
         try:
             os.kill(pid, 15)
@@ -217,8 +217,10 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         timeout_killer = threading.Timer(timeout, _timeout_terminate, [p.pid])
         timeout_killer.start()
         outs, errs = p.communicate(input=input)
-        outs = outs.decode('utf-8')
-        errs = errs.decode('utf-8').rstrip('\n')
+        errs = errs.rstrip('\n')
+        if decode:
+            outs = outs.decode('utf-8')
+            errs = errs.decode('utf-8')
     finally:
         if timeout_killer:
             timeout_killer.cancel()
@@ -233,7 +235,7 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
 
 def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
              filename=None, inputfile=None, outputfile=None,
-             ok_codes=None, input=None, prefix=None):
+             ok_codes=None, input=None, prefix=None, decode=True):
     if not ssh_opts:
         ssh_opts = ''
     if not env_vars:
@@ -264,7 +266,8 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
     cmd = ("input=\"$(cat | xxd -p)\"; trap 'kill $pid' 15; " +
            "trap 'kill $pid' 2; echo -n \"$input\" | xxd -r -p | " + cmd +
            ' &:; pid=$!; wait $!')
-    return launch_cmd(cmd, timeout, input=input, ok_codes=ok_codes)
+    return launch_cmd(cmd, timeout, input=input,
+                      ok_codes=ok_codes, decode=decode)
 
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):

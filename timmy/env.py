@@ -16,7 +16,8 @@
 #    under the License.
 
 project_name = 'timmy'
-version = '1.15.2'
+version = '1.15.3'
 
 if __name__ == '__main__':
+    import sys
     sys.exit(0)
