@@ -8,11 +8,12 @@ ssh_opts:
 env_vars:
     - 'OPENRC=/root/openrc'
     - 'IPTABLES_STR="iptables -nvL"'
+    - 'LC_ALL="C"'
+    - 'LANG="C"'
 # fuel_ip:  '127.0.0.1'
 # fuel_user: 'admin'
 # fuel_pass: 'admin'
 rqdir: './rq'
-rqfile: './rq.yaml'
 soft_filter:
     status:  ['ready']
     online: True
