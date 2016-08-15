@@ -28,7 +28,8 @@ def load_conf(filename):
     conf['ssh_opts'] = ['-oConnectTimeout=2', '-oStrictHostKeyChecking=no',
                         '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
                         '-lroot', '-oBatchMode=yes']
-    conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
+    conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"',
+                        'LC_ALL="C"', 'LANG="C"']
     conf['fuel_ip'] = '127.0.0.1'
     conf['fuel_user'] = 'admin'
     conf['fuel_port'] = '8000'
