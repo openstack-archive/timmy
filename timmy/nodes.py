@@ -322,7 +322,7 @@ class Node(object):
                                                   recursive=True)
             self.check_code(code, 'put_files', 'tools.put_file_scp', errs)
 
-    def logs_populate(self, timeout=5):
+    def logs_populate(self, timeout=5, logs_excluded_nodes=[]):
 
         def filter_by_re(item, string):
             return (('include' not in item or not item['include'] or
@@ -336,6 +336,13 @@ class Node(object):
                 if 'exclude' not in item:
                     item['exclude'] = []
                 item['exclude'].append(self.logs_fuel_remote_dir)
+            if 'fuel' in self.roles:
+                for n in logs_excluded_nodes:
+                    self.logger.debug('removing remote logs for node:%s' % n)
+                    if 'exclude' not in item:
+                        item['exclude'] = []
+                    ipd = os.path.join(self.logs_fuel_remote_dir, n)
+                    item['exclude'].append(ipd)
             start_str = None
             if 'start' in item or hasattr(self, 'logs_days'):
                 if hasattr(self, 'logs_days') and 'start' not in item:
@@ -447,6 +454,7 @@ class NodeManager(object):
         self.fuel_init()
         # save os environment variables
         environ = os.environ
+        self.logs_excluded_nodes = []
         if FuelClient and conf['fuelclient']:
             try:
                 if self.conf['fuel_skip_proxy']:
@@ -487,6 +495,9 @@ class NodeManager(object):
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
                 node.filtered_out = True
+                if self.conf['logs_exclude_filtered']:
+                    self.logs_excluded_nodes.append(node.fqdn)
+                    self.logs_excluded_nodes.append(node.ip)
         if (not self.get_release_fuel_client() and
                 not self.get_release_api() and
                 not self.get_release_cli()):
@@ -852,8 +863,10 @@ class NodeManager(object):
         run_items = []
         for key, node in self.nodes.items():
             if not node.filtered_out:
+                args = {'timeout': timeout,
+                        'logs_excluded_nodes': self.logs_excluded_nodes}
                 run_items.append(tools.RunItem(target=node.logs_populate,
-                                               args={'timeout': timeout},
+                                               args=args,
                                                key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:

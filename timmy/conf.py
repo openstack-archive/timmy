@@ -64,6 +64,9 @@ def load_conf(filename):
     conf['logs_no_default'] = False  # skip logs defined in default.yaml
     conf['logs_fuel_remote_dir'] = '/var/log/docker-logs/remote'
     conf['logs_no_fuel_remote'] = False  # do not collect /var/log/remote
+    '''Do not collect from /var/log/remote/<node>
+    if node is in the array of nodes filtered out by soft filter'''
+    conf['logs_exclude_filtered'] = True
     conf['logs_days'] = 30
     conf['logs_speed_limit'] = False  # enable speed limiting of log transfers
     conf['logs_speed_default'] = 100  # Mbit/s, used when autodetect fails
