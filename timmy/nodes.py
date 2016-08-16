@@ -370,7 +370,7 @@ class Node(object):
             outs, errs, code = tools.ssh_node(ip=self.ip,
                                               command=cmd,
                                               ssh_opts=self.ssh_opts,
-                                              env_vars='',
+                                              env_vars=self.env_vars,
                                               timeout=timeout,
                                               prefix=self.prefix)
             if code == 124:
