@@ -32,15 +32,19 @@ from tools import w_list, run_with_lock
 from copy import deepcopy
 
 try:
-    import fuelclient.client
-    if type(fuelclient.client.APIClient) is type:
-        # fuel 9.1+ (originally 10.0+)
-        from fuelclient.client import APIClient as FuelClient
+    import fuelclient
+    if hasattr(fuelclient, 'connect'):
+        # fuel > 9.0.1
+        from fuelclient import connect as FuelClient
         FUEL_10 = True
-    elif type(fuelclient.client.APIClient) is fuelclient.client.Client:
-        # fuel 9.0 and below
-        from fuelclient.client import Client as FuelClient
-        FUEL_10 = False
+    else:
+        import fuelclient.client
+        if type(fuelclient.client.APIClient) is fuelclient.client.Client:
+            # fuel 9.0.1 and below
+            from fuelclient.client import Client as FuelClient
+            FUEL_10 = False
+        else:
+            FuelClient = None
 except:
     FuelClient = None
 
