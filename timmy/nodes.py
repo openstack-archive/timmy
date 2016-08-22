@@ -684,35 +684,46 @@ class NodeManager(object):
                                                              node.release))
 
     def auth_token(self):
-        '''Get keystone token to access Nailgun API. Requires Fuel 7.0+'''
+        '''Get keystone token to access Nailgun API. Requires Fuel 5+'''
         if self.token:
             return True
-        req_data = ('{ "auth": {'
-                    '  "scope": {'
-                    '    "project": {'
-                    '      "name": "%s",'
-                    '      "domain": { "id": "default" }'
-                    '    }'
-                    '  },'
-                    '  "identity": {'
-                    '    "methods": ["password"],'
-                    '    "password": {'
-                    '      "user": {'
-                    '        "name": "%s",'
-                    '        "domain": { "id": "default" },'
-                    '        "password": "%s"'
-                    '      }'
-                    '    }'
-                    '  }'
-                    '}}' % (self.conf['fuel_tenant'],
-                            self.conf['fuel_user'],
-                            self.conf['fuel_pass']))
-        req = urllib2.Request("http://%s:%s/v3/auth/tokens" %
+        v2_body = ('{"auth": {"tenantName": "%s", "passwordCredentials": {'
+                    '"username": "%s", "password": "%s"}}}')
+        # v3 not fully implemented yet
+        v3_body = ('{ "auth": {'
+                   '  "scope": {'
+                   '    "project": {'
+                   '      "name": "%s",'
+                   '      "domain": { "id": "default" }'
+                   '    }'
+                   '  },'
+                   '  "identity": {'
+                   '    "methods": ["password"],'
+                   '    "password": {'
+                   '      "user": {'
+                   '        "name": "%s",'
+                   '        "domain": { "id": "default" },'
+                   '        "password": "%s"'
+                   '      }'
+                   '    }'
+                   '  }'
+                   '}}')
+        # Sticking to v2 API for now because Fuel 9.1 has a custom
+        # domain_id defined in keystone.conf which we do not know.
+        req_data = v2_body % (self.conf['fuel_tenant'],
+                              self.conf['fuel_user'],
+                              self.conf['fuel_pass'])
+        req = urllib2.Request("http://%s:%s/v2.0/tokens" %
                               (self.conf['fuel_ip'],
                                self.conf['fuel_keystone_port']), req_data,
                               {'Content-Type': 'application/json'})
         try:
-            token = urllib2.urlopen(req).info().getheader('X-Subject-Token')
+            ### Disabling v3 token retrieval for now
+            # token = urllib2.urlopen(req).info().getheader('X-Subject-Token')
+            result = urllib2.urlopen(req)
+            resp_body = result.read()
+            resp_json = json.loads(resp_body)
+            token = resp_json['access']['token']['id']
             self.token = token
             return True
         except:
