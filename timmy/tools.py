@@ -196,7 +196,7 @@ def mdir(directory):
             sys.exit(3)
 
 
-def launch_cmd(cmd, timeout, input=None, ok_codes=None):
+def launch_cmd(cmd, timeout, input=None, ok_codes=None, decode=True):
     def _timeout_terminate(pid):
         try:
             os.kill(pid, 15)
@@ -204,30 +204,23 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         except:
             pass
 
-    logger.info('launching cmd %s' % cmd)
+    logger.debug('cmd: %s' % cmd)
     p = subprocess.Popen(cmd,
                          shell=True,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
     timeout_killer = None
+    outs = None
+    errs = None
     try:
         timeout_killer = threading.Timer(timeout, _timeout_terminate, [p.pid])
         timeout_killer.start()
         outs, errs = p.communicate(input=input)
-        outs = outs.decode('utf-8')
-        errs = errs.decode('utf-8')
         errs = errs.rstrip('\n')
-    except:
-        try:
-            p.kill()
-        except:
-            pass
-        p.stdin = None
-        outs, errs = p.communicate()
-        outs = outs.decode('utf-8')
-        errs = errs.decode('utf-8')
-        errs = errs.rstrip('\n')
+        if decode:
+            outs = outs.decode('utf-8')
+            errs = errs.decode('utf-8')
     finally:
         if timeout_killer:
             timeout_killer.cancel()
@@ -235,15 +228,14 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None):
         logger.debug(('___command: %s\n'
                       '_exit_code: %s\n'
                       '_____stdin: %s\n'
-                      '____stdout: %s\n'
-                      '____stderr: %s') % (cmd, p.returncode, input, outs,
+                      '____stderr: %s') % (cmd, p.returncode, input,
                                            errs))
     return outs, errs, p.returncode
 
 
 def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
              filename=None, inputfile=None, outputfile=None,
-             ok_codes=None, input=None, prefix=None):
+             ok_codes=None, input=None, prefix=None, decode=True):
     if not ssh_opts:
         ssh_opts = ''
     if not env_vars:
@@ -253,11 +245,10 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
     if type(env_vars) is list:
         env_vars = ' '.join(env_vars)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
-        logger.info("skip ssh")
+        logger.debug("skip ssh")
         bstr = "%s timeout '%s' bash -c " % (
                env_vars, timeout)
     else:
-        logger.info("exec ssh")
         bstr = "timeout '%s' ssh -t -T %s '%s' '%s' " % (
                timeout, ssh_opts, ip, env_vars)
     if filename is None:
@@ -269,13 +260,14 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
             cmd = "%s < '%s'" % (cmd, inputfile)
     else:
         cmd = "%s'%s bash -s' < '%s'" % (bstr, prefix, filename)
-        logger.info("inputfile selected, cmd: %s" % cmd)
     if outputfile is not None:
         cmd = "%s > '%s'" % (cmd, outputfile)
+    logger.info("cmd: %s" % cmd)
     cmd = ("input=\"$(cat | xxd -p)\"; trap 'kill $pid' 15; " +
            "trap 'kill $pid' 2; echo -n \"$input\" | xxd -r -p | " + cmd +
            ' &:; pid=$!; wait $!')
-    return launch_cmd(cmd, timeout, input=input, ok_codes=ok_codes)
+    return launch_cmd(cmd, timeout, input=input,
+                      ok_codes=ok_codes, decode=decode)
 
 
 def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
@@ -324,4 +316,4 @@ def w_list(value):
 
 
 if __name__ == '__main__':
-    exit(0)
+    sys.exit(0)

@@ -22,6 +22,7 @@ import sys
 import os
 from timmy.conf import load_conf
 from timmy.tools import interrupt_wrapper
+from timmy.env import version
 
 
 def pretty_run(quiet, msg, f, args=[], kwargs={}):
@@ -38,12 +39,17 @@ def parse_args():
     parser = argparse.ArgumentParser(description=('Parallel remote command'
                                                   ' execution and file'
                                                   ' manipulation tool'))
+    parser.add_argument('-V', '--version', action='store_true',
+                        help='Print Timmy version and exit.')
     parser.add_argument('-c', '--config',
                         help='Path to a YAML configuration file.')
     parser.add_argument('-j', '--nodes-json',
                         help=('Path to a json file retrieved via'
                               ' "fuel node --json". Useful to speed up'
                               ' initialization, skips "fuel node" call.'))
+    parser.add_argument('--fuel-ip', help='fuel ip address')
+    parser.add_argument('--fuel-user', help='fuel username')
+    parser.add_argument('--fuel-pass', help='fuel password')
     parser.add_argument('-o', '--dest-file',
                         help=('Output filename for the archive in tar.gz'
                               ' format for command outputs and collected'
@@ -57,12 +63,15 @@ def parse_args():
     parser.add_argument('-r', '--role', action='append',
                         help=('Can be specified multiple times.'
                               ' Run only on the specified role.'))
-    parser.add_argument('-d', '--days', type=int,
+    parser.add_argument('-i', '--id', type=int, action='append',
+                        help=('Can be specified multiple times.'
+                              ' Run only on the node(s) with given IDs.'))
+    parser.add_argument('-d', '--days', type=int, metavar='NUMBER',
                         help=('Define log collection period in days.'
                               ' Timmy will collect only logs updated on or'
                               ' more recently then today minus the given'
                               ' number of days. Default - 30.'))
-    parser.add_argument('-G', '--get', action='append',
+    parser.add_argument('-G', '--get', action='append', metavar='PATH',
                         help=('Enables shell mode. Can be specified multiple'
                               ' times. Filemask to collect via "scp -r".'
                               ' Result is placed into a folder specified'
@@ -80,20 +89,48 @@ def parse_args():
                               ' parameter. For help on shell mode, read'
                               ' timmy/conf.py.') % Node.skey)
     parser.add_argument('-P', '--put', nargs=2, action='append',
+                        metavar=('SOURCE', 'DESTINATION'),
                         help=('Enables shell mode. Can be specified multiple'
                               ' times. Upload filemask via"scp -r" to node(s).'
                               ' Each argument must contain two strings -'
                               ' source file/path/mask and dest. file/path.'
                               ' For help on shell mode, read timmy/conf.py.'))
-    parser.add_argument('--rqfile', help='Path to an rqfile in yaml format,'
-                                         ' overrides default.')
-    parser.add_argument('-l', '--logs',
+    parser.add_argument('-L', '--get-logs', nargs=3, action='append',
+                        metavar=('PATH', 'INCLUDE', 'EXCLUDE'),
+                        help=('Define specific logs to collect. Implies "-l".'
+                              ' Each -L option requires 3 values in the'
+                              ' following order: path, include, exclude.'
+                              ' See configuration doc for details on each of'
+                              ' these parameters. Values except path can be'
+                              ' skipped by passing empty strings. Example: -L'
+                              ' "/var/mylogs/" "" "exclude-string"'))
+    parser.add_argument('--rqfile', metavar='PATH', action='append',
+                        help=('Can be specified multiple times. Path to'
+                              ' rqfile(s) in yaml format, overrides default.'))
+    parser.add_argument('-l', '--logs', action='store_true',
                         help=('Collect logs from nodes. Logs are not collected'
-                              ' by default due to their size.'),
-                        action='store_true', dest='getlogs')
-    parser.add_argument('--fuel-ip', help='fuel ip address')
-    parser.add_argument('--fuel-user', help='fuel username')
-    parser.add_argument('--fuel-pass', help='fuel password')
+                              ' by default due to their size.'))
+    parser.add_argument('--logs-no-default', action='store_true',
+                        help=('Do not use default log collection parameters,'
+                              ' only use what has been provided either via -L'
+                              ' or in rqfile(s). Implies "-l".'))
+    parser.add_argument('--logs-no-fuel-remote', action='store_true',
+                        help='Do not collect remote logs from Fuel.')
+    parser.add_argument('--logs-speed', type=int, metavar='MBIT/S',
+                        help=('Limit log collection bandwidth to 90%% of the'
+                              ' specified speed in Mbit/s.'))
+    parser.add_argument('--logs-speed-auto', action='store_true',
+                        help=('Limit log collection bandwidth to 90%% of local'
+                              ' admin interface speed. If speed detection'
+                              ' fails, a default value will be used. See'
+                              ' "logs_speed_default" in conf.py.'))
+    parser.add_argument('--logs-coeff', type=float, metavar='RATIO',
+                        help=('Estimated logs compression ratio - this value'
+                              ' is used during free space check. Set to a'
+                              ' lower value (default - 1.05) to collect logs'
+                              ' of a total size larger than locally available'
+                              '. Values lower than 0.3 are not recommended'
+                              ' and may result in filling up local disk.'))
     parser.add_argument('--fuel-proxy',
                         help='use os system proxy variables for fuelclient',
                         action='store_true')
@@ -121,23 +158,25 @@ def parse_args():
                               ' This option disables any -v parameters.'),
                         action='store_true')
     parser.add_argument('-m', '--maxthreads', type=int, default=100,
+                        metavar='NUMBER',
                         help=('Maximum simultaneous nodes for command'
                               'execution.'))
-    parser.add_argument('-L', '--logs-maxthreads', type=int, default=100,
+    parser.add_argument('--logs-maxthreads', type=int, default=100,
+                        metavar='NUMBER',
                         help='Maximum simultaneous nodes for log collection.')
     parser.add_argument('-t', '--outputs-timestamp',
-                        help='Add timestamp to outputs - allows accumulating'
-                             ' outputs of identical commands/scripts across'
-                             ' runs. Only makes sense with --no-clean for'
-                             ' subsequent runs.',
+                        help=('Add timestamp to outputs - allows accumulating'
+                              ' outputs of identical commands/scripts across'
+                              ' runs. Only makes sense with --no-clean for'
+                              ' subsequent runs.'),
                         action='store_true')
     parser.add_argument('-T', '--dir-timestamp',
-                        help='Add timestamp to output folders (defined by'
-                             ' "outdir" and "archive_dir" config options).'
-                             ' Makes each run store results in new folders.'
-                             ' This way Timmy will always preserve previous'
-                             ' results. Do not forget to clean up the results'
-                             ' manually when using this option.',
+                        help=('Add timestamp to output folders (defined by'
+                              ' "outdir" and "archive_dir" config options).'
+                              ' Makes each run store results in new folders.'
+                              ' This way Timmy will always preserve previous'
+                              ' results. Do not forget to clean up the results'
+                              ' manually when using this option.'),
                         action='store_true')
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help=('This works for -vvvv, -vvv, -vv, -v, -v -v,'
@@ -145,9 +184,6 @@ def parse_args():
                               'selected if more -v are provided it will '
                               'step to INFO and DEBUG unless the option '
                               '-q(--quiet) is specified'))
-    parser.add_argument('--fuel-cli', action='store_true',
-                        help=('Use fuel command line client instead of '
-                              'fuelclient library'))
     return parser
 
 
@@ -157,6 +193,9 @@ def main(argv=None):
         argv = sys.argv
     parser = parse_args()
     args = parser.parse_args(argv[1:])
+    if args.version:
+        print(version)
+        sys.exit(0)
     loglevels = [logging.WARNING, logging.INFO, logging.DEBUG]
     if args.quiet and not args.log_file:
         args.verbose = 0
@@ -182,9 +221,22 @@ def main(argv=None):
     if args.no_clean:
         conf['clean'] = False
     if args.rqfile:
-        conf['rqfile'] = args.rqfile
+        conf['rqfile'] = []
+        for file in args.rqfile:
+            conf['rqfile'].append({'file': file, 'default': False})
     if args.days:
-        conf['logs']['start'] = -args.days
+        conf['logs_days'] = args.days
+    if args.logs_no_default:
+        conf['logs_no_default'] = True
+        args.logs = True
+    if args.logs_no_fuel_remote:
+        conf['logs_no_fuel_remote'] = True
+    if args.logs_speed or args.logs_speed_auto:
+        conf['logs_speed_limit'] = True
+    if args.logs_speed:
+        conf['logs_speed'] = abs(args.logs_speed)
+    if args.logs_coeff:
+        conf['logs_size_coefficient'] = args.logs_coeff
     if conf['shell_mode']:
         filter = conf['hard_filter']
         # config cleanup for shell mode
@@ -209,10 +261,25 @@ def main(argv=None):
             conf[Node.fkey] = args.get
     else:
         filter = conf['soft_filter']
+    if args.get_logs:
+        # this code should be after 'shell_mode' which cleans logs too
+        args.logs = True
+        for logs in args.get_logs:
+            logs_conf = {}
+            logs_conf['path'] = logs[0]
+            if logs[1]:
+                logs_conf['include'] = [logs[1]]
+            if logs[2]:
+                logs_conf['exclude'] = [logs[2]]
+            if args.days:
+                logs_conf['start'] = args.days
+            conf['logs'].append(logs_conf)
     if args.role:
         filter['roles'] = args.role
     if args.env is not None:
         filter['cluster'] = [args.env]
+    if args.id:
+        filter['id'] = args.id
     if args.outputs_timestamp:
         conf['outputs_timestamp'] = True
     if args.dir_timestamp:
@@ -220,14 +287,27 @@ def main(argv=None):
     if args.dest_file:
         conf['archive_dir'] = os.path.split(args.dest_file)[0]
         conf['archive_name'] = os.path.split(args.dest_file)[1]
-    if args.fuel_cli:
-        conf['fuelclient'] = False
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
                     NodeManager,
                     kwargs={'conf': conf, 'extended': args.extended,
                             'nodes_json': args.nodes_json})
+    if args.only_logs or args.logs:
+        size = pretty_run(args.quiet, 'Calculating logs size',
+                          nm.calculate_log_size, args=(args.maxthreads,))
+        if size == 0:
+            logger.warning('Size zero - no logs to collect.')
+            has_logs = False
+        else:
+            has_logs = True
+            print('Total logs size to collect: %dMB.' % (size / 1000))
+            enough_space = pretty_run(args.quiet, 'Checking free space',
+                                      nm.is_enough_space)
+            if not enough_space:
+                logger.error('Not enough space for logs in "%s", exiting.' %
+                             nm.conf['archive_dir'])
+                return 2
     if not args.only_logs:
         if nm.has(Node.pkey):
             pretty_run(args.quiet, 'Uploading files', nm.put_files)
@@ -240,23 +320,12 @@ def main(argv=None):
         if not args.no_archive and nm.has(*Node.conf_archive_general):
             pretty_run(args.quiet, 'Creating outputs and files archive',
                        nm.create_archive_general, args=(60,))
-    if args.only_logs or args.getlogs:
-        size = pretty_run(args.quiet, 'Calculating logs size',
-                          nm.calculate_log_size, args=(args.maxthreads,))
-        if size == 0:
-            logger.warning('Size zero - no logs to collect.')
-            return
-        enough = pretty_run(args.quiet, 'Checking free space',
-                            nm.is_enough_space)
-        if enough:
-            msg = 'Collecting and packing %dMB of logs' % (nm.alogsize / 1024)
-            pretty_run(args.quiet, msg, nm.get_logs,
-                       args=(conf['compress_timeout'],),
-                       kwargs={'maxthreads': args.logs_maxthreads,
-                               'fake': args.fake_logs})
-        else:
-            logger.warning(('Not enough space for logs in "%s", skipping'
-                            'log collection.') % nm.conf['archive_dir'])
+    if (args.only_logs or args.logs) and has_logs and enough_space:
+        msg = 'Collecting and packing logs'
+        pretty_run(args.quiet, msg, nm.get_logs,
+                   args=(conf['compress_timeout'],),
+                   kwargs={'maxthreads': args.logs_maxthreads,
+                           'fake': args.fake_logs})
     logger.info("Nodes:\n%s" % nm)
     if not args.quiet:
         print('Run complete. Node information:')
@@ -273,7 +342,6 @@ def main(argv=None):
     if all([not args.no_archive, nm.has(*Node.conf_archive_general),
             not args.quiet]):
         print('Archives available in "%s".' % nm.conf['archive_dir'])
-    return 0
 
 if __name__ == '__main__':
-    exit(main(sys.argv))
+    sys.exit(main(sys.argv))

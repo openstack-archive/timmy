@@ -24,30 +24,31 @@ def load_conf(filename):
     """Configuration parameters"""
     conf = {}
     conf['hard_filter'] = {}
-    conf['soft_filter'] = {'status': ['ready', 'discover'], 'online': True}
+    conf['soft_filter'] = {'no_status': ['deploying'], 'online': True}
     conf['ssh_opts'] = ['-oConnectTimeout=2', '-oStrictHostKeyChecking=no',
                         '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
                         '-lroot', '-oBatchMode=yes']
-    conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"']
+    conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"',
+                        'LC_ALL="C"', 'LANG="C"']
     conf['fuel_ip'] = '127.0.0.1'
     conf['fuel_user'] = 'admin'
+    conf['fuel_port'] = '8000'
     conf['fuel_pass'] = 'admin'
     conf['fuel_tenant'] = 'admin'
+    conf['fuel_keystone_port'] = '5000'
     conf['fuelclient'] = True  # use fuelclient library by default
     conf['fuel_skip_proxy'] = True
     conf['timeout'] = 15
     conf['prefix'] = 'nice -n 19 ionice -c 3'
     rqdir = 'rq'
-    rqfile = 'rq.yaml'
+    rqfile = 'default.yaml'
     dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', 'timmy')
     if os.path.isdir(os.path.join(dtm, rqdir)):
         conf['rqdir'] = os.path.join(dtm, rqdir)
     else:
         conf['rqdir'] = rqdir
-    if os.path.isfile(os.path.join(dtm, 'configs', rqfile)):
-        conf['rqfile'] = os.path.join(dtm, 'configs', rqfile)
-    else:
-        conf['rqfile'] = rqfile
+    conf['rqfile'] = [{'file': os.path.join(conf['rqdir'], rqfile),
+                      'default': True}]
     conf['compress_timeout'] = 3600
     conf['outdir'] = os.path.join(gettempdir(), 'timmy', 'info')
     conf['archive_dir'] = os.path.join(gettempdir(), 'timmy', 'archives')
@@ -59,9 +60,19 @@ def load_conf(filename):
     conf['scripts'] = []
     conf['files'] = []
     conf['filelists'] = []
-    conf['logs'] = {'path': '/var/log',
-                    'exclude': '\.[^12]\.gz$|\.\d{2,}\.gz$',
-                    'start': '30'}
+    conf['logs'] = []
+    conf['logs_no_default'] = False  # skip logs defined in default.yaml
+    conf['logs_fuel_remote_dir'] = ['/var/log/docker-logs/remote',
+                                    '/var/log/remote']
+    conf['logs_no_fuel_remote'] = False  # do not collect /var/log/remote
+    '''Do not collect from /var/log/remote/<node>
+    if node is in the array of nodes filtered out by soft filter'''
+    conf['logs_exclude_filtered'] = True
+    conf['logs_days'] = 30
+    conf['logs_speed_limit'] = False  # enable speed limiting of log transfers
+    conf['logs_speed_default'] = 100  # Mbit/s, used when autodetect fails
+    conf['logs_speed'] = 0  # To manually specify max bandwidth in Mbit/s
+    conf['logs_size_coefficient'] = 1.05  # estimated logs compression ratio
     '''Shell mode - only run what was specified via command line.
     Skip actionable conf fields (see timmy/nodes.py -> Node.conf_actionable);
     Skip rqfile import;

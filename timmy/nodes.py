@@ -26,12 +26,25 @@ import logging
 import sys
 import re
 from datetime import datetime, date, timedelta
+import urllib2
 import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
 
 try:
-    from fuelclient.client import Client as FuelClient
+    import fuelclient
+    if hasattr(fuelclient, 'connect'):
+        # fuel > 9.0.1
+        from fuelclient import connect as FuelClient
+        FUEL_10 = True
+    else:
+        import fuelclient.client
+        if type(fuelclient.client.APIClient) is fuelclient.client.Client:
+            # fuel 9.0.1 and below
+            from fuelclient.client import Client as FuelClient
+            FUEL_10 = False
+        else:
+            FuelClient = None
 except:
     FuelClient = None
 
@@ -56,7 +69,6 @@ class Node(object):
     conf_once_prefix = 'once_'
     conf_match_prefix = 'by_'
     conf_default_key = '__default'
-    conf_priority_section = conf_match_prefix + 'id'
     header = ['node-id', 'env', 'ip', 'mac', 'os',
               'roles', 'online', 'status', 'name', 'fqdn']
 
@@ -118,39 +130,38 @@ class Node(object):
             else:
                 setattr(self, k, deepcopy(v))
 
-        def r_apply(el, p, p_s, c_a, k_d, o, d, clean=False):
+        def r_apply(el, p, c_a, k_d, o, d, clean=False):
             # apply normal attributes
-            for k in [k for k in el if k != p_s and not k.startswith(p)]:
+            for k in [k for k in el if not k.startswith(p)]:
                 if el == conf and clean:
                     apply(k, el[k], c_a, k_d, o, default=True)
                 else:
                     apply(k, el[k], c_a, k_d, o)
-            # apply match attributes (by_xxx except by_id)
-            for k in [k for k in el if k != p_s and k.startswith(p)]:
+            # apply match attributes
+            for k in [k for k in el if k.startswith(p)]:
                 attr_name = k[len(p):]
                 if hasattr(self, attr_name):
                     attr = w_list(getattr(self, attr_name))
+                    matching_keys = []
+                    # negative matching ("no_")
+                    for nk in [nk for nk in el[k] if nk.startswith('no_')]:
+                        key = nk[4:]
+                        if key not in attr:
+                            matching_keys.append(nk)
+                    # positive matching
                     for v in attr:
                         if v in el[k]:
-                            subconf = el[k][v]
-                            if d in el:
-                                d_conf = el[d]
-                                for a in d_conf:
-                                    apply(a, d_conf[a], c_a, k_d, o)
-                            r_apply(subconf, p, p_s, c_a, k_d, o, d)
-            # apply priority attributes (by_id)
-            if p_s in el:
-                if self.id in el[p_s]:
-                    p_conf = el[p_s][self.id]
-                    if d in el[p_s]:
-                        d_conf = el[p_s][d]
-                        for k in d_conf:
-                            apply(k, d_conf[k], c_a, k_d, o)
-                    for k in [k for k in p_conf if k != d]:
-                        apply(k, p_conf[k], c_a, k_d, o, default=True)
+                            matching_keys.append(v)
+                    # apply matching keys
+                    for mk in matching_keys:
+                        subconf = el[k][mk]
+                        if d in el:
+                            d_conf = el[d]
+                            for a in d_conf:
+                                apply(a, d_conf[a], c_a, k_d, o)
+                        r_apply(subconf, p, c_a, k_d, o, d)
 
         p = Node.conf_match_prefix
-        p_s = Node.conf_priority_section
         c_a = Node.conf_appendable
         k_d = Node.conf_keep_default
         d = Node.conf_default_key
@@ -160,7 +171,7 @@ class Node(object):
             duplication if this function gets called more than once'''
             for f in set(c_a).intersection(k_d):
                 setattr(self, f, [])
-        r_apply(conf, p, p_s, c_a, k_d, overridden, d, clean=clean)
+        r_apply(conf, p, c_a, k_d, overridden, d, clean=clean)
 
     def get_release(self):
         if self.id == 0:
@@ -229,12 +240,12 @@ class Node(object):
                 f = scr
             else:
                 f = os.path.join(self.rqdir, Node.skey, scr)
-            self.logger.info('node:%s(%s), exec: %s' % (self.id, self.ip, f))
+            self.logger.debug('node:%s(%s), exec: %s' % (self.id, self.ip, f))
             dfile = os.path.join(ddir, 'node-%s-%s-%s' %
                                  (self.id, self.ip, os.path.basename(f)))
             if self.outputs_timestamp:
                     dfile += self.outputs_timestamp_str
-            self.logger.info('outfile: %s' % dfile)
+            self.logger.debug('outfile: %s' % dfile)
             mapscr[scr] = dfile
             if not fake:
                 outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -253,7 +264,7 @@ class Node(object):
         return mapcmds, mapscr
 
     def exec_simple_cmd(self, cmd, timeout=15, infile=None, outfile=None,
-                        fake=False, ok_codes=None, input=None):
+                        fake=False, ok_codes=None, input=None, decode=True):
         self.logger.info('node:%s(%s), exec: %s' % (self.id, self.ip, cmd))
         if not fake:
             outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -263,6 +274,7 @@ class Node(object):
                                               timeout=timeout,
                                               outputfile=outfile,
                                               ok_codes=ok_codes,
+                                              decode=decode,
                                               input=input,
                                               prefix=self.prefix)
             self.check_code(code, 'exec_simple_cmd', cmd, errs, ok_codes)
@@ -314,18 +326,35 @@ class Node(object):
                                                   recursive=True)
             self.check_code(code, 'put_files', 'tools.put_file_scp', errs)
 
-    def logs_populate(self, timeout=5):
+    def logs_populate(self, timeout=5, logs_excluded_nodes=[]):
 
         def filter_by_re(item, string):
-            return (('include' not in item or
-                     re.search(item['include'], string)) and
-                    ('exclude' not in item or not
-                     re.search(item['exclude'], string)))
+            return (('include' not in item or not item['include'] or
+                     any([re.search(i, string) for i in item['include']])) and
+                    ('exclude' not in item or not item['exclude'] or not
+                     any([re.search(e, string) for e in item['exclude']])))
 
         for item in self.logs:
-            start_str = ''
-            if 'start' in item:
-                start = item['start']
+            if self.logs_no_fuel_remote and 'fuel' in self.roles:
+                self.logger.debug('adding Fuel remote logs to exclude list')
+                if 'exclude' not in item:
+                    item['exclude'] = []
+                for remote_dir in self.logs_fuel_remote_dir:
+                    item['exclude'].append(remote_dir)
+            if 'fuel' in self.roles:
+                for n in logs_excluded_nodes:
+                    self.logger.debug('removing remote logs for node:%s' % n)
+                    if 'exclude' not in item:
+                        item['exclude'] = []
+                    for remote_dir in self.logs_fuel_remote_dir:
+                        ipd = os.path.join(remote_dir, n)
+                        item['exclude'].append(ipd)
+            start_str = None
+            if 'start' in item or hasattr(self, 'logs_days'):
+                if hasattr(self, 'logs_days') and 'start' not in item:
+                    start = self.logs_days
+                else:
+                    start = item['start']
                 if any([type(start) is str and re.match(r'-?\d+', start),
                         type(start) is int]):
                     days = abs(int(str(start)))
@@ -354,7 +383,7 @@ class Node(object):
             outs, errs, code = tools.ssh_node(ip=self.ip,
                                               command=cmd,
                                               ssh_opts=self.ssh_opts,
-                                              env_vars='',
+                                              env_vars=self.env_vars,
                                               timeout=timeout,
                                               prefix=self.prefix)
             if code == 124:
@@ -427,9 +456,11 @@ class NodeManager(object):
             if self.conf['rqfile']:
                 self.import_rq()
         self.nodes = {}
+        self.token = None
         self.fuel_init()
         # save os environment variables
         environ = os.environ
+        self.logs_excluded_nodes = []
         if FuelClient and conf['fuelclient']:
             try:
                 if self.conf['fuel_skip_proxy']:
@@ -438,11 +469,19 @@ class NodeManager(object):
                     os.environ['https_proxy'] = ''
                     os.environ['http_proxy'] = ''
                 self.logger.info('Setup fuelclient instance')
-                self.fuelclient = FuelClient()
-                self.fuelclient.username = self.conf['fuel_user']
-                self.fuelclient.password = self.conf['fuel_pass']
-                self.fuelclient.tenant_name = self.conf['fuel_tenant']
-                # self.fuelclient.debug_mode(True)
+                if FUEL_10:
+                    self.fuelclient = FuelClient(
+                        host=self.conf['fuel_ip'],
+                        port=self.conf['fuel_port'],
+                        os_username=self.conf['fuel_user'],
+                        os_password=self.conf['fuel_pass'],
+                        os_tenant_name=self.conf['fuel_tenant'])
+                else:
+                    self.fuelclient = FuelClient()
+                    self.fuelclient.username = self.conf['fuel_user']
+                    self.fuelclient.password = self.conf['fuel_pass']
+                    self.fuelclient.tenant_name = self.conf['fuel_tenant']
+                    # self.fuelclient.debug_mode(True)
             except Exception as e:
                 self.logger.info('Failed to setup fuelclient instance:%s' % e,
                                  exc_info=True)
@@ -454,6 +493,7 @@ class NodeManager(object):
             self.nodes_json = tools.load_json_file(nodes_json)
         else:
             if (not self.get_nodes_fuelclient() and
+                    not self.get_nodes_api() and
                     not self.get_nodes_cli()):
                 sys.exit(4)
         self.nodes_init()
@@ -461,18 +501,16 @@ class NodeManager(object):
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
                 node.filtered_out = True
-        if not conf['shell_mode']:
-            if not self.get_release_fuel_client():
-                self.get_release_cli()
+                if self.conf['logs_exclude_filtered']:
+                    self.logs_excluded_nodes.append(node.fqdn)
+                    self.logs_excluded_nodes.append(node.ip)
+        if (not self.get_release_fuel_client() and
+                not self.get_release_api() and
+                not self.get_release_cli()):
+            self.logger.warning('could not get Fuel and MOS versions')
+        else:
             self.nodes_reapply_conf()
             self.conf_assign_once()
-            if extended:
-                self.logger.info('NodeManager: extended mode enabled')
-                '''TO-DO: load smth like extended.yaml
-                do additional apply_conf(clean=False) with this yaml.
-                Move some stuff from rq.yaml to extended.yaml'''
-                pass
-        # restore os environment variables
         os.environ = environ
 
     def __str__(self):
@@ -525,7 +563,11 @@ class NodeManager(object):
                 dst[k] = {}
             if d in el[k]:
                 if k == attr:
-                    dst[k] = el[k][d]
+                    if k in Node.conf_appendable:
+                        dst[k] = w_list(dst[k])
+                        dst[k] += w_list(el[k][d])
+                    else:
+                        dst[k] = el[k][d]
                 elif k.startswith(p) or k.startswith(once_p):
                     dst[k][d] = {attr: el[k][d]}
                 else:
@@ -544,13 +586,25 @@ class NodeManager(object):
             else:
                 dst[k][attr] = el[k]
 
+        def merge_rq(rqfile, dst):
+            file = rqfile['file']
+            if os.path.sep in file:
+                src = tools.load_yaml_file(file)
+            else:
+                f = os.path.join(self.rqdir, file)
+                src = tools.load_yaml_file(f)
+            if self.conf['logs_no_default'] and rqfile['default']:
+                if 'logs' in src:
+                    src.pop('logs')
+            p = Node.conf_match_prefix
+            once_p = Node.conf_once_prefix + p
+            d = Node.conf_default_key
+            for attr in src:
+                r_sub(attr, src, attr, d, p, once_p, dst)
+
         dst = self.conf
-        src = tools.load_yaml_file(self.conf['rqfile'])
-        p = Node.conf_match_prefix
-        once_p = Node.conf_once_prefix + p
-        d = Node.conf_default_key
-        for attr in src:
-            r_sub(attr, src, attr, d, p, once_p, dst)
+        for rqfile in self.conf['rqfile']:
+            merge_rq(rqfile, dst)
 
     def fuel_init(self):
         if not self.conf['fuel_ip']:
@@ -576,8 +630,8 @@ class NodeManager(object):
         if not self.fuelclient:
             return False
         try:
+            self.logger.info('using fuelclient to get nodes json')
             self.nodes_json = self.fuelclient.get_request('nodes')
-            self.logger.debug(self.nodes_json)
             return True
         except Exception as e:
             self.logger.warning(("NodeManager: can't "
@@ -585,11 +639,28 @@ class NodeManager(object):
                                 exc_info=True)
             return False
 
+    def get_release_api(self):
+        self.logger.info('getting release via API')
+        version_json = self.get_api_request('version')
+        if version_json:
+            version = json.loads(version_json)
+            fuel = self.nodes[self.conf['fuel_ip']]
+            fuel.release = version['release']
+        else:
+            return False
+        clusters_json = self.get_api_request('clusters')
+        if clusters_json:
+            clusters = json.loads(clusters_json)
+            self.set_nodes_release(clusters)
+            return True
+        else:
+            return False
+
     def get_release_fuel_client(self):
         if not self.fuelclient:
             return False
+        self.logger.info('getting release via fuelclient')
         try:
-            self.logger.info('getting release from fuel')
             v = self.fuelclient.get_request('version')
             fuel_version = v['release']
             self.logger.debug('version response:%s' % v)
@@ -600,6 +671,10 @@ class NodeManager(object):
                                  "clusters information"))
             return False
         self.nodes[self.conf['fuel_ip']].release = fuel_version
+        self.set_nodes_release(clusters)
+        return True
+
+    def set_nodes_release(self, clusters):
         cldict = {}
         for cluster in clusters:
             cldict[cluster['id']] = cluster
@@ -613,10 +688,81 @@ class NodeManager(object):
                         node.release = 'n/a'
                 self.logger.info('node: %s - release: %s' % (node.id,
                                                              node.release))
-        return True
+
+    def auth_token(self):
+        '''Get keystone token to access Nailgun API. Requires Fuel 5+'''
+        if self.token:
+            return True
+        v2_body = ('{"auth": {"tenantName": "%s", "passwordCredentials": {'
+                    '"username": "%s", "password": "%s"}}}')
+        # v3 not fully implemented yet
+        v3_body = ('{ "auth": {'
+                   '  "scope": {'
+                   '    "project": {'
+                   '      "name": "%s",'
+                   '      "domain": { "id": "default" }'
+                   '    }'
+                   '  },'
+                   '  "identity": {'
+                   '    "methods": ["password"],'
+                   '    "password": {'
+                   '      "user": {'
+                   '        "name": "%s",'
+                   '        "domain": { "id": "default" },'
+                   '        "password": "%s"'
+                   '      }'
+                   '    }'
+                   '  }'
+                   '}}')
+        # Sticking to v2 API for now because Fuel 9.1 has a custom
+        # domain_id defined in keystone.conf which we do not know.
+        req_data = v2_body % (self.conf['fuel_tenant'],
+                              self.conf['fuel_user'],
+                              self.conf['fuel_pass'])
+        req = urllib2.Request("http://%s:%s/v2.0/tokens" %
+                              (self.conf['fuel_ip'],
+                               self.conf['fuel_keystone_port']), req_data,
+                              {'Content-Type': 'application/json'})
+        try:
+            ### Disabling v3 token retrieval for now
+            # token = urllib2.urlopen(req).info().getheader('X-Subject-Token')
+            result = urllib2.urlopen(req)
+            resp_body = result.read()
+            resp_json = json.loads(resp_body)
+            token = resp_json['access']['token']['id']
+            self.token = token
+            return True
+        except:
+            return False
+
+    def get_api_request(self, request):
+        if self.auth_token():
+            url = "http://%s:%s/api/%s" % (self.conf['fuel_ip'],
+                                           self.conf['fuel_port'],
+                                           request)
+            req = urllib2.Request(url, None, {'X-Auth-Token': self.token})
+            try:
+                result = urllib2.urlopen(req)
+                code = result.getcode()
+                if code == 200:
+                    return result.read()
+                else:
+                    self.logger.error('NodeManager: cannot get API response'
+                                      ' from %s, code %s' % (url, code))
+            except:
+                pass
+
+    def get_nodes_api(self):
+        self.logger.info('using API to get nodes json')
+        nodes_json = self.get_api_request('nodes')
+        if nodes_json:
+            self.nodes_json = json.loads(nodes_json)
+            return True
+        else:
+            return False
 
     def get_nodes_cli(self):
-        self.logger.info('use CLI for getting node information')
+        self.logger.info('using CLI to get nodes json')
         fuelnode = self.nodes[self.conf['fuel_ip']]
         fuel_node_cmd = ('fuel node list --json --user %s --password %s' %
                          (self.conf['fuel_user'],
@@ -734,8 +880,10 @@ class NodeManager(object):
         run_items = []
         for key, node in self.nodes.items():
             if not node.filtered_out:
+                args = {'timeout': timeout,
+                        'logs_excluded_nodes': self.logs_excluded_nodes}
                 run_items.append(tools.RunItem(target=node.logs_populate,
-                                               args={'timeout': timeout},
+                                               args=args,
                                                key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:
@@ -747,7 +895,7 @@ class NodeManager(object):
         self.alogsize = total_size / 1024
         return self.alogsize
 
-    def is_enough_space(self, coefficient=1.2):
+    def is_enough_space(self):
         tools.mdir(self.conf['outdir'])
         outs, errs, code = tools.free_space(self.conf['outdir'], timeout=1)
         if code != 0:
@@ -759,10 +907,16 @@ class NodeManager(object):
             self.logger.error("can't get free space\nouts: %s" %
                               outs)
             return False
-        self.logger.info('logsize: %s Kb, free space: %s Kb' %
-                         (self.alogsize, fs))
-        if (self.alogsize*coefficient > fs):
-            self.logger.error('Not enough space on device')
+        coeff = self.conf['logs_size_coefficient']
+        self.logger.info('logsize: %s Kb * %s, free space: %s Kb' %
+                         (self.alogsize, coeff, fs))
+        if (self.alogsize*coeff > fs):
+            self.logger.error('Not enough space in "%s", logsize: %s Kb * %s, '
+                              'available: %s Kb. Decrease logs_size_coefficien'
+                              't config parameter (--logs-coeff CLI parameter)'
+                              ' or free up space.' % (self.conf['outdir'],
+                                                      self.alogsize, coeff,
+                                                      fs))
             return False
         else:
             return True
@@ -782,7 +936,7 @@ class NodeManager(object):
         if code != 0:
             self.logger.error("Can't create archive %s" % (errs))
 
-    def find_adm_interface_speed(self, defspeed):
+    def find_adm_interface_speed(self):
         '''Returns interface speed through which logs will be dowloaded'''
         for node in self.nodes.values():
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
@@ -790,23 +944,27 @@ class NodeManager(object):
                        ('cat /sys/class/net/', node.ip))
                 out, err, code = tools.launch_cmd(cmd, node.timeout)
                 if code != 0:
-                    self.logger.error("can't get iface speed: error: %s" % err)
-                    return defspeed
+                    self.logger.warning("can't get iface speed: err: %s" % err)
+                    return self.conf['logs_speed_default']
                 try:
                     speed = int(out)
                 except:
-                    speed = defspeed
+                    speed = self.conf['logs_speed_default']
                 return speed
 
     @run_with_lock
-    def get_logs(self, timeout, fake=False, maxthreads=10, speed=100):
+    def get_logs(self, timeout, fake=False, maxthreads=10):
         if fake:
             self.logger.info('fake = True, skipping')
             return
-        txtfl = []
-        speed = self.find_adm_interface_speed(speed)
-        speed = int(speed * 0.9 / min(maxthreads, len(self.nodes)))
-        pythonslowpipe = tools.slowpipe % speed
+        if self.conf['logs_speed_limit']:
+            if self.conf['logs_speed'] > 0:
+                speed = self.conf['logs_speed']
+            else:
+                speed = self.find_adm_interface_speed()
+            speed = int(speed * 0.9 / min(maxthreads, len(self.nodes)))
+            py_slowpipe = tools.slowpipe % speed
+            limitcmd = "| python -c '%s'; exit ${PIPESTATUS}" % py_slowpipe
         run_items = []
         for node in [n for n in self.nodes.values() if not n.filtered_out]:
             if not node.logs_dict():
@@ -822,22 +980,18 @@ class NodeManager(object):
                 input += '%s\0' % fn.lstrip(os.path.abspath(os.sep))
             cmd = ("tar --gzip -C %s --create --warning=no-file-changed "
                    " --file - --null --files-from -" % os.path.abspath(os.sep))
-            if not (node.ip == 'localhost' or node.ip.startswith('127.')):
-                cmd = ' '.join([cmd, "| python -c '%s'; exit ${PIPESTATUS}" %
-                                pythonslowpipe])
+            if self.conf['logs_speed_limit']:
+                if not (node.ip == 'localhost' or node.ip.startswith('127.')):
+                    cmd = ' '.join([cmd, limitcmd])
             args = {'cmd': cmd,
                     'timeout': timeout,
                     'outfile': node.archivelogsfile,
                     'input': input,
-                    'ok_codes': [0, 1]}
+                    'ok_codes': [0, 1],
+                    'decode': False}
             run_items.append(tools.RunItem(target=node.exec_simple_cmd,
                                            args=args))
         tools.run_batch(run_items, maxthreads)
-        for tfile in txtfl:
-            try:
-                os.remove(tfile)
-            except:
-                self.logger.error("can't delete file %s" % tfile)
 
     @run_with_lock
     def get_files(self, timeout=15):
@@ -870,4 +1024,4 @@ def main(argv=None):
     return 0
 
 if __name__ == '__main__':
-    exit(main(sys.argv))
+    sys.exit(main(sys.argv))
