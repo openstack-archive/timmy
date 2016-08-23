@@ -231,16 +231,6 @@ def main(argv=None):
         args.logs = True
     if args.logs_no_fuel_remote:
         conf['logs_no_fuel_remote'] = True
-    if args.get_logs:
-        args.logs = True
-        for logs in args.get_logs:
-            logs_conf = {}
-            logs_conf['path'] = logs[0]
-            logs_conf['include'] = [logs[1]]
-            logs_conf['exclude'] = [logs[2]]
-            if args.days:
-                logs_conf['start'] = args.days
-            conf['logs'].append(logs_conf)
     if args.logs_speed or args.logs_speed_auto:
         conf['logs_speed_limit'] = True
     if args.logs_speed:
@@ -271,6 +261,19 @@ def main(argv=None):
             conf[Node.fkey] = args.get
     else:
         filter = conf['soft_filter']
+    if args.get_logs:
+        # this code should be after 'shell_mode' which cleans logs too
+        args.logs = True
+        for logs in args.get_logs:
+            logs_conf = {}
+            logs_conf['path'] = logs[0]
+            if logs[1]:
+                logs_conf['include'] = [logs[1]]
+            if logs[2]:
+                logs_conf['exclude'] = [logs[2]]
+            if args.days:
+                logs_conf['start'] = args.days
+            conf['logs'].append(logs_conf)
     if args.role:
         filter['roles'] = args.role
     if args.env is not None:
