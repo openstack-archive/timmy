@@ -62,7 +62,8 @@ def load_conf(filename):
     conf['filelists'] = []
     conf['logs'] = []
     conf['logs_no_default'] = False  # skip logs defined in default.yaml
-    conf['logs_fuel_remote_dir'] = '/var/log/docker-logs/remote'
+    conf['logs_fuel_remote_dir'] = ['/var/log/docker-logs/remote',
+                                    '/var/log/remote']
     conf['logs_no_fuel_remote'] = False  # do not collect /var/log/remote
     '''Do not collect from /var/log/remote/<node>
     if node is in the array of nodes filtered out by soft filter'''

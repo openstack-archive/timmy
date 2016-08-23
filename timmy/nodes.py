@@ -339,14 +339,16 @@ class Node(object):
                 self.logger.debug('adding Fuel remote logs to exclude list')
                 if 'exclude' not in item:
                     item['exclude'] = []
-                item['exclude'].append(self.logs_fuel_remote_dir)
+                for remote_dir in self.logs_fuel_remote_dir:
+                    item['exclude'].append(remote_dir)
             if 'fuel' in self.roles:
                 for n in logs_excluded_nodes:
                     self.logger.debug('removing remote logs for node:%s' % n)
                     if 'exclude' not in item:
                         item['exclude'] = []
-                    ipd = os.path.join(self.logs_fuel_remote_dir, n)
-                    item['exclude'].append(ipd)
+                    for remote_dir in self.logs_fuel_remote_dir:
+                        ipd = os.path.join(remote_dir, n)
+                        item['exclude'].append(ipd)
             start_str = None
             if 'start' in item or hasattr(self, 'logs_days'):
                 if hasattr(self, 'logs_days') and 'start' not in item:
