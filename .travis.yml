@@ -2,8 +2,8 @@ language: python
 python:
 - '2.7'
 branches:
-  except:
-    - master
+  only:
+    - '1.*'
 script: 'true'
 deploy:
   provider: pypi
