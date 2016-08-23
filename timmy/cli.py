@@ -236,8 +236,8 @@ def main(argv=None):
         for logs in args.get_logs:
             logs_conf = {}
             logs_conf['path'] = logs[0]
-            logs_conf['include'] = logs[1]
-            logs_conf['exclude'] = logs[2]
+            logs_conf['include'] = [logs[1]]
+            logs_conf['exclude'] = [logs[2]]
             if args.days:
                 logs_conf['start'] = args.days
             conf['logs'].append(logs_conf)
