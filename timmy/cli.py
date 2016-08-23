@@ -184,9 +184,6 @@ def parse_args():
                               'selected if more -v are provided it will '
                               'step to INFO and DEBUG unless the option '
                               '-q(--quiet) is specified'))
-    parser.add_argument('--fuel-cli', action='store_true',
-                        help=('Use fuel command line client instead of '
-                              'fuelclient library'))
     return parser
 
 
@@ -287,8 +284,6 @@ def main(argv=None):
     if args.dest_file:
         conf['archive_dir'] = os.path.split(args.dest_file)[0]
         conf['archive_name'] = os.path.split(args.dest_file)[1]
-    if args.fuel_cli:
-        conf['fuelclient'] = False
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
