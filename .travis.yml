@@ -1,12 +1,11 @@
 language: python
 python:
 - '2.7'
-branches:
-  only:
-    - /^\d+\..*$/
 script: 'true'
 deploy:
   provider: pypi
+  on:
+    tags: true
   user: f3flight
   password:
     secure: EqBazqty5cIAB5jACoFoI2j4lZmjMkb+4Rp7wJZCU8EuLotW/cMRTgIhuTlvkFvMVHUl2f6kBitovrxTcxRAVPAXtUimlcOL4e/YfE+zoqIGlnU1F3xymNKLhfTxYU8buQS3OhVIKPfPEG9lm+2TDGXnqa7A1tkb8N8r+SbhTuioxjn0cLfCfT9E0resAHJV14TSUdn7AsZC3Jb3OzZlhIURpOmZsPEMaiEXeAGWiMRVCE92PfFvRIgz44JPYNYTXsCC+XyHn3WpP0zFgqUEg9DqHMUEMMbmu0ocwMJ4m5ZTufJGqKK6QBfElsj04RIeQ3g3xsBA03c/6z4j1CyglVNqjcgJCTAs47ySGhdFrFtWgwTvDnLDzmF5M02yC3ZYxeVx3P1I0KkFA+uGaCMoT0Wi6CyyFmjdDEAcPeYTlGNgaztyMN2X6bfk0XD2fkLgDT56viF1+6ycMT1prtg3+s62ZDFqULX78w3u8k3uxRqOIhnvyFRw+19MjeLNdxpMl/NC/mOcDquswD2wwAu/1KvSD3JmQWgP8RqPS50gaNuBFcd0gN0qJjqlJCVdhipoWyfNegKp++nhT5vPszg93W8UB1w+0dUkQ5t1BM+gNYM0xHdJQMZ/ZB8qM47izTNVzgMc7fv8TouAWbg2mfTQIwx5zEYopnYsNpT7F9BmXgs=
