@@ -694,26 +694,26 @@ class NodeManager(object):
         if self.token:
             return True
         v2_body = ('{"auth": {"tenantName": "%s", "passwordCredentials": {'
-                    '"username": "%s", "password": "%s"}}}')
+                   '"username": "%s", "password": "%s"}}}')
         # v3 not fully implemented yet
-        v3_body = ('{ "auth": {'
-                   '  "scope": {'
-                   '    "project": {'
-                   '      "name": "%s",'
-                   '      "domain": { "id": "default" }'
-                   '    }'
-                   '  },'
-                   '  "identity": {'
-                   '    "methods": ["password"],'
-                   '    "password": {'
-                   '      "user": {'
-                   '        "name": "%s",'
-                   '        "domain": { "id": "default" },'
-                   '        "password": "%s"'
-                   '      }'
-                   '    }'
-                   '  }'
-                   '}}')
+        # v3_body = ('{ "auth": {'
+        #            '  "scope": {'
+        #            '    "project": {'
+        #            '      "name": "%s",'
+        #            '      "domain": { "id": "default" }'
+        #            '    }'
+        #            '  },'
+        #            '  "identity": {'
+        #            '    "methods": ["password"],'
+        #            '    "password": {'
+        #            '      "user": {'
+        #            '        "name": "%s",'
+        #            '        "domain": { "id": "default" },'
+        #            '        "password": "%s"'
+        #            '      }'
+        #            '    }'
+        #            '  }'
+        #            '}}')
         # Sticking to v2 API for now because Fuel 9.1 has a custom
         # domain_id defined in keystone.conf which we do not know.
         req_data = v2_body % (self.conf['fuel_tenant'],
@@ -724,7 +724,7 @@ class NodeManager(object):
                                self.conf['fuel_keystone_port']), req_data,
                               {'Content-Type': 'application/json'})
         try:
-            ### Disabling v3 token retrieval for now
+            # Disabling v3 token retrieval for now
             # token = urllib2.urlopen(req).info().getheader('X-Subject-Token')
             result = urllib2.urlopen(req)
             resp_body = result.read()
