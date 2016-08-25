@@ -30,6 +30,7 @@ import json
 from flock import FLock
 from tempfile import gettempdir
 from pipes import quote
+import signal
 
 logger = logging.getLogger(__name__)
 slowpipe = '''
@@ -51,6 +52,7 @@ def interrupt_wrapper(f):
             f(*args, **kwargs)
         except KeyboardInterrupt:
             logger.warning('Interrupted, exiting.')
+            sys.exit(signal.SIGINT)
         except Exception as e:
             logger.error('Error: %s' % e, exc_info=True)
             for k in dir(e):
@@ -132,7 +134,7 @@ def run_batch(item_list, maxthreads, dict_result=False):
             if isinstance(run_item.result, Exception):
                 logger.critical('%s, exiting' % run_item.result)
                 cleanup()
-                sys.exit(42)
+                sys.exit(109)
             run_item.process.join()
             run_item.process = None
         if dict_result:
@@ -157,10 +159,10 @@ def load_json_file(filename):
     except IOError as e:
         logger.critical("I/O error(%s): file: %s; msg: %s" %
                         (e.errno, e.filename, e.strerror))
-        sys.exit(1)
+        sys.exit(107)
     except ValueError:
-        logger.critical("Could not convert data")
-        sys.exit(1)
+        logger.critical("Could not convert data", exc_info=True)
+        sys.exit(108)
 
 
 def load_yaml_file(filename):
@@ -173,14 +175,14 @@ def load_yaml_file(filename):
     except IOError as e:
         logger.critical("I/O error(%s): file: %s; msg: %s" %
                         (e.errno, e.filename, e.strerror))
-        sys.exit(1)
+        sys.exit(102)
     except ValueError:
-        logger.critical("Could not convert data")
-        sys.exit(1)
+        logger.critical("Could not convert data", exc_info=True)
+        sys.exit(103)
     except yaml.parser.ParserError as e:
         logger.critical("Could not parse %s:\n%s" %
                         (filename, str(e)))
-        sys.exit(1)
+        sys.exit(105)
 
 
 def mdir(directory):
@@ -193,7 +195,7 @@ def mdir(directory):
             os.makedirs(directory)
         except:
             logger.critical("Can't create a directory: %s" % directory)
-            sys.exit(3)
+            sys.exit(110)
 
 
 def launch_cmd(cmd, timeout, input=None, ok_codes=None, decode=True):

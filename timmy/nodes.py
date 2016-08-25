@@ -452,7 +452,7 @@ class NodeManager(object):
             if (not os.path.exists(self.rqdir)):
                 self.logger.critical(('NodeManager: directory %s does not'
                                       ' exist') % self.rqdir)
-                sys.exit(1)
+                sys.exit(101)
             if self.conf['rqfile']:
                 self.import_rq()
         self.nodes = {}
@@ -495,7 +495,7 @@ class NodeManager(object):
             if (not self.get_nodes_fuelclient() and
                     not self.get_nodes_api() and
                     not self.get_nodes_cli()):
-                sys.exit(4)
+                sys.exit(105)
         self.nodes_init()
         # apply soft-filter on all nodes
         for node in self.nodes.values():
@@ -609,7 +609,7 @@ class NodeManager(object):
     def fuel_init(self):
         if not self.conf['fuel_ip']:
             self.logger.critical('NodeManager: fuel_ip not set')
-            sys.exit(7)
+            sys.exit(106)
         fuelnode = Node(id=0,
                         cluster=0,
                         name='fuel',

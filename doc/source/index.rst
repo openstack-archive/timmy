@@ -16,6 +16,7 @@ Contents:
    usage
    cli
    tools
+   exitcodes
 
 Indices and tables
 ==================
