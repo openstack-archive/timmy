@@ -403,7 +403,7 @@ class Node(object):
                 self.logger.debug('logs: %s' % (item['files']))
             self.logger.info('node: %s, total logs size: %dMB' %
                              (self.id,
-                              sum(self.nodes_list().values())/1024/1024))
+                              sum(self.logs_dict().values())/1024/1024))
         return self.logs
 
     def logs_dict(self):
