@@ -200,6 +200,8 @@ def main(argv=None):
     if args.quiet and not args.log_file:
         args.verbose = 0
     loglevel = loglevels[min(len(loglevels)-1, args.verbose)]
+    # always enable debug log if log file specificed
+    loglevel = logging.DEBUG if args.log_file else loglevel
     FORMAT = ('%(asctime)s %(levelname)s: %(module)s: '
               '%(funcName)s(): %(message)s')
     logging.basicConfig(filename=args.log_file,
@@ -301,7 +303,7 @@ def main(argv=None):
             has_logs = False
         else:
             has_logs = True
-            print('Total logs size to collect: %dMB.' % (size / 1000))
+            print('Total logs size to collect: %dMB.' % (size/1024/1024))
             enough_space = pretty_run(args.quiet, 'Checking free space',
                                       nm.is_enough_space)
             if not enough_space:

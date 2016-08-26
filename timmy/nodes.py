@@ -401,6 +401,9 @@ class Node(object):
                         else:
                             self.logger.debug('log file "%s" excluded' % f)
                 self.logger.debug('logs: %s' % (item['files']))
+            self.logger.info('node: %s, total logs size: %dMB' %
+                             (self.id,
+                              sum(self.nodes_list().values())/1024/1024))
         return self.logs
 
     def logs_dict(self):
@@ -890,9 +893,9 @@ class NodeManager(object):
             self.nodes[key].logs = result[key]
         for node in self.nodes.values():
             total_size += sum(node.logs_dict().values())
-        self.logger.info('Full log size on nodes(with fuel): %s bytes' %
+        self.logger.info('Full log size on nodes(with fuel): %d bytes' %
                          total_size)
-        self.alogsize = total_size / 1024
+        self.alogsize = total_size
         return self.alogsize
 
     def is_enough_space(self):
@@ -908,15 +911,16 @@ class NodeManager(object):
                               outs)
             return False
         coeff = self.conf['logs_size_coefficient']
-        self.logger.info('logsize: %s Kb * %s, free space: %s Kb' %
-                         (self.alogsize, coeff, fs))
-        if (self.alogsize*coeff > fs):
-            self.logger.error('Not enough space in "%s", logsize: %s Kb * %s, '
-                              'available: %s Kb. Decrease logs_size_coefficien'
-                              't config parameter (--logs-coeff CLI parameter)'
+        self.logger.info('logsize: %dMB * %s, free space: %dMB' %
+                         (self.alogsize/1024/1024, coeff, fs/1024))
+        if (self.alogsize*coeff > fs*1024):
+            self.logger.error('Not enough space in "%s", logsize: %dMB * %s, '
+                              'available: %dMB. Decrease logs_size_coefficient'
+                              ' config parameter (--logs-coeff CLI parameter)'
                               ' or free up space.' % (self.conf['outdir'],
-                                                      self.alogsize, coeff,
-                                                      fs))
+                                                      self.alogsize/1024/1024,
+                                                      coeff,
+                                                      fs/1024))
             return False
         else:
             return True
