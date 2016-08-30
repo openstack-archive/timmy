@@ -70,10 +70,11 @@ class Node(object):
     conf_match_prefix = 'by_'
     conf_default_key = '__default'
     header = ['node-id', 'env', 'ip', 'mac', 'os',
-              'roles', 'online', 'status', 'name', 'fqdn']
+              'roles', 'online', 'status', 'name', 'release', 'fqdn']
 
-    def __init__(self, id, name, fqdn, mac, cluster, roles, os_platform,
-                 online, status, ip, conf, logger=None):
+    def __init__(self, id, ip, conf, name=None, fqdn=None, mac=None,
+                 cluster=None, roles=None, os_platform=None,
+                 online=True, status="ready", logger=None):
         self.id = id
         self.mac = mac
         self.cluster = cluster
@@ -113,7 +114,7 @@ class Node(object):
         return [str(my_id), str(self.cluster), str(self.ip), str(self.mac),
                 self.os_platform, ','.join(self.roles),
                 str(self.online), str(self.status),
-                str(self.name), str(self.fqdn)]
+                str(self.name), str(self.release), str(self.fqdn)]
 
     def apply_conf(self, conf, clean=True):
 
@@ -521,7 +522,7 @@ class NodeManager(object):
             a = [row[i] for row in matrix]
             mc = 0
             for word in a:
-                lw = len(word)
+                lw = len(str(word))
                 mc = lw if (lw > mc) else mc
             return mc + 2
         header = Node.header
@@ -790,8 +791,12 @@ class NodeManager(object):
                 run_items.append(tools.RunItem(target=node.get_release,
                                                key=key))
         result = tools.run_batch(run_items, 100, dict_result=True)
-        for key in result:
-            self.nodes[key].release = result[key]
+        if result:
+            for key in result:
+                self.nodes[key].release = result[key]
+            return True
+        else:
+            return False
 
     def nodes_init(self):
         for node_data in self.nodes_json:
@@ -803,7 +808,7 @@ class NodeManager(object):
             else:
                 roles = str(node_roles).split(', ')
             keys = "fqdn name mac os_platform status online ip".split()
-            cl = int(node_data['cluster']) if node_data['cluster'] else None
+            cl = int(node_data['cluster']) if 'cluster' in node_data else None
             params = {'id': int(node_data['id']),
                       # please do NOT convert cluster id to int type
                       # because None can be valid
@@ -811,7 +816,8 @@ class NodeManager(object):
                       'roles': roles,
                       'conf': self.conf}
             for key in keys:
-                params[key] = node_data[key]
+                if key in node_data:
+                    params[key] = node_data[key]
             node = Node(**params)
             if self.filter(node, self.conf['hard_filter']):
                 self.nodes[node.ip] = node
