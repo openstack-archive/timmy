@@ -214,8 +214,9 @@ class Node(object):
                 self.logger.info('outfile: %s' % dfile)
                 mapcmds[cmd] = dfile
                 if not fake:
+                    bash_cmd = "bash -c '%s'" % c[cmd]
                     outs, errs, code = tools.ssh_node(ip=self.ip,
-                                                      command=c[cmd],
+                                                      command=bash_cmd,
                                                       ssh_opts=self.ssh_opts,
                                                       env_vars=self.env_vars,
                                                       timeout=self.timeout,
