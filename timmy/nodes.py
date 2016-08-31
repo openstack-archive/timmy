@@ -989,8 +989,9 @@ class NodeManager(object):
             input = ''
             for fn in node.logs_dict():
                 input += '%s\0' % fn.lstrip(os.path.abspath(os.sep))
-            cmd = ("tar --gzip -C %s --create --warning=no-file-changed "
-                   " --file - --null --files-from -" % os.path.abspath(os.sep))
+            cmd = ("tar --transform 's,^,node-%d/,' --gzip -C %s --create "
+                   "--warning=no-file-changed --file - --null --files-from -" %
+                   (node.id, os.path.abspath(os.sep)))
             if self.conf['logs_speed_limit']:
                 if not (node.ip == 'localhost' or node.ip.startswith('127.')):
                     cmd = ' '.join([cmd, limitcmd])
