@@ -872,7 +872,10 @@ class NodeManager(object):
             else:
                 roles = str(node_roles).split(', ')
             keys = "fqdn name mac os_platform status online ip".split()
-            cl = int(node_data['cluster']) if 'cluster' in node_data else None
+            if 'cluster' in node_data and node_data['cluster'] is not None:
+                cl = int(node_data['cluster'])
+            else:
+                cl = None
             id = int(node_data['id']) if 'id' in node_data else None
             params = {'id': id,
                       'cluster': cl,
