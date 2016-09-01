@@ -234,9 +234,9 @@ class Node(object):
         if self.scripts:
             ddir = os.path.join(self.outdir, Node.skey, cl, self.repr)
             tools.mdir(ddir)
-            scripts = sorted(self.scripts)
+            self.scripts = sorted(self.scripts)
         mapscr = {}
-        for scr in scripts:
+        for scr in self.scripts:
             if type(scr) is dict:
                 env_vars = scr.values()[0]
                 scr = scr.keys()[0]
