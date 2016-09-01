@@ -336,9 +336,18 @@ def main(argv=None):
         if nm.has(Node.ckey, Node.skey):
             if not args.quiet:
                 print('Results:')
+            output_dict = {}
+            maxlength = 0
+            for node in nm.nodes.values():
+                name, output = node.get_results(node.mapcmds)
+                output_dict[node.ip] = {'name': name, 'output': output}
+                name, output2 = node.get_results(node.mapscr)
+                output_dict[node.ip]['output'] += output2
+                maxlength = len(name) if len(name) > maxlength else maxlength
             for node in nm.sorted_nodes():
-                node.print_results(node.mapcmds)
-                node.print_results(node.mapscr)
+                for line in output_dict[node.ip]['output']:
+                    name = output_dict[node.ip]['name'].rjust(maxlength)
+                    print("%s: %s" % (name, line))
     if nm.has(Node.ckey, Node.skey, Node.fkey, Node.flkey) and not args.quiet:
         print('Outputs and/or files available in "%s".' % nm.conf['outdir'])
     if all([not args.no_archive, nm.has(*Node.conf_archive_general),
