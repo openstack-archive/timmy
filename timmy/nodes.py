@@ -605,7 +605,8 @@ class NodeManager(object):
         return '\n'.join(nodestrings)
 
     def sorted_nodes(self):
-        s = [n for n in sorted(self.nodes.values(), key=lambda x: x.ip)]
+        nv = self.nodes.values()
+        s = [n for n in sorted(nv, key=lambda x: (x.id, x.ip))]
         return s
 
     def import_rq(self):
@@ -876,7 +877,10 @@ class NodeManager(object):
                 cl = int(node_data['cluster'])
             else:
                 cl = None
-            id = int(node_data['id']) if 'id' in node_data else None
+            if 'id' in node_data and node_data['id'] is not None:
+                id = int(node_data['id'])
+            else:
+                id = None
             params = {'id': id,
                       'cluster': cl,
                       'roles': roles,
