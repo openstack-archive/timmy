@@ -475,17 +475,23 @@ class NodeManager(object):
                     os.environ['http_proxy'] = ''
                 self.logger.info('Setup fuelclient instance')
                 if FUEL_10:
-                    self.fuelclient = FuelClient(
-                        host=self.conf['fuel_ip'],
-                        port=self.conf['fuel_port'],
-                        os_username=self.conf['fuel_user'],
-                        os_password=self.conf['fuel_pass'],
-                        os_tenant_name=self.conf['fuel_tenant'])
+                    args = {'host': self.conf['fuel_ip'],
+                            'port': self.conf['fuel_port']}
+                    if self.conf['fuel_user']:
+                        args['os_username'] = self.conf['fuel_user']
+                    if self.conf['fuel_pass']:
+                        args['os_password'] = self.conf['fuel_pass']
+                    if self.conf['fuel_tenant']:
+                        args['os_tenant_name'] = self.conf['fuel_tenant']
+                    self.fuelclient = FuelClient(**args)
                 else:
                     self.fuelclient = FuelClient()
-                    self.fuelclient.username = self.conf['fuel_user']
-                    self.fuelclient.password = self.conf['fuel_pass']
-                    self.fuelclient.tenant_name = self.conf['fuel_tenant']
+                    if self.conf['fuel_user']:
+                        self.fuelclient.username = self.conf['fuel_user']
+                    if self.conf['fuel_pass']:
+                        self.fuelclient.password = self.conf['fuel_pass']
+                    if self.conf['fuel_tenant']:
+                        self.fuelclient.tenant_name = self.conf['fuel_tenant']
                     # self.fuelclient.debug_mode(True)
             except Exception as e:
                 self.logger.info('Failed to setup fuelclient instance:%s' % e,
@@ -721,12 +727,16 @@ class NodeManager(object):
         #            '}}')
         # Sticking to v2 API for now because Fuel 9.1 has a custom
         # domain_id defined in keystone.conf which we do not know.
-        req_data = v2_body % (self.conf['fuel_tenant'],
-                              self.conf['fuel_user'],
-                              self.conf['fuel_pass'])
+        args = {'user': None, 'pass': None, 'tenant': None}
+        for a in args:
+            if self.conf['fuel_%s' % a]:
+                args[a] = self.conf['fuel_%s' % a]
+            else:
+                args[a] = self.conf['fuel_api_%s' % a]
+        req_data = v2_body % (args['tenant'], args['user'], args['pass'])
         req = urllib2.Request("http://%s:%s/v2.0/tokens" %
                               (self.conf['fuel_ip'],
-                               self.conf['fuel_keystone_port']), req_data,
+                               self.conf['fuel_api_keystone_port']), req_data,
                               {'Content-Type': 'application/json'})
         try:
             # Disabling v3 token retrieval for now

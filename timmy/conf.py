@@ -31,11 +31,16 @@ def load_conf(filename):
     conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"',
                         'LC_ALL="C"', 'LANG="C"']
     conf['fuel_ip'] = '127.0.0.1'
-    conf['fuel_user'] = 'admin'
-    conf['fuel_port'] = '8000'
-    conf['fuel_pass'] = 'admin'
-    conf['fuel_tenant'] = 'admin'
-    conf['fuel_keystone_port'] = '5000'
+    conf['fuel_api_user'] = 'admin'
+    conf['fuel_api_pass'] = 'admin'
+    conf['fuel_api_tenant'] = 'admin'
+    conf['fuel_api_port'] = '8000'
+    conf['fuel_api_keystone_port'] = '5000'
+    # The three parameters below are used to override FuelClient, API, CLI auth
+    conf['fuel_user'] = None
+    conf['fuel_pass'] = None
+    conf['fuel_tenant'] = None
+
     conf['fuelclient'] = True  # use fuelclient library by default
     conf['fuel_skip_proxy'] = True
     conf['timeout'] = 15
