@@ -758,7 +758,7 @@ class NodeManager(object):
     def get_api_request(self, request):
         if self.auth_token():
             url = "http://%s:%s/api/%s" % (self.conf['fuel_ip'],
-                                           self.conf['fuel_port'],
+                                           self.conf['fuel_api_port'],
                                            request)
             req = urllib2.Request(url, None, {'X-Auth-Token': self.token})
             try:
