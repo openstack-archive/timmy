@@ -78,7 +78,7 @@ class Node(object):
         self.id = id
         self.mac = mac
         self.cluster = cluster
-        self.roles = roles
+        self.roles = roles if roles else []
         self.os_platform = os_platform
         self.online = online
         self.status = status
@@ -199,6 +199,50 @@ class Node(object):
         self.logger.info('%s, MOS release: %s' %
                          (self.repr, release))
         return release
+
+    def get_roles_hiera(self):
+        def trim_primary(roles):
+            trim_roles = [r for r in roles if not r.startswith('primary-')]
+            trim_roles += [r[8:] for r in roles if r.startswith('primary-')]
+            return trim_roles
+
+        self.logger.debug('%s: roles not defined, trying hiera' % self.repr)
+        cmd = 'hiera roles'
+        outs, errs, code = tools.ssh_node(ip=self.ip,
+                                          command=cmd,
+                                          ssh_opts=self.ssh_opts,
+                                          env_vars=self.env_vars,
+                                          timeout=self.timeout,
+                                          prefix=self.prefix)
+        self.check_code(code, 'get_roles_hiera', cmd, errs, [0])
+        if code == 0:
+            try:
+                roles = trim_primary(json.loads(outs))
+            except:
+                self.logger.warning("%s: failed to parse '%s' output as JSON" %
+                                    (self.repr, cmd))
+                return self.roles
+            self.logger.debug('%s: got roles: %s' % (self.repr, roles))
+            if roles is not None:
+                return roles
+            else:
+                return self.roles
+        else:
+            self.logger.warning("%s: failed to load roles via hiera" %
+                                self.repr)
+            self.roles
+
+    def get_os(self):
+        self.logger.debug('%s: os_platform not defined, trying to determine' %
+                          self.repr)
+        cmd = 'which lsb_release'
+        outs, errs, code = tools.ssh_node(ip=self.ip,
+                                          command=cmd,
+                                          ssh_opts=self.ssh_opts,
+                                          env_vars=self.env_vars,
+                                          timeout=self.timeout,
+                                          prefix=self.prefix)
+        return 'centos' if code else 'ubuntu'
 
     def exec_cmd(self, fake=False, ok_codes=None):
         cl = 'cluster-%s' % self.cluster
@@ -514,6 +558,11 @@ class NodeManager(object):
                     not self.get_nodes_cli()):
                 sys.exit(105)
         self.nodes_init()
+        # get release information for all nodes
+        if (not self.get_release_fuel_client() and
+                not self.get_release_api() and
+                not self.get_release_cli()):
+            self.logger.warning('could not get Fuel and MOS versions')
         # apply soft-filter on all nodes
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
@@ -521,11 +570,10 @@ class NodeManager(object):
                 if self.conf['logs_exclude_filtered']:
                     self.logs_excluded_nodes.append(node.fqdn)
                     self.logs_excluded_nodes.append(node.ip)
-        if (not self.get_release_fuel_client() and
-                not self.get_release_api() and
-                not self.get_release_cli()):
-            self.logger.warning('could not get Fuel and MOS versions')
         else:
+            if self.nodes_json:
+                self.nodes_get_roles_hiera()
+                self.nodes_get_os()
             self.nodes_reapply_conf()
             self.conf_assign_once()
         os.environ = environ
@@ -818,7 +866,7 @@ class NodeManager(object):
         for node_data in self.nodes_json:
             node_roles = node_data.get('roles')
             if not node_roles:
-                roles = ['None']
+                roles = []
             elif isinstance(node_roles, list):
                 roles = node_roles
             else:
@@ -860,6 +908,27 @@ class NodeManager(object):
     def nodes_reapply_conf(self):
         for node in self.nodes.values():
             node.apply_conf(self.conf)
+
+    def nodes_get_roles_hiera(self, maxthreads=100):
+        run_items = []
+        for key, node in self.nodes.items():
+            if not node.filtered_out and not node.roles:
+                run_items.append(tools.RunItem(target=node.get_roles_hiera,
+                                               key=key))
+        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        for key in result:
+            if result[key]:
+                self.nodes[key].roles = result[key]
+
+    def nodes_get_os(self, maxthreads=100):
+        run_items = []
+        for key, node in self.nodes.items():
+            if not node.filtered_out and not node.os_platform:
+                run_items.append(tools.RunItem(target=node.get_os, key=key))
+        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        for key in result:
+            if result[key]:
+                self.nodes[key].os_platform = result[key]
 
     def filter(self, node, node_filter):
         f = node_filter
