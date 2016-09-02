@@ -69,8 +69,8 @@ class Node(object):
     conf_once_prefix = 'once_'
     conf_match_prefix = 'by_'
     conf_default_key = '__default'
-    header = ['node-id', 'env', 'ip', 'mac', 'os',
-              'roles', 'online', 'status', 'name', 'release', 'fqdn']
+    header = ['node-id', 'env', 'ip', 'mac', 'os', 'roles', 'online',
+              'accessible', 'status', 'name', 'release', 'fqdn']
 
     def __init__(self, ip, conf, id=None, name=None, fqdn=None, mac=None,
                  cluster=None, roles=None, os_platform=None,
@@ -103,6 +103,7 @@ class Node(object):
         self.mapscr = {}
         self.name = name
         self.fqdn = fqdn
+        self.accessible = True
         self.filtered_out = False
         self.outputs_timestamp = False
         self.outputs_timestamp_dir = None
@@ -123,7 +124,7 @@ class Node(object):
             my_id = str(self.id) + ' [skipped]'
         return [str(my_id), str(self.cluster), str(self.ip), str(self.mac),
                 self.os_platform, ','.join(self.roles),
-                str(self.online), str(self.status),
+                str(self.online), str(self.accessible), str(self.status),
                 str(self.name), str(self.release), str(self.fqdn)]
 
     def apply_conf(self, conf, clean=True):
@@ -263,6 +264,22 @@ class Node(object):
                                           timeout=self.timeout,
                                           prefix=self.prefix)
         return int(outs.rstrip('\n')) if code == 0 else None
+
+    def check_access(self):
+        self.logger.debug('%s: verifyng node access' %
+                          self.repr)
+        cmd = 'true'
+        outs, errs, code = tools.ssh_node(ip=self.ip,
+                                          command=cmd,
+                                          ssh_opts=self.ssh_opts,
+                                          env_vars=self.env_vars,
+                                          timeout=self.timeout,
+                                          prefix=self.prefix)
+        if code == 0:
+            return True
+        else:
+            self.logger.info('%s: not accessible' % self.repr)
+            return False
 
     def exec_cmd(self, fake=False, ok_codes=None):
         cl = 'cluster-%s' % self.cluster
@@ -578,6 +595,7 @@ class NodeManager(object):
                     not self.get_nodes_cli()):
                 sys.exit(105)
         self.nodes_init()
+        self.nodes_check_access()
         # get release information for all nodes
         if (not self.get_release_fuel_client() and
                 not self.get_release_api() and
@@ -952,13 +970,26 @@ class NodeManager(object):
                                                key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:
-            if result[key]:
+            if result[key] is not None:
                 self.nodes[key].cluster = result[key]
+
+    def nodes_check_access(self, maxthreads=100):
+        self.logger.debug('checking if nodes are accessible')
+        run_items = []
+        for key, node in self.nodes.items():
+            if not node.filtered_out:
+                run_items.append(tools.RunItem(target=node.check_access,
+                                               key=key))
+        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        for key in result:
+            self.nodes[key].accessible = result[key]
 
     def filter(self, node, node_filter):
         f = node_filter
+        if f == self.conf['soft_filter'] and not node.accessible:
+            return False
         # soft-skip Fuel node for shell mode
-        if node.id == 0 and self.conf['shell_mode']:
+        if (node.id == 0 and self.conf['shell_mode']):
             return False
         else:
             elems = []
