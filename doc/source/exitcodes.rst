@@ -14,3 +14,4 @@ Exit Codes
 * `108` - could not load JSON file - Value Error, see log for details.
 * `109` - subprocess (one of the node execution processes) exited with a Python exception.
 * `110` - unable to create a directory.
+* `111` - ip address must be defined for Node instance.

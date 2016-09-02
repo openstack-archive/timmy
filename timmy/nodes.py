@@ -75,13 +75,20 @@ class Node(object):
     def __init__(self, ip, conf, id=None, name=None, fqdn=None, mac=None,
                  cluster=None, roles=None, os_platform=None,
                  online=True, status="ready", logger=None):
-        self.id = id
+        self.logger = logger or logging.getLogger(__name__)
+        self.id = int(id) if id is not None else None
         self.mac = mac
-        self.cluster = cluster
-        self.roles = roles if roles else []
+        self.cluster = int(cluster) if cluster is not None else None
+        if type(roles) is list:
+            self.roles = roles
+        else:
+            self.roles = roles.split(', ') if roles else []
         self.os_platform = os_platform
         self.online = online
         self.status = status
+        if ip is None:
+            self.logger.critical('Node: ip address must be defined')
+            sys.exit(111)
         self.ip = ip
         self.release = None
         self.files = []
@@ -104,7 +111,6 @@ class Node(object):
             self.repr = "node-%s-%s" % (self.id, self.ip)
         else:
             self.repr = "node-%s" % self.ip
-        self.logger = logger or logging.getLogger(__name__)
 
     def __str__(self):
         fields = self.print_table()
@@ -243,6 +249,20 @@ class Node(object):
                                           timeout=self.timeout,
                                           prefix=self.prefix)
         return 'centos' if code else 'ubuntu'
+
+    def get_cluster_id(self):
+        self.logger.debug('%s: cluster id not defined, trying to determine' %
+                          self.repr)
+        astute_file = '/etc/astute.yaml'
+        cmd = ("python -c 'import yaml; a = yaml.load(open(\"%s\")"
+               ".read()); print a[\"cluster\"][\"id\"]'" % astute_file)
+        outs, errs, code = tools.ssh_node(ip=self.ip,
+                                          command=cmd,
+                                          ssh_opts=self.ssh_opts,
+                                          env_vars=self.env_vars,
+                                          timeout=self.timeout,
+                                          prefix=self.prefix)
+        return int(outs.rstrip('\n')) if code == 0 else None
 
     def exec_cmd(self, fake=False, ok_codes=None):
         cl = 'cluster-%s' % self.cluster
@@ -574,6 +594,7 @@ class NodeManager(object):
             if self.nodes_json:
                 self.nodes_get_roles_hiera()
                 self.nodes_get_os()
+                self.nodes_get_cluster_ids()
             self.nodes_reapply_conf()
             self.conf_assign_once()
         os.environ = environ
@@ -865,26 +886,9 @@ class NodeManager(object):
 
     def nodes_init(self):
         for node_data in self.nodes_json:
-            node_roles = node_data.get('roles')
-            if not node_roles:
-                roles = []
-            elif isinstance(node_roles, list):
-                roles = node_roles
-            else:
-                roles = str(node_roles).split(', ')
-            keys = "fqdn name mac os_platform status online ip".split()
-            if 'cluster' in node_data and node_data['cluster'] is not None:
-                cl = int(node_data['cluster'])
-            else:
-                cl = None
-            if 'id' in node_data and node_data['id'] is not None:
-                id = int(node_data['id'])
-            else:
-                id = None
-            params = {'id': id,
-                      'cluster': cl,
-                      'roles': roles,
-                      'conf': self.conf}
+            params = {'conf': self.conf}
+            keys = ['id', 'cluster', 'roles', 'fqdn', 'name', 'mac',
+                    'os_platform', 'status', 'online', 'ip']
             for key in keys:
                 if key in node_data:
                     params[key] = node_data[key]
@@ -919,7 +923,8 @@ class NodeManager(object):
     def nodes_get_roles_hiera(self, maxthreads=100):
         run_items = []
         for key, node in self.nodes.items():
-            if not node.filtered_out and not node.roles:
+            if all([not node.filtered_out, not node.roles,
+                    node.status != 'discover']):
                 run_items.append(tools.RunItem(target=node.get_roles_hiera,
                                                key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
@@ -936,6 +941,18 @@ class NodeManager(object):
         for key in result:
             if result[key]:
                 self.nodes[key].os_platform = result[key]
+
+    def nodes_get_cluster_ids(self, maxthreads=100):
+        self.logger.debug('getting cluster ids from nodes')
+        run_items = []
+        for key, node in self.nodes.items():
+            if not node.filtered_out and not node.cluster:
+                run_items.append(tools.RunItem(target=node.get_cluster_id,
+                                               key=key))
+        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        for key in result:
+            if result[key]:
+                self.nodes[key].cluster = result[key]
 
     def filter(self, node, node_filter):
         f = node_filter
