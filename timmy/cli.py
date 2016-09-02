@@ -50,6 +50,7 @@ def parse_args():
     parser.add_argument('--fuel-ip', help='fuel ip address')
     parser.add_argument('--fuel-user', help='fuel username')
     parser.add_argument('--fuel-pass', help='fuel password')
+    parser.add_argument('--fuel-token', help='fuel auth token')
     parser.add_argument('-o', '--dest-file',
                         help=('Output filename for the archive in tar.gz'
                               ' format for command outputs and collected'
@@ -215,6 +216,9 @@ def main(argv=None):
         conf['fuel_user'] = args.fuel_user
     if args.fuel_pass:
         conf['fuel_pass'] = args.fuel_pass
+    if args.fuel_token:
+        conf['fuel_api_token'] = args.fuel_token
+        conf['fuelclient'] = False
     if args.fuel_proxy:
         conf['fuel_skip_proxy'] = False
     if args.put or args.command or args.script or args.get:

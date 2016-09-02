@@ -531,7 +531,7 @@ class NodeManager(object):
             if self.conf['rqfile']:
                 self.import_rq()
         self.nodes = {}
-        self.token = None
+        self.token = self.conf['fuel_api_token']
         self.fuel_init()
         # save os environment variables
         environ = os.environ
@@ -779,6 +779,7 @@ class NodeManager(object):
         '''Get keystone token to access Nailgun API. Requires Fuel 5+'''
         if self.token:
             return True
+        self.logger.info('getting token for Nailgun')
         v2_body = ('{"auth": {"tenantName": "%s", "passwordCredentials": {'
                    '"username": "%s", "password": "%s"}}}')
         # v3 not fully implemented yet

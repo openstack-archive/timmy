@@ -33,6 +33,7 @@ def load_conf(filename):
     conf['fuel_ip'] = '127.0.0.1'
     conf['fuel_api_user'] = 'admin'
     conf['fuel_api_pass'] = 'admin'
+    conf['fuel_api_token'] = None
     conf['fuel_api_tenant'] = 'admin'
     conf['fuel_api_port'] = '8000'
     conf['fuel_api_keystone_port'] = '5000'
