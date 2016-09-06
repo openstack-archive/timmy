@@ -538,7 +538,6 @@ class NodeManager(object):
                 conf['archive_dir'] += timestamp_str
         if conf['clean']:
             shutil.rmtree(conf['outdir'], ignore_errors=True)
-            shutil.rmtree(conf['archive_dir'], ignore_errors=True)
         if not conf['shell_mode']:
             self.rqdir = conf['rqdir']
             if (not os.path.exists(self.rqdir)):

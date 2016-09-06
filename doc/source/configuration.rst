@@ -29,7 +29,7 @@ Some of the parameters available in configuration file:
 * **logs_size_coefficient** a float value used to check local free space; 'logs size * coefficient' must be > free space; values lower than 0.3 are not recommended and will likely cause local disk fillup during log collection
 * **do_print_results** print outputs of commands and scripts to stdout
 * **clean** True/False - erase previous results in outdir and archive_dir dir, if any
-* **outdir** directory to store output data
+* **outdir** directory to store output data. **WARNING: this directory is WIPED by default at the beginning of data collection. Be careful with what you define here.**
 * **archive_dir** directory to put resulting archives into
 * **timeout** timeout for SSH commands and scripts in seconds
 
