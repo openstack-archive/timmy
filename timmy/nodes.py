@@ -628,8 +628,7 @@ class NodeManager(object):
         header = Node.header
         nodestrings = [header]
         for n in self.sorted_nodes():
-            if self.filter(n, self.conf['hard_filter']):
-                nodestrings.append(n.print_table())
+            nodestrings.append(n.print_table())
         colwidth = []
         for i in range(len(header)):
             colwidth.append(ml_column(nodestrings, i))
@@ -638,9 +637,8 @@ class NodeManager(object):
             pt += '{%s:<%s}' % (i, str(colwidth[i]))
         nodestrings = [(pt.format(*header))]
         for n in self.sorted_nodes():
-            if self.filter(n, self.conf['hard_filter']):
-                n.pt = pt
-                nodestrings.append(str(n))
+            n.pt = pt
+            nodestrings.append(str(n))
         return '\n'.join(nodestrings)
 
     def sorted_nodes(self):
@@ -988,7 +986,7 @@ class NodeManager(object):
 
     def filter(self, node, node_filter):
         f = node_filter
-        if f == self.conf['soft_filter'] and not node.accessible:
+        if f is self.conf['soft_filter'] and not node.accessible:
             return False
         # soft-skip Fuel node for shell mode
         if (node.id == 0 and self.conf['shell_mode']):
