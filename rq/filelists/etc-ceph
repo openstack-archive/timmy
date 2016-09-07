@@ -1,3 +1,2 @@
 #ceph configs
-/etc/ceph/ceph.client.admin.keyring
-/etc/ceph/ceph.conf
+/etc/ceph/
