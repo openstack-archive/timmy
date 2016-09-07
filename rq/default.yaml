@@ -1,26 +1,30 @@
 files:
-  __default: ['/etc/resolv.conf', '/etc/mcollective', '/etc/astute.yaml', '/root/anaconda*', '/root/*.log', '/root/*.ks', '/var/lib/puppet/state/last_run_summary.yaml', '/var/run/pcap_dir', '/var/lib/cloud']
+  __default: ['/etc/resolv.conf', '/etc/mcollective', '/etc/astute.yaml', '/root/anaconda*', '/root/*.log', '/root/*.ks', '/var/lib/puppet/state/last_run_summary.yaml', '/var/run/pcap_dir', '/var/lib/cloud', '/etc/default']
   by_roles:
-    controller: ['/etc/apache2', '/etc/keystone', '/etc/swift']
-    fuel: ['/etc/astute', '/etc/dnsmasq.conf', '/etc/centos-release', '/etc/fuel_build_number', '/etc/fuel_build_id', '/etc/cobbler', '/etc/cobbler.dnsmasq.conf', '/root/*.log']
-    ceph: ['/root/.ceph*']
-    no_fuel: '/etc/hiera'
+    controller: ['/etc/apache2', '/etc/keystone', '/etc/swift', '/etc/ceph', '/etc/cinder', '/etc/glance', '/etc/haproxy', '/etc/heat', '/etc/mysql', '/etc/nova']
+    cinder: ['/etc/cinder']
+    fuel: ['/etc/astute', '/etc/dnsmasq.conf', '/etc/centos-release', '/etc/fuel_build_number', '/etc/fuel_build_id', '/etc/cobbler', '/etc/cobbler.dnsmasq.conf', '/root/*.log', '/etc/fuel', '/etc/nailgun']
+    ceph: ['/root/.ceph*', '/etc/ceph']
+    compute: ['/etc/libvirt', '/etc/nova']
+    no_fuel: ['/etc/hiera', '/etc/neutron']
   by_os_platform:
-    ubuntu: ['/etc/lsb-release', '/etc/network']
-    centos: ['/etc/redhat-release', '/etc/sysconfig']
-filelists:
-  by_roles:
-    fuel: [etc-nailgun, etc-fuel]
-    ceph-osd: [etc-ceph]
-    cinder: [etc-cinder]
-    compute: [etc-nova, etc-libvirt]
-    controller: [etc-glance, etc-haproxy, etc-nova,
-      etc-keystone, etc-neutron, etc-mysql]
-    # f3flight: removed etc-heat, etc-ceph-controller from controller since it's not always present, gives a warning
-    # f3flight: need to make a better way to decide which files to collect
-  by_os_platform:
-    centos: [etc-yum]
-    ubuntu: [etc-apt]
+    ubuntu: ['/etc/apt', '/etc/lsb-release', '/etc/network']
+    centos: ['/etc/redhat-release', '/etc/sysconfig', '/etc/yum', '/etc/yum.d']
+  by_release:
+    '9.0': ['/etc/fuel']
+    '9.1': ['/etc/fuel']
+# filelists:
+#   by_roles:
+#     fuel: [etc-nailgun, etc-fuel]
+#     ceph-osd: [etc-ceph]
+#     cinder: [etc-cinder]
+#     compute: [etc-nova, etc-libvirt]
+#     controller: [etc-glance, etc-haproxy, etc-nova,
+#       etc-keystone, etc-neutron, etc-mysql, etc-ceph, etc-heat]
+#     # f3flight: need to make a better way to decide which files to collect
+#   by_os_platform:
+#     centos: [etc-yum]
+#     ubuntu: [etc-apt]
 scripts:
   by_release:
     '4.1':
