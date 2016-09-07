@@ -7,6 +7,7 @@ files:
     ceph: ['/root/.ceph*', '/etc/ceph']
     compute: ['/etc/libvirt', '/etc/nova']
     no_fuel: ['/etc/hiera', '/etc/neutron']
+    virt: ['/etc/libvirt']
   by_os_platform:
     ubuntu: ['/etc/apt', '/etc/lsb-release', '/etc/network']
     centos: ['/etc/redhat-release', '/etc/sysconfig', '/etc/yum', '/etc/yum.d']
