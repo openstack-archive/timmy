@@ -108,6 +108,7 @@ class Node(object):
         self.outputs_timestamp = False
         self.outputs_timestamp_dir = None
         self.apply_conf(conf)
+        self.cluster_repr = "cluster-%s" % str(cluster)
         if self.id is not None:
             self.repr = "node-%s-%s" % (self.id, self.ip)
         else:
@@ -282,7 +283,7 @@ class Node(object):
             return False
 
     def exec_cmd(self, fake=False, ok_codes=None):
-        cl = 'cluster-%s' % self.cluster
+        cl = self.cluster_repr
         self.logger.debug('%s/%s/%s/%s' %
                           (self.outdir, Node.ckey, cl, self.repr))
         if self.cmds:
@@ -367,7 +368,7 @@ class Node(object):
 
     def get_files(self, timeout=15):
         self.logger.info('%s: getting files' % self.repr)
-        cl = 'cluster-%s' % self.cluster
+        cl = self.cluster_repr
         if self.files or self.filelists:
             ddir = os.path.join(self.outdir, Node.fkey, cl, self.repr)
             tools.mdir(ddir)
@@ -725,6 +726,8 @@ class NodeManager(object):
                         online=True,
                         ip=self.conf['fuel_ip'],
                         conf=self.conf)
+        fuelnode.cluster_repr = ""
+        fuelnode.repr = "fuel"
         # soft-skip Fuel if it is hard-filtered
         if not self.filter(fuelnode, self.conf['hard_filter']):
             fuelnode.filtered_out = True
