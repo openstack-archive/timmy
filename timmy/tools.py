@@ -278,11 +278,13 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
         logger.info("skip ssh rsync")
         cmd = ("timeout '%s' rsync -avzr --files-from=- / '%s'"
+               " --exclude '*/ssl/*' --exclude '*/fernet-keys/*'"
                " --progress --partial --delete-before" %
                (timeout, dpath))
     else:
         cmd = ("timeout '%s' rsync -avzr -e 'ssh %s"
                " -oCompression=no' --files-from=- '%s':/ '%s'"
+               " --exclude '*/ssl/*' --exclude '*/fernet-keys/*'"
                " --progress --partial --delete-before"
                ) % (timeout, ssh_opts, ip, dpath)
     logger.debug("command:%s\ndata:\n%s" % (cmd, data))
