@@ -94,8 +94,8 @@ scripts:
 logs:
   __default:
     path: '/var/log'
-    exclude:
-      - '\.[^12]\.gz$|\.\d{2,}\.gz$'
+#    exclude:
+#      - '\.[^12]\.gz$|\.\d{2,}\.gz$'
 # cmds:
 #   __default:
 #     test:

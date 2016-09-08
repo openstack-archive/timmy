@@ -307,7 +307,9 @@ def main(argv=None):
             has_logs = False
         else:
             has_logs = True
-            print('Total logs size to collect: %dMB.' % (size/1024/1024))
+            print(('Total logs size to collect before compression: %dMB.\n'
+                   'Compressed logs will take less space.') % (size/1048576))
+            print('Log collection period: %s days.' % conf['logs_days'])
             enough_space = pretty_run(args.quiet, 'Checking free space',
                                       nm.is_enough_space)
             if not enough_space:
