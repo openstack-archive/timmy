@@ -2,11 +2,11 @@
 Specification
 =============
 
-Mirantis OpenStack Ansible-like tool for parallel node operations: two-way data transfer, log collection, remote command execution
+OpenStack Ansible-like tool for parallel node operations: two-way data transfer, log collection, remote command execution
 
 
 * The tool is based on https://etherpad.openstack.org/p/openstack-diagnostics
-* Should work fine in the following environments that have been tested: 4.x, 5.x, 6.x, 7.0, 8.0, 9.0
+* Should work fine in environments deployed by Fuel versions: 4.x, 5.x, 6.x, 7.0, 8.0, 9.0, 9.1
 * Operates non-destructively.
 * Can be launched on any host within admin network, provided the fuel node IP is specified and access to Fuel and other nodes is possible  via ssh from the local system.
 * Parallel launch - only on the nodes that are 'online'. Some filters for nodes are also available.
