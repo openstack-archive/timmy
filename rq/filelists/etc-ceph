@@ -1,2 +1,3 @@
-#ceph configs
-/etc/ceph/
++ /etc
++ /etc/ceph
++ /etc/ceph/**

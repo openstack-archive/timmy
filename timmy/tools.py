@@ -277,14 +277,12 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
         ssh_opts = ' '.join(ssh_opts)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
         logger.info("skip ssh rsync")
-        cmd = ("timeout '%s' rsync -avzr --files-from=- / '%s'"
-               " --exclude '*/ssl/*' --exclude '*/fernet-keys/*'"
+        cmd = ("timeout '%s' rsync -avzr --include-from=- / '%s' --exclude='*'"
                " --progress --partial --delete-before" %
                (timeout, dpath))
     else:
         cmd = ("timeout '%s' rsync -avzr -e 'ssh %s"
-               " -oCompression=no' --files-from=- '%s':/ '%s'"
-               " --exclude '*/ssl/*' --exclude '*/fernet-keys/*'"
+               " -oCompression=no' --include-from=- '%s':/ '%s' --exclude='*'"
                " --progress --partial --delete-before"
                ) % (timeout, ssh_opts, ip, dpath)
     logger.debug("command:%s\ndata:\n%s" % (cmd, data))
@@ -298,13 +296,15 @@ def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
     ddir = os.path.join(os.path.normpath(ddir), dest)
     mdir(ddir)
     r = '-r ' if recursive else ''
-    cmd = "timeout '%s' scp -q %s'%s':'%s' '%s'" % (timeout, r, ip, file, ddir)
+    cmd = ("timeout '%s' scp -oStrictHostKeyChecking=no -q %s'%s':'%s' '%s'" %
+           (timeout, r, ip, file, ddir))
     return launch_cmd(cmd, timeout)
 
 
 def put_file_scp(ip, file, dest, timeout=600, recursive=True):
     r = '-r ' if recursive else ''
-    cmd = "timeout '%s' scp -q %s'%s' '%s':'%s'" % (timeout, r, file, ip, dest)
+    cmd = ("timeout '%s' scp -oStrictHostKeyChecking=no -q %s'%s' '%s':'%s'" %
+           (timeout, r, file, ip, dest))
     return launch_cmd(cmd, timeout)
 
 

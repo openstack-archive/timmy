@@ -372,36 +372,33 @@ class Node(object):
         if self.files or self.filelists:
             ddir = os.path.join(self.outdir, Node.fkey, cl, self.repr)
             tools.mdir(ddir)
-        if self.shell_mode:
-            for f in self.files:
-                outs, errs, code = tools.get_file_scp(ip=self.ip,
-                                                      file=f,
-                                                      ddir=ddir,
-                                                      recursive=True)
-                self.check_code(code, 'get_files', 'tools.get_file_scp', errs)
-        else:
-            data = ''
-            for f in self.filelists:
-                if os.path.sep in f:
-                    fname = f
-                else:
-                    fname = os.path.join(self.rqdir, Node.flkey, f)
-                try:
-                    with open(fname, 'r') as df:
-                        for line in df:
-                            if not line.isspace() and line[0] != '#':
-                                data += line
-                except:
-                    self.logger.error('could not read file: %s' % fname)
-            data += '\n'.join(self.files)
-            self.logger.debug('%s: data:\n%s' % (self.repr, data))
-            if data:
-                o, e, c = tools.get_files_rsync(ip=self.ip,
-                                                data=data,
-                                                ssh_opts=self.ssh_opts,
-                                                dpath=ddir,
-                                                timeout=self.timeout)
-                self.check_code(c, 'get_files', 'tools.get_files_rsync', e)
+        data = ''
+        for f in self.filelists:
+            if os.path.sep in f:
+                fname = f
+            else:
+                fname = os.path.join(self.rqdir, Node.flkey, f)
+            try:
+                with open(fname, 'r') as df:
+                    for line in df:
+                        if not line.isspace() and line[0] != '#':
+                            data += line
+            except:
+                self.logger.error('could not read file: %s' % fname)
+        self.logger.debug('%s: data:\n%s' % (self.repr, data))
+        if data:
+            o, e, c = tools.get_files_rsync(ip=self.ip,
+                                            data=data,
+                                            ssh_opts=self.ssh_opts,
+                                            dpath=ddir,
+                                            timeout=self.timeout)
+            self.check_code(c, 'get_files', 'tools.get_files_rsync', e)
+        for f in self.files:
+            outs, errs, code = tools.get_file_scp(ip=self.ip,
+                                                  file=f,
+                                                  ddir=ddir,
+                                                  recursive=True)
+            self.check_code(code, 'get_files', 'tools.get_file_scp', errs)
 
     def put_files(self):
         self.logger.info('%s: putting files' % self.repr)

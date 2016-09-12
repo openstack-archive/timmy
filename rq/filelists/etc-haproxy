@@ -1,1 +1,3 @@
-/etc/haproxy/
++ /etc
++ /etc/haproxy
++ /etc/haproxy/**

@@ -1,1 +1,3 @@
-/etc/cinder/
++ /etc
++ /etc/cinder
++ /etc/cinder/**

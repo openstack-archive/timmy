@@ -1,1 +1,5 @@
-/etc/keystone/
++ /etc
++ /etc/keystone
+- /etc/keystone/ssl
+- /etc/keystone/fernet-keys
++ /etc/keystone/**

@@ -1,31 +1,47 @@
-files:
-  __default: ['/etc/resolv.conf', '/etc/mcollective', '/etc/astute.yaml', '/root/anaconda*', '/root/*.log', '/root/*.ks', '/var/lib/puppet/state/last_run_summary.yaml', '/var/run/pcap_dir', '/var/lib/cloud', '/etc/default']
+filelists:
+  __default:
+    - 'etc-astute.yaml'
+    - 'etc-default'
+    - 'etc-mcollective'
+    - 'etc-resolv.conf'
+    - 'root-anaconda'
+    - 'root-.ks'
+    - 'root-.log'
+    - 'var-lib-cloud'
+    - 'var-lib-puppet-state-last_run_summary.yaml'
+    - 'var-run-pcap_dir'
   by_roles:
-    controller: ['/etc/apache2', '/etc/keystone', '/etc/swift', '/etc/ceph', '/etc/cinder', '/etc/glance', '/etc/haproxy', '/etc/heat', '/etc/mysql', '/etc/nova']
+    fuel:
+      - 'etc-astute'
+      - 'etc-centos-release'
+      - 'etc-cobbler'
+      - 'etc-dnsmasq.conf'
+      - 'etc-fuel'
+      - 'etc-fuel_build_'
+      - 'etc-nailgun'
+    controller:
+      - 'etc-apache2'
+      - 'etc-ceph'
+      - 'etc-cinder'
+      - 'etc-glance'
+      - 'etc-haproxy'
+      - 'etc-heat'
+      - 'etc-keystone'
+      - 'etc-mysql'
+      - 'etc-nova'
+      - 'etc-swift'
+      - 'root-ceph'
     cinder: ['/etc/cinder']
-    fuel: ['/etc/astute', '/etc/dnsmasq.conf', '/etc/centos-release', '/etc/fuel_build_number', '/etc/fuel_build_id', '/etc/cobbler', '/etc/cobbler.dnsmasq.conf', '/root/*.log', '/etc/fuel', '/etc/nailgun']
-    ceph: ['/root/.ceph*', '/etc/ceph']
-    compute: ['/etc/libvirt', '/etc/nova']
-    no_fuel: ['/etc/hiera', '/etc/neutron']
-    virt: ['/etc/libvirt']
+    ceph-osd: ['root-ceph', 'etc-ceph']
+    compute: ['etc-libvirt', 'etc-nova']
+    no_fuel: ['etc-hiera', 'etc-neutron']
+    virt: ['etc-libvirt']
   by_os_platform:
-    ubuntu: ['/etc/apt', '/etc/lsb-release', '/etc/network']
-    centos: ['/etc/redhat-release', '/etc/sysconfig', '/etc/yum', '/etc/yum.d']
+    ubuntu: ['etc-apt', 'etc-lsb-release', 'etc-network']
+    centos: ['etc-redhat-release', 'etc-sysconfig', 'etc-yum']
   by_release:
     '9.0': ['/etc/fuel']
     '9.1': ['/etc/fuel']
-# filelists:
-#   by_roles:
-#     fuel: [etc-nailgun, etc-fuel]
-#     ceph-osd: [etc-ceph]
-#     cinder: [etc-cinder]
-#     compute: [etc-nova, etc-libvirt]
-#     controller: [etc-glance, etc-haproxy, etc-nova,
-#       etc-keystone, etc-neutron, etc-mysql, etc-ceph, etc-heat]
-#     # f3flight: need to make a better way to decide which files to collect
-#   by_os_platform:
-#     centos: [etc-yum]
-#     ubuntu: [etc-apt]
 scripts:
   by_release:
     '4.1':
