@@ -15,6 +15,7 @@
 import sys
 import os
 import shlex
+from better import better_theme_path
 from timmy.env import version, project_name
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -53,8 +54,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = project_name
-#copyright = u'2015, Mirantis'
-author = u'Mirantis'
+author = u'Aleksandr Dobdin, Dmitry Sutyagin'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -115,6 +115,8 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #html_theme = 'classic'
+html_theme_path = [better_theme_path]
+html_theme = 'better'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
