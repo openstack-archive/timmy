@@ -310,7 +310,7 @@ def put_file_scp(ip, file, dest, timeout=600, recursive=True):
 
 def free_space(destdir, timeout):
     cmd = ("df %s --block-size K 2> /dev/null"
-           " | tail -n 1 | awk '{print $2}' | sed 's/K//g'") % (destdir)
+           " | tail -n 1 | awk '{print $4}' | sed 's/K//g'") % (destdir)
     return launch_cmd(cmd, timeout)
 
 

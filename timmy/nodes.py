@@ -1042,8 +1042,9 @@ class NodeManager(object):
         return self.alogsize
 
     def is_enough_space(self):
-        tools.mdir(self.conf['outdir'])
-        outs, errs, code = tools.free_space(self.conf['outdir'], timeout=1)
+        tools.mdir(self.conf['archive_dir'])
+        outs, errs, code = tools.free_space(self.conf['archive_dir'],
+                                            timeout=1)
         if code != 0:
             self.logger.error("Can't get free space: %s" % errs)
             return False
@@ -1060,7 +1061,7 @@ class NodeManager(object):
             self.logger.error('Not enough space in "%s", logsize: %dMB * %s, '
                               'available: %dMB. Decrease logs_size_coefficient'
                               ' config parameter (--logs-coeff CLI parameter)'
-                              ' or free up space.' % (self.conf['outdir'],
+                              ' or free up space.' % (self.conf['archive_dir'],
                                                       self.alogsize/1024/1024,
                                                       coeff,
                                                       fs/1024))
