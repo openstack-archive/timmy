@@ -30,20 +30,6 @@ def load_conf(filename):
                         '-lroot', '-oBatchMode=yes']
     conf['env_vars'] = ['OPENRC=/root/openrc', 'IPTABLES_STR="iptables -nvL"',
                         'LC_ALL="C"', 'LANG="C"']
-    conf['fuel_ip'] = '127.0.0.1'
-    conf['fuel_api_user'] = 'admin'
-    conf['fuel_api_pass'] = 'admin'
-    conf['fuel_api_token'] = None
-    conf['fuel_api_tenant'] = 'admin'
-    conf['fuel_api_port'] = '8000'
-    conf['fuel_api_keystone_port'] = '5000'
-    # The three parameters below are used to override FuelClient, API, CLI auth
-    conf['fuel_user'] = None
-    conf['fuel_pass'] = None
-    conf['fuel_tenant'] = None
-
-    conf['fuelclient'] = True  # use fuelclient library by default
-    conf['fuel_skip_proxy'] = True
     conf['timeout'] = 15
     conf['prefix'] = 'nice -n 19 ionice -c 3'
     rqdir = 'rq'
@@ -68,12 +54,6 @@ def load_conf(filename):
     conf['filelists'] = []
     conf['logs'] = []
     conf['logs_no_default'] = False  # skip logs defined in default.yaml
-    conf['logs_fuel_remote_dir'] = ['/var/log/docker-logs/remote',
-                                    '/var/log/remote']
-    conf['logs_no_fuel_remote'] = False  # do not collect /var/log/remote
-    '''Do not collect from /var/log/remote/<node>
-    if node is in the array of nodes filtered out by soft filter'''
-    conf['logs_exclude_filtered'] = True
     conf['logs_days'] = 30
     conf['logs_speed_limit'] = False  # enable speed limiting of log transfers
     conf['logs_speed_default'] = 100  # Mbit/s, used when autodetect fails
