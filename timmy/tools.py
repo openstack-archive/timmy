@@ -54,6 +54,8 @@ def interrupt_wrapper(f):
             logger.warning('Interrupted, exiting.')
             sys.exit(signal.SIGINT)
         except Exception as e:
+            if not logger.handlers:
+                logging.basicConfig()
             logger.error('Error: %s' % e, exc_info=True)
             for k in dir(e):
                 '''debug: print all exception attrs except internal
