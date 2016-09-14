@@ -598,20 +598,19 @@ class NodeManager(object):
                 not self.get_release_api() and
                 not self.get_release_cli()):
             self.logger.warning('could not get Fuel and MOS versions')
-        # apply soft-filter on all nodes
+        # fallbacks
+        self.nodes_get_roles_hiera()
+        self.nodes_get_os()
+        self.nodes_get_cluster_ids()
         for node in self.nodes.values():
+            # apply soft-filter on all nodes
             if not self.filter(node, self.conf['soft_filter']):
                 node.filtered_out = True
                 if self.conf['logs_exclude_filtered']:
                     self.logs_excluded_nodes.append(node.fqdn)
                     self.logs_excluded_nodes.append(node.ip)
-        else:
-            if self.nodes_json:
-                self.nodes_get_roles_hiera()
-                self.nodes_get_os()
-                self.nodes_get_cluster_ids()
-            self.nodes_reapply_conf()
-            self.conf_assign_once()
+        self.nodes_reapply_conf()
+        self.conf_assign_once()
         os.environ = environ
 
     def __str__(self):
