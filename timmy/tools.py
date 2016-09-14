@@ -55,6 +55,8 @@ def signal_wrapper(f):
         try:
             f(*args, **kwargs)
         except Exception as e:
+            if not logger.handlers:
+                logging.basicConfig()
             logger.error('Error: %s' % e, exc_info=True)
             for k in dir(e):
                 '''debug: print all exception attrs except internal
