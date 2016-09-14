@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
-#    Copyright 2015 Mirantis, Inc.
+#    Copyright 2016 Mirantis, Inc.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -15,9 +15,24 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-project_name = 'timmy'
-version = '1.20.1'
 
-if __name__ == '__main__':
-    import sys
-    sys.exit(0)
+from timmy.nodes import NodeManager as BaseNodeManager
+
+
+def add_args(parser):
+    parser.add_argument('-j', '--nodes-json', required=True,
+                        help=('Path to a json file containing host info:'
+                              ' ip, roles, etc.'))
+    return parser
+
+
+def check_args(args, conf):
+    pass
+
+
+def add_conf(conf):
+    pass
+
+
+class NodeManager(BaseNodeManager):
+    pass
