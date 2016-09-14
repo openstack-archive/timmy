@@ -36,22 +36,18 @@ def pretty_run(quiet, msg, f, args=[], kwargs={}):
     return result
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description=('Parallel remote command'
-                                                  ' execution and file'
-                                                  ' manipulation tool'))
+def add_args(parser, module):
+    parser = module.add_args(parser)
+    return parser
+
+
+def parser_init(add_help=False):
+    desc = 'Parallel remote command execution and file manipulation tool'
+    parser = argparse.ArgumentParser(description=desc, add_help=add_help)
     parser.add_argument('-V', '--version', action='store_true',
                         help='Print Timmy version and exit.')
     parser.add_argument('-c', '--config',
                         help='Path to a YAML configuration file.')
-    parser.add_argument('-j', '--nodes-json',
-                        help=('Path to a json file retrieved via'
-                              ' "fuel node --json". Useful to speed up'
-                              ' initialization, skips "fuel node" call.'))
-    parser.add_argument('--fuel-ip', help='fuel ip address')
-    parser.add_argument('--fuel-user', help='fuel username')
-    parser.add_argument('--fuel-pass', help='fuel password')
-    parser.add_argument('--fuel-token', help='fuel auth token')
     parser.add_argument('-o', '--dest-file',
                         help=('Output filename for the archive in tar.gz'
                               ' format for command outputs and collected'
@@ -116,8 +112,6 @@ def parse_args():
                         help=('Do not use default log collection parameters,'
                               ' only use what has been provided either via -L'
                               ' or in rqfile(s). Implies "-l".'))
-    parser.add_argument('--logs-no-fuel-remote', action='store_true',
-                        help='Do not collect remote logs from Fuel.')
     parser.add_argument('--logs-speed', type=int, metavar='MBIT/S',
                         help=('Limit log collection bandwidth to 90%% of the'
                               ' specified speed in Mbit/s.'))
@@ -133,9 +127,6 @@ def parse_args():
                               ' of a total size larger than locally available'
                               '. Values lower than 0.3 are not recommended'
                               ' and may result in filling up local disk.'))
-    parser.add_argument('--fuel-proxy',
-                        help='use os system proxy variables for fuelclient',
-                        action='store_true')
     parser.add_argument('--only-logs',
                         action='store_true',
                         help=('Only collect logs, do not run commands or'
@@ -143,8 +134,6 @@ def parse_args():
     parser.add_argument('--fake-logs',
                         help='Do not collect logs, only calculate size.',
                         action='store_true')
-    parser.add_argument('-x', '--extended', action='store_true',
-                        help='Execute extended commands.')
     parser.add_argument('--no-archive',
                         help=('Do not create results archive. By default,'
                               ' an archive with all outputs and files'
@@ -159,7 +148,7 @@ def parse_args():
                               ' messages. Good for quick runs / "watch" wrap.'
                               ' This option disables any -v parameters.'),
                         action='store_true')
-    parser.add_argument('-m', '--maxthreads', type=int, default=100,
+    parser.add_argument('--maxthreads', type=int, default=100,
                         metavar='NUMBER',
                         help=('Maximum simultaneous nodes for command'
                               'execution.'))
@@ -180,6 +169,9 @@ def parse_args():
                               ' results. Do not forget to clean up the results'
                               ' manually when using this option.'),
                         action='store_true')
+    parser.add_argument('-m', '--module', metavar='INVENTORY MODULE',
+                        default='fuel',
+                        help='Use module to get node data')
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help=('This works for -vvvv, -vvv, -vv, -v, -v -v,'
                               'etc, If no -v then logging.WARNING is '
@@ -193,7 +185,13 @@ def parse_args():
 def main(argv=None):
     if argv is None:
         argv = sys.argv
-    parser = parse_args()
+    parser = parser_init()
+    args, unknown = parser.parse_known_args(argv[1:])
+    parser = parser_init(add_help=True)
+    if args.module:
+        inventory = __import__('timmy.modules.%s' % args.module,
+                               fromlist=['timmy.modules'])
+        parser = add_args(parser, inventory)
     args = parser.parse_args(argv[1:])
     if args.version:
         print(version)
@@ -215,21 +213,9 @@ def main(argv=None):
     logger.addHandler(log_handler)
     logger.setLevel(loglevel)
     conf = load_conf(args.config)
-    if args.fuel_ip:
-        conf['fuel_ip'] = args.fuel_ip
-    if args.fuel_user:
-        conf['fuel_user'] = args.fuel_user
-    if args.fuel_pass:
-        conf['fuel_pass'] = args.fuel_pass
-    if any([args.fuel_user and not args.fuel_pass,
-            args.fuel_pass and not args.fuel_user]):
-        logger.critical('You must specify both --fuel-user and --fuel-pass')
-        exit(112)
-    if args.fuel_token:
-        conf['fuel_api_token'] = args.fuel_token
-        conf['fuelclient'] = False
-    if args.fuel_proxy:
-        conf['fuel_skip_proxy'] = False
+    if inventory:
+        inventory.add_conf(conf)
+        inventory.check_args(args, conf)
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
         conf['do_print_results'] = True
@@ -244,8 +230,6 @@ def main(argv=None):
     if args.logs_no_default:
         conf['logs_no_default'] = True
         args.logs = True
-    if args.logs_no_fuel_remote:
-        conf['logs_no_fuel_remote'] = True
     if args.logs_speed or args.logs_speed_auto:
         conf['logs_speed_limit'] = True
     if args.logs_speed:
@@ -305,8 +289,8 @@ def main(argv=None):
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
-                    NodeManager,
-                    kwargs={'conf': conf, 'extended': args.extended,
+                    inventory.NodeManager,
+                    kwargs={'conf': conf,
                             'nodes_json': args.nodes_json})
     if args.only_logs or args.logs:
         size = pretty_run(args.quiet, 'Calculating logs size',

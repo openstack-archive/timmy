@@ -45,7 +45,6 @@ class ConfTest(unittest.TestCase):
             'filelists': list,
             'logs': list,
             'logs_no_default': bool,
-            'logs_exclude_filtered': bool,
             'logs_days': int,
             'logs_speed_limit': bool,
             'logs_speed_default': int,
