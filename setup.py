@@ -48,4 +48,6 @@ setup(name=pname,
       data_files=rqfiles,
       include_package_data=package_data,
       entry_points={'console_scripts': ['%s=%s.cli:main' % (pname, pname)]},
+      setup_requires=['pytest-runner'],
+      tests_require=['pytest']
       )
