@@ -31,7 +31,7 @@ filelists:
       - 'etc-nova'
       - 'etc-swift'
       - 'root-ceph'
-    cinder: ['/etc/cinder']
+    cinder: ['etc-cinder']
     ceph-osd: ['root-ceph', 'etc-ceph']
     compute: ['etc-libvirt', 'etc-nova']
     no_fuel: ['etc-hiera', 'etc-neutron']
@@ -40,8 +40,8 @@ filelists:
     ubuntu: ['etc-apt', 'etc-lsb-release', 'etc-network']
     centos: ['etc-redhat-release', 'etc-sysconfig', 'etc-yum']
   by_release:
-    '9.0': ['/etc/fuel']
-    '9.1': ['/etc/fuel']
+    '9.0': ['etc-fuel']
+    '9.1': ['etc-fuel']
 scripts:
   by_release:
     '4.1':
