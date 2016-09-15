@@ -52,9 +52,9 @@ def parse_args():
     parser.add_argument('--fuel-pass', help='fuel password')
     parser.add_argument('--fuel-token', help='fuel auth token')
     parser.add_argument('-o', '--dest-file',
-                        help=('Output filename for the archive in tar.gz'
-                              ' format for command outputs and collected'
-                              ' files. Overrides "archive_" config options.'
+                        help=('Output file or directory name for the archive'
+                              ' with command outputs and files.'
+                              ' Overrides "archive_" config options.'
                               ' If logs are collected they will be placed'
                               ' in the same folder (but separate archives).'))
     parser.add_argument('--log-file', default=None,
@@ -291,8 +291,15 @@ def main(argv=None):
     if args.dir_timestamp:
         conf['dir_timestamp'] = True
     if args.dest_file:
-        conf['archive_dir'] = os.path.split(args.dest_file)[0]
-        conf['archive_name'] = os.path.split(args.dest_file)[1]
+        if os.path.exists(args.dest_file):
+            if os.path.isdir(args.dest_file):
+                conf['archive_dir'] = args.dest_file
+        elif args.dest_file.endswith(os.path.sep):
+            conf['archive_dir'] = args.dest_file[:-1]
+        else:
+            conf['archive_dir'] = os.path.split(args.dest_file)[0]
+            conf['archive_name'] = os.path.split(args.dest_file)[1]
+
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
