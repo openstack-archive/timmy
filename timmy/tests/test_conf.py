@@ -22,6 +22,7 @@ from timmy import conf
 
 class ConfTest(unittest.TestCase):
     def test_param_presence_and_types(self):
+        type_error = 'config key %s has incorrect type %s, should be %s'
         param_types = {
             'hard_filter': dict,
             'soft_filter': dict,
@@ -56,7 +57,9 @@ class ConfTest(unittest.TestCase):
         }
         config = conf.load_conf(None)
         for key in param_types:
-            self.assertEqual(type(config[key]), param_types[key])
+            self.assertEqual(type(config[key]), param_types[key],
+                             type_error % (key, type(config[key]),
+                                           param_types[key]))
 
 
 if __name__ == '__main__':
