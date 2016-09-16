@@ -32,8 +32,10 @@ filelists:
       - 'etc-swift'
       - 'root-ceph'
     cinder: ['etc-cinder']
+    cinder-block-device: ['etc-cinder']
     ceph-osd: ['root-ceph', 'etc-ceph']
     compute: ['etc-libvirt', 'etc-nova']
+    ironic: ['etc-ironic']
     no_fuel: ['etc-hiera', 'etc-neutron']
     virt: ['etc-libvirt']
   by_os_platform:
