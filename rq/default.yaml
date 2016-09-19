@@ -90,9 +90,8 @@ scripts:
   by_roles:
     fuel: [fuel-release, fuel-task-list, fuel-environment-list]
     cinder: [ovs-vsctl-show, cinder-manage]
-    compute: [compute-iptables-nat, ovs-dump-flows, compute-iptables, ovs-ofctl-show-bridges,
-      ovs-vsctl-show]
-    controller: [rabbitmqctl-list-queues, nova-service-list, iptables-namespaces,
+    compute: [ovs-dump-flows, ovs-ofctl-show-bridges, ovs-vsctl-show]
+    controller: [rabbitmqctl-list-queues, nova-service-list,
       rabbitmqctl-cluster-status, crm-resource-status, pcs-status, ovs-dump-flows, neutron-agent-list,
       mysql-status, ceph-mon-status, ovs-ofctl-show-bridges, rabbitmqctl-list-connections,
       ovs-vsctl-show, rabbitmqctl-report, mysql-size, rabbitmqctl-status, crm-resource-list,
@@ -108,7 +107,7 @@ scripts:
       ubuntu: [dmesg-t-ubuntu, dpkg-l, apt-cache-policy]
       centos: [dmesg-centos, yum-list-installed, yum-v-repolist]
   __default:
-    [ip-ne, iptables, ipnetns, ss, ipa, iptables-nat, df-m, services-status, cpuinfo, df-i, ipro, mount, sysctl-a, pvdisplay, vgdisplay, lvdisplay, lsmod, dmidecode, cat-proc-interrupts, arp-an, uname-a, ps-auxwwf, uptime, dmsetup-info, brctl-show, blkid-o-list]
+    [ip-ne, iptables-nvL, iptables-save, iptables-namespaces-nvL, iptables-namespaces-save, ipnetns, ss, ipa, df-m, services-status, cpuinfo, df-i, ipro, mount, sysctl-a, pvdisplay, vgdisplay, lvdisplay, lsmod, dmidecode, cat-proc-interrupts, arp-an, uname-a, ps-auxwwf, uptime, dmsetup-info, brctl-show, blkid-o-list]
 logs:
   __default:
     path: '/var/log'

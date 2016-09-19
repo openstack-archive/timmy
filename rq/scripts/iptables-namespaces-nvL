@@ -1,0 +1,5 @@
+for i in $(ip netns)
+do
+    echo "namespace:$i"
+    ip netns exec "$i" iptables -nvL
+done
