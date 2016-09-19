@@ -34,15 +34,13 @@ from copy import deepcopy
 try:
     import fuelclient
     if hasattr(fuelclient, 'connect'):
-        # fuel > 9.0.1
-        from fuelclient import connect as FuelClient
-        FUEL_10 = True
+        # fuel > 9.0.1 - drop support, use API and CLI instead
+        FuelClient = None
     else:
         import fuelclient.client
         if type(fuelclient.client.APIClient) is fuelclient.client.Client:
             # fuel 9.0.1 and below
             from fuelclient.client import Client as FuelClient
-            FUEL_10 = False
         else:
             FuelClient = None
 except:
@@ -558,25 +556,14 @@ class NodeManager(object):
                     os.environ['https_proxy'] = ''
                     os.environ['http_proxy'] = ''
                 self.logger.info('Setup fuelclient instance')
-                if FUEL_10:
-                    args = {'host': self.conf['fuel_ip'],
-                            'port': self.conf['fuel_api_port']}
-                    if self.conf['fuel_user']:
-                        args['os_username'] = self.conf['fuel_user']
-                    if self.conf['fuel_pass']:
-                        args['os_password'] = self.conf['fuel_pass']
-                    if self.conf['fuel_tenant']:
-                        args['os_tenant_name'] = self.conf['fuel_tenant']
-                    self.fuelclient = FuelClient(**args)
-                else:
-                    self.fuelclient = FuelClient()
-                    if self.conf['fuel_user']:
-                        self.fuelclient.username = self.conf['fuel_user']
-                    if self.conf['fuel_pass']:
-                        self.fuelclient.password = self.conf['fuel_pass']
-                    if self.conf['fuel_tenant']:
-                        self.fuelclient.tenant_name = self.conf['fuel_tenant']
-                    # self.fuelclient.debug_mode(True)
+                self.fuelclient = FuelClient()
+                if self.conf['fuel_user']:
+                    self.fuelclient.username = self.conf['fuel_user']
+                if self.conf['fuel_pass']:
+                    self.fuelclient.password = self.conf['fuel_pass']
+                if self.conf['fuel_tenant']:
+                    self.fuelclient.tenant_name = self.conf['fuel_tenant']
+                # self.fuelclient.debug_mode(True)
             except Exception as e:
                 self.logger.info('Failed to setup fuelclient instance:%s' % e,
                                  exc_info=True)
