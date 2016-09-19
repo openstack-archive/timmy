@@ -216,6 +216,10 @@ def main(argv=None):
         conf['fuel_user'] = args.fuel_user
     if args.fuel_pass:
         conf['fuel_pass'] = args.fuel_pass
+    if any([args.fuel_user and not args.fuel_pass,
+            args.fuel_pass and not args.fuel_user]):
+        logger.critical('You must specify both --fuel-user and --fuel-pass')
+        exit(112)
     if args.fuel_token:
         conf['fuel_api_token'] = args.fuel_token
         conf['fuelclient'] = False

@@ -15,3 +15,4 @@ Exit Codes
 * `109` - subprocess (one of the node execution processes) exited with a Python exception.
 * `110` - unable to create a directory.
 * `111` - ip address must be defined for Node instance.
+* `112` - one of the two parameters **fuel_user** or **fuel_pass** specified without the other.

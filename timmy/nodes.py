@@ -560,7 +560,7 @@ class NodeManager(object):
                 self.logger.info('Setup fuelclient instance')
                 if FUEL_10:
                     args = {'host': self.conf['fuel_ip'],
-                            'port': self.conf['fuel_port']}
+                            'port': self.conf['fuel_api_port']}
                     if self.conf['fuel_user']:
                         args['os_username'] = self.conf['fuel_user']
                     if self.conf['fuel_pass']:
@@ -590,6 +590,7 @@ class NodeManager(object):
             if (not self.get_nodes_fuelclient() and
                     not self.get_nodes_api() and
                     not self.get_nodes_cli()):
+                self.logger.critical('Failed to retrieve node information.')
                 sys.exit(105)
         self.nodes_init()
         self.nodes_check_access()
@@ -858,6 +859,7 @@ class NodeManager(object):
                 pass
 
     def get_nodes_api(self):
+        return False
         self.logger.info('using API to get nodes json')
         nodes_json = self.get_api_request('nodes')
         if nodes_json:
@@ -869,19 +871,37 @@ class NodeManager(object):
     def get_nodes_cli(self):
         self.logger.info('using CLI to get nodes json')
         fuelnode = self.nodes[self.conf['fuel_ip']]
-        fuel_node_cmd = ('fuel node list --json --user %s --password %s' %
-                         (self.conf['fuel_user'],
-                          self.conf['fuel_pass']))
+        o_auth = n_auth = ''
+        entropy = bool(self.conf['fuel_user']) + bool(self.conf['fuel_pass'])
+        if entropy == 2:
+            # auth for Fuel up to 8.0
+            o_auth = '--user %s --password %s' % (self.conf['fuel_user'],
+                                                  self.conf['fuel_pass'])
+            # Fuel 9.0+
+            n_auth = 'OS_USERNAME=%s OS_PASSWORD=%s' % (self.conf['fuel_user'],
+                                                        self.conf['fuel_pass'])
+        elif entropy == 1:
+            self.logger.warning('Must specify both fuel_user and fuel_pass')
+        cmd = 'bash -c "%s fuel node --json"' % n_auth
         nodes_json, err, code = tools.ssh_node(ip=fuelnode.ip,
-                                               command=fuel_node_cmd,
+                                               command=cmd,
                                                ssh_opts=fuelnode.ssh_opts,
                                                timeout=fuelnode.timeout,
                                                prefix=fuelnode.prefix)
         if code != 0:
-            self.logger.warning(('NodeManager: cannot get '
-                                 'fuel node list from CLI: %s') % err)
-            self.nodes_json = None
-            return False
+            self.logger.warning(('NodeManager: cannot get fuel node list from'
+                                 ' CLI, will fallback. Error: %s') % err)
+            cmd = 'bash -c "fuel %s node --json"' % o_auth
+            nodes_json, err, code = tools.ssh_node(ip=fuelnode.ip,
+                                                   command=cmd,
+                                                   ssh_opts=fuelnode.ssh_opts,
+                                                   timeout=fuelnode.timeout,
+                                                   prefix=fuelnode.prefix)
+            if code != 0:
+                self.logger.warning(('NodeManager: cannot get '
+                                     'fuel node list from CLI: %s') % err)
+                self.nodes_json = None
+                return False
         self.nodes_json = json.loads(nodes_json)
         return True
 
