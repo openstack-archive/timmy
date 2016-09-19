@@ -1,0 +1,4 @@
++ /etc
++ /etc/ironic
+- /etc/ironic/fuel_key
++ /etc/ironic/**
