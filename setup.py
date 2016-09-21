@@ -21,16 +21,11 @@ import os
 from timmy.env import project_name, version
 
 pname = project_name
-dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', pname)
-rqfiles = [(os.path.join(dtm, root), [os.path.join(root, f) for f in files])
-           for root, dirs, files in os.walk('rq')]
-rqfiles.append((os.path.join(dtm, 'config'),
-                [os.path.join('config', 'example.yaml')]))
-package_data = True
+include_package_data = True
 
 if os.environ.get("READTHEDOCS", False):
     rqfiles = None
-    package_data = False
+    include_package_data = False
 
 
 setup(name=pname,
@@ -43,10 +38,10 @@ setup(name=pname,
                    'operations: two-way data transfer, log collection, '
                    'remote command execution'),
       long_description=open('README.md').read(),
-      packages=[pname],
+      packages=[pname, '%s_data' % pname],
+      #data_files=[('timmy_data/rq',['default.yaml'])],
       install_requires=['pyyaml'],
-      data_files=rqfiles,
-      include_package_data=package_data,
+      include_package_data=include_package_data,
       entry_points={'console_scripts': ['%s=%s.cli:main' % (pname, pname)]},
       setup_requires=['pytest-runner'],
       tests_require=['pytest']
