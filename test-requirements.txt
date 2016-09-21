@@ -9,3 +9,5 @@ testrepository>=0.0.18 # Apache-2.0/BSD
 testscenarios>=0.4 # Apache-2.0/BSD
 coverage>=3.6 # Apache-2.0
 sphinx-argparse
+pytest-runner
+pytest
