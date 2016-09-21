@@ -19,13 +19,14 @@
 from setuptools import setup
 import os
 from timmy.env import project_name, version
+import sys
 
 pname = project_name
-include_package_data = True
 
-if os.environ.get("READTHEDOCS", False):
-    rqfiles = None
-    include_package_data = False
+if sys.argv[1] == 'test':
+    setup_requires = ['pytest-runner']
+else:
+    setup_requires = []
 
 
 setup(name=pname,
@@ -40,8 +41,8 @@ setup(name=pname,
       long_description=open('README.md').read(),
       packages=[pname, '%s_data' % pname],
       install_requires=['pyyaml'],
-      include_package_data=include_package_data,
+      include_package_data=True,
       entry_points={'console_scripts': ['%s=%s.cli:main' % (pname, pname)]},
-      setup_requires=['pytest-runner'],
+      setup_requires=setup_requires,
       tests_require=['pytest']
       )
