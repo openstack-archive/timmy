@@ -1,4 +1,3 @@
-recursive-include rq *
 recursive-include doc *
-recursive-include config *
+recursive-include timmy_data *
 include README.md

@@ -18,6 +18,8 @@
 from tools import load_yaml_file
 from tempfile import gettempdir
 import os
+from pkg_resources import resource_filename as resource_fn
+from timmy.env import project_name
 
 
 def load_conf(filename):
@@ -47,11 +49,8 @@ def load_conf(filename):
     conf['prefix'] = 'nice -n 19 ionice -c 3'
     rqdir = 'rq'
     rqfile = 'default.yaml'
-    dtm = os.path.join(os.path.abspath(os.sep), 'usr', 'share', 'timmy')
-    if os.path.isdir(os.path.join(dtm, rqdir)):
-        conf['rqdir'] = os.path.join(dtm, rqdir)
-    else:
-        conf['rqdir'] = rqdir
+    data_package = '%s_data' % project_name
+    conf['rqdir'] = os.path.join(resource_fn(data_package, rqdir))
     conf['rqfile'] = [{'file': os.path.join(conf['rqdir'], rqfile),
                       'default': True}]
     conf['compress_timeout'] = 3600
