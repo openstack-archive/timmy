@@ -162,7 +162,7 @@ def parse_args():
                         metavar='NUMBER',
                         help=('Maximum simultaneous nodes for command'
                               'execution.'))
-    parser.add_argument('--logs-maxthreads', type=int, default=100,
+    parser.add_argument('--logs-maxthreads', type=int, default=10,
                         metavar='NUMBER',
                         help='Maximum simultaneous nodes for log collection.')
     parser.add_argument('-t', '--outputs-timestamp',
