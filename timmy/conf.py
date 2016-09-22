@@ -45,7 +45,7 @@ def load_conf(filename):
 
     conf['fuelclient'] = True  # use fuelclient library by default
     conf['fuel_skip_proxy'] = True
-    conf['timeout'] = 15
+    conf['timeout'] = 30
     conf['prefix'] = 'nice -n 19 ionice -c 3'
     rqdir = 'rq'
     rqfile = 'default.yaml'
