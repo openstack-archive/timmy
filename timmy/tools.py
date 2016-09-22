@@ -228,9 +228,10 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None, decode=True):
             timeout_killer.cancel()
         input = input.decode('utf-8') if input else None
         logger.debug(('___command: %s\n'
+                      '_______pid: %s\n'
                       '_exit_code: %s\n'
                       '_____stdin: %s\n'
-                      '____stderr: %s') % (cmd, p.returncode, input,
+                      '____stderr: %s') % (cmd, p.pid, p.returncode, input,
                                            errs))
     return outs, errs, p.returncode
 
