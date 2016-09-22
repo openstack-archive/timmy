@@ -196,7 +196,7 @@ def main(argv=None):
     args = parser.parse_args(argv[1:])
     if args.version:
         print(version)
-        return 0
+        sys.exit(0)
     loglevels = [logging.WARNING, logging.INFO, logging.DEBUG]
     if args.quiet and not args.log_file:
         args.verbose = 0
@@ -319,7 +319,7 @@ def main(argv=None):
             if not enough_space:
                 logger.error('Not enough space for logs in "%s", exiting.' %
                              nm.conf['archive_dir'])
-                return 100
+                sys.exit(100)
     if not args.only_logs:
         if nm.has(Node.pkey):
             pretty_run(args.quiet, 'Uploading files', nm.put_files)
