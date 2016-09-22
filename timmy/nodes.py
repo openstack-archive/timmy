@@ -254,8 +254,10 @@ class Node(object):
         self.logger.debug('%s: cluster id not defined, trying to determine' %
                           self.repr)
         astute_file = '/etc/astute.yaml'
-        cmd = ("python -c 'import yaml; a = yaml.load(open(\"%s\")"
-               ".read()); print a[\"cluster\"][\"id\"]'" % astute_file)
+        cmd = ("python -c 'import os,yaml; "
+               "exit(1) if not os.path.exists(\"%s\") else 0; "
+               "a = yaml.load(open(\"%s\").read()); "
+               "print a[\"cluster\"][\"id\"]'" % (astute_file, astute_file))
         outs, errs, code = tools.ssh_node(ip=self.ip,
                                           command=cmd,
                                           ssh_opts=self.ssh_opts,
