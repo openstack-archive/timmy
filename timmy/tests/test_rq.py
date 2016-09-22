@@ -49,7 +49,7 @@ class RQDefault(unittest.TestCase):
         sep_error = ('default %s value %s has path separator(s) - this '
                      'will cause NodeManager to search the file by full path '
                      'instead of looking in the default rq/%s path.')
-        config = conf.load_conf(None)
+        config = conf.init_default_conf()
         for rqfile in config['rqfile']:
             f = rqfile['file']
             if os.path.sep in f:

@@ -54,7 +54,7 @@ class ConfTest(unittest.TestCase):
             'do_print_results': bool,
             'clean': bool
         }
-        config = conf.load_conf(None)
+        config = conf.init_default_conf()
         for key in param_types:
             self.assertEqual(type(config[key]), param_types[key],
                              type_error % (key, type(config[key]),

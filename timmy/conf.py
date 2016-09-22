@@ -22,7 +22,7 @@ from pkg_resources import resource_filename as resource_fn
 from timmy.env import project_name
 
 
-def load_conf(filename):
+def init_default_conf():
     """Configuration parameters"""
     conf = {}
     conf['hard_filter'] = {}
@@ -71,7 +71,11 @@ def load_conf(filename):
     conf['do_print_results'] = False
     '''Clean - erase previous results in outdir and archive_dir dir, if any.'''
     conf['clean'] = True
-    if filename:
+    return conf
+
+
+def update_conf(conf, filename):
+    if filename is not None:
         conf_extra = load_yaml_file(filename)
         conf.update(**conf_extra)
     return conf
@@ -79,5 +83,6 @@ def load_conf(filename):
 
 if __name__ == '__main__':
     import yaml
-    conf = load_conf('config.yaml')
+    conf = init_default_conf()
+    conf = update_conf(conf, 'config.yaml')
     print(yaml.dump(conf))
