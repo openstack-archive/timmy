@@ -20,7 +20,6 @@ from timmy.nodes import Node  # , NodeManager
 import logging
 import sys
 import os
-from timmy.conf import load_conf
 from timmy.tools import interrupt_wrapper
 from timmy.env import version
 
@@ -207,10 +206,8 @@ def main(argv=None):
                         level=loglevel,
                         format=FORMAT)
     logger = logging.getLogger(__name__)
-    conf = load_conf(args.config)
-    if inventory:
-        inventory.add_conf(conf)
-        inventory.check_args(args, conf)
+    conf = inventory.NodeManager.load_conf(args.config)
+    inventory.check_args(args, conf)
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
         conf['do_print_results'] = True

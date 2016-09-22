@@ -25,10 +25,10 @@ import logging
 import sys
 import re
 from datetime import datetime, date, timedelta
-# import urllib2
 import tools
 from tools import w_list, run_with_lock
 from copy import deepcopy
+from timmy import conf
 
 
 class Node(object):
@@ -420,7 +420,13 @@ class Node(object):
 
 
 class NodeManager(object):
-    """Class nodes """
+    """Class NodeManager """
+
+    @staticmethod
+    def load_conf(filename):
+        config = conf.init_default_conf()
+        config = conf.update_conf(config, filename)
+        return config
 
     def __init__(self, conf, nodes_json, logger=None):
         self.base_init(conf, logger)

@@ -30,9 +30,5 @@ def check_args(args, conf):
     pass
 
 
-def add_conf(conf):
-    pass
-
-
 class NodeManager(BaseNodeManager):
     pass
