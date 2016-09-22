@@ -21,6 +21,7 @@ import os
 import sys
 import urllib2
 from timmy import tools
+from timmy import conf
 from timmy.nodes import NodeManager as BaseNodeManager
 from timmy.nodes import Node as BaseNode
 
@@ -100,6 +101,7 @@ def add_conf(conf):
     '''Do not collect from /var/log/remote/<node>
     if node is in the array of nodes filtered out by soft filter'''
     conf['fuel_logs_exclude_filtered'] = True
+    return conf
 
 
 class Node(BaseNode):
@@ -189,6 +191,13 @@ class Node(BaseNode):
 
 
 class NodeManager(BaseNodeManager):
+    @staticmethod
+    def load_conf(filename):
+        config = conf.init_default_conf()
+        config = add_conf(config)
+        config = conf.update_conf(config, filename)
+        return config
+
     def __init__(self, conf, nodes_json=None, logger=None):
         self.base_init(conf, logger)
         self.token = self.conf['fuel_api_token']

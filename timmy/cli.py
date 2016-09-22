@@ -15,7 +15,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from timmy.conf import load_conf
 from timmy.env import project_name, version
 from timmy.nodes import Node
 from timmy.tools import signal_wrapper
@@ -212,10 +211,8 @@ def main(argv=None):
     logger = logging.getLogger(project_name)
     logger.addHandler(log_handler)
     logger.setLevel(loglevel)
-    conf = load_conf(args.config)
-    if inventory:
-        inventory.add_conf(conf)
-        inventory.check_args(args, conf)
+    conf = inventory.NodeManager.load_conf(args.config)
+    inventory.check_args(args, conf)
     if args.put or args.command or args.script or args.get:
         conf['shell_mode'] = True
         conf['do_print_results'] = True

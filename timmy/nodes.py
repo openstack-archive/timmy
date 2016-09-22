@@ -21,14 +21,15 @@ main module
 
 from copy import deepcopy
 from datetime import datetime, date, timedelta
+from timmy import conf
 from timmy.env import project_name
+from timmy import tools
 from tools import w_list, run_with_lock
 import logging
 import os
 import re
 import shutil
 import sys
-import tools
 
 
 class Node(object):
@@ -497,7 +498,13 @@ class Node(object):
 
 
 class NodeManager(object):
-    """Class nodes """
+    """Class NodeManager """
+
+    @staticmethod
+    def load_conf(filename):
+        config = conf.init_default_conf()
+        config = conf.update_conf(config, filename)
+        return config
 
     def __init__(self, conf, nodes_json, logger=None):
         self.base_init(conf, logger)
