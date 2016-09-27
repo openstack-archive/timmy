@@ -113,39 +113,60 @@ class SemaphoreProcess(Process):
 
 
 def run_batch(item_list, maxthreads, dict_result=False):
-    def cleanup():
-        logger.debug('cleanup processes')
-        for run_item in item_list:
-            if run_item.process:
-                run_item.process.terminate()
+    def cleanup(launched):
+        for proc in launched.values():
+            logger.debug('terminate: %s' % proc.pid)
+            proc.terminate()
+
+    def collect_results(l, join=False):
+        results = {}
+        remove_procs = []
+        for key, proc in l.items():
+            if not proc.is_alive() or join:
+                results[key] = proc.queue.get()
+                logger.debug('joining pid:%s' % proc.pid)
+                proc.join()
+                if isinstance(results[key], Exception):
+                    logger.critical('%s, exiting' % results[key])
+                    cleanup()
+                    sys.exit(109)
+                remove_procs.append(key)
+        for key in remove_procs:
+            logger.debug('removing pid:%s' % key)
+            l.pop(key)
+        return results
+
     semaphore = BoundedSemaphore(maxthreads)
     try:
+        launched = {}
+        results = {}
+        if not dict_result:
+            key = 0
         for run_item in item_list:
-            semaphore.acquire(True)
-            run_item.queue = Queue()
+            results.update(collect_results(launched))
+            semaphore.acquire(block=True)
             p = SemaphoreProcess(target=run_item.target,
                                  semaphore=semaphore,
                                  args=run_item.args,
-                                 queue=run_item.queue)
-            run_item.process = p
+                                 queue=Queue())
             p.start()
-        for run_item in item_list:
-            run_item.result = run_item.queue.get()
-            if isinstance(run_item.result, Exception):
-                logger.critical('%s, exiting' % run_item.result)
-                cleanup()
-                sys.exit(109)
-            run_item.process.join()
-            run_item.process = None
+            if dict_result:
+                launched[run_item.key] = p
+                logger.debug('started subprocess, pid:%s, func:%s, key:%s' %
+                             (p.pid, run_item.target, run_item.key))
+            else:
+                launched[key] = p
+                key += 1
+                logger.debug('started subprocess, pid:%s, func:%s, key:%s' %
+                             (p.pid, run_item.target, key))
+
+        results.update(collect_results(launched, True))
         if dict_result:
-            result = {}
-            for run_item in item_list:
-                result[run_item.key] = run_item.result
-            return result
+            return results
         else:
-            return [run_item.result for run_item in item_list]
+            return results.values()
     except KeyboardInterrupt:
-        cleanup()
+        cleanup(launched)
         raise KeyboardInterrupt()
 
 
@@ -211,7 +232,7 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None, decode=True):
                          shell=True,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
+                         stderr=subprocess.PIPE, close_fds=True)
     timeout_killer = None
     outs = None
     errs = None
