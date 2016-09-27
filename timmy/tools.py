@@ -19,18 +19,19 @@
 tools module
 """
 
-import os
+from flock import FLock
+from multiprocessing import Process, Queue, BoundedSemaphore
+from pipes import quote
+from tempfile import gettempdir
+import json
 import logging
+import os
+import signal
+import subprocess
 import sys
 import threading
-from multiprocessing import Process, Queue, BoundedSemaphore
-import subprocess
+import traceback
 import yaml
-import json
-from flock import FLock
-from tempfile import gettempdir
-from pipes import quote
-import signal
 
 logger = logging.getLogger(__name__)
 slowpipe = '''
@@ -51,7 +52,7 @@ def interrupt_wrapper(f):
         try:
             f(*args, **kwargs)
         except KeyboardInterrupt:
-            logger.warning('Interrupted, exiting.')
+            logger.warning('received keyboard interrupt, exiting')
             sys.exit(signal.SIGINT)
         except Exception as e:
             logger.error('Error: %s' % e, exc_info=True)
@@ -98,54 +99,88 @@ class SemaphoreProcess(Process):
         self.queue = queue
 
     def run(self):
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        fin_msg = 'finished subprocess, pid: %s'
+        sem_msg = 'semaphore released by subprocess, pid: %s'
         try:
             result = self.target(**self.args)
             if self.queue:
                 self.queue.put_nowait(result)
         except Exception as error:
-            self.logger.exception(error)
             if self.queue:
                 self.queue.put_nowait(error)
+                self.queue.put_nowait(traceback.format_exc())
         finally:
-            self.logger.debug('finished call: %s' % self.target)
+            self.logger.debug(fin_msg % self.pid)
             self.semaphore.release()
-            self.logger.debug('semaphore released')
+            self.logger.debug(sem_msg % self.pid)
 
 
 def run_batch(item_list, maxthreads, dict_result=False):
-    def cleanup():
-        logger.debug('cleanup processes')
-        for run_item in item_list:
-            if run_item.process:
-                run_item.process.terminate()
+    exc_msg = 'exception in subprocess, pid: %s, details:'
+    rem_msg = 'removing reference to finished subprocess, pid: %s'
+    int_msg = 'received keyboard interrupt during batch execution, cleaning up'
+
+    def cleanup(launched):
+        logger.info('cleaning up running subprocesses')
+        for proc in launched.values():
+            logger.debug('terminating subprocess, pid: %s' % proc.pid)
+            proc.terminate()
+            proc.join()
+
+    def collect_results(l, join=False):
+        results = {}
+        remove_procs = []
+        for key, proc in l.items():
+            if not proc.is_alive() or join:
+                results[key] = proc.queue.get()
+                if isinstance(results[key], Exception):
+                    exc_text = proc.queue.get()
+                    logger.critical(exc_msg % proc.pid)
+                    for line in exc_text.splitlines():
+                        logger.critical('____%s' % line)
+                    cleanup(l)
+                    sys.exit(109)
+                logger.debug('joining subprocess, pid: %s' % proc.pid)
+                proc.join()
+                remove_procs.append(key)
+        for key in remove_procs:
+            logger.debug(rem_msg % key)
+            l.pop(key)
+        return results
+
     semaphore = BoundedSemaphore(maxthreads)
     try:
+        launched = {}
+        results = {}
+        if not dict_result:
+            key = 0
         for run_item in item_list:
-            semaphore.acquire(True)
-            run_item.queue = Queue()
+            results.update(collect_results(launched))
+            semaphore.acquire(block=True)
             p = SemaphoreProcess(target=run_item.target,
                                  semaphore=semaphore,
                                  args=run_item.args,
-                                 queue=run_item.queue)
-            run_item.process = p
+                                 queue=Queue())
             p.start()
-        for run_item in item_list:
-            run_item.result = run_item.queue.get()
-            if isinstance(run_item.result, Exception):
-                logger.critical('%s, exiting' % run_item.result)
-                cleanup()
-                sys.exit(109)
-            run_item.process.join()
-            run_item.process = None
+            if dict_result:
+                launched[run_item.key] = p
+                logger.debug('started subprocess, pid: %s, func: %s, key: %s' %
+                             (p.pid, run_item.target, run_item.key))
+            else:
+                launched[key] = p
+                key += 1
+                logger.debug('started subprocess, pid:%s, func:%s, key:%s' %
+                             (p.pid, run_item.target, key))
+
+        results.update(collect_results(launched, True))
         if dict_result:
-            result = {}
-            for run_item in item_list:
-                result[run_item.key] = run_item.result
-            return result
+            return results
         else:
-            return [run_item.result for run_item in item_list]
+            return results.values()
     except KeyboardInterrupt:
-        cleanup()
+        logger.warning(int_msg)
+        cleanup(launched)
         raise KeyboardInterrupt()
 
 
@@ -211,7 +246,7 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None, decode=True):
                          shell=True,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
+                         stderr=subprocess.PIPE, close_fds=True)
     timeout_killer = None
     outs = None
     errs = None
