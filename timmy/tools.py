@@ -313,20 +313,24 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
     return launch_cmd(cmd, timeout, input=data)
 
 
-def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
+def get_file_scp(ip, file, ddir, ssh_opts, timeout=600, recursive=False):
+    if type(ssh_opts) is list:
+        ssh_opts = ' '.join(ssh_opts)
     dest = os.path.split(os.path.normpath(file).lstrip(os.path.sep))[0]
     ddir = os.path.join(os.path.normpath(ddir), dest)
     mdir(ddir)
     r = '-r ' if recursive else ''
-    cmd = ("timeout '%s' scp -oStrictHostKeyChecking=no -q %s'%s':'%s' '%s'" %
-           (timeout, r, ip, file, ddir))
+    cmd = ("timeout '%s' scp %s -p -q %s'%s':'%s' '%s'" %
+           (timeout, ssh_opts, r, ip, file, ddir))
     return launch_cmd(cmd, timeout)
 
 
-def put_file_scp(ip, file, dest, timeout=600, recursive=True):
+def put_file_scp(ip, file, dest, ssh_opts, timeout=600, recursive=True):
+    if type(ssh_opts) is list:
+        ssh_opts = ' '.join(ssh_opts)
     r = '-r ' if recursive else ''
-    cmd = ("timeout '%s' scp -oStrictHostKeyChecking=no -q %s'%s' '%s':'%s'" %
-           (timeout, r, file, ip, dest))
+    cmd = ("timeout '%s' scp %s -p -q %s'%s' '%s':'%s'" %
+           (timeout, ssh_opts, r, file, ip, dest))
     return launch_cmd(cmd, timeout)
 
 
