@@ -257,13 +257,15 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None, decode=True):
     return outs, errs, p.returncode
 
 
-def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
-             filename=None, inputfile=None, outputfile=None,
+def ssh_node(ip, command='', ssh_opts=None, ssh_user=None, env_vars=None,
+             timeout=15, filename=None, inputfile=None, outputfile=None,
              ok_codes=None, input=None, prefix=None, decode=True):
     if not ssh_opts:
         ssh_opts = ''
     if not env_vars:
         env_vars = ''
+    if not ssh_user:
+        ssh_user = 'root'
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
     if type(env_vars) is list:
@@ -273,8 +275,8 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
         bstr = "%s timeout '%s' bash -c " % (
                env_vars, timeout)
     else:
-        bstr = "timeout '%s' ssh -t -T %s '%s' '%s' " % (
-               timeout, ssh_opts, ip, env_vars)
+        bstr = "timeout '%s' ssh -t -T %s '%s@%s' '%s' " % (
+               timeout, ssh_opts, ssh_user, ip, env_vars)
     if filename is None:
         cmd = '%s %s' % (bstr, quote(prefix + ' ' + command))
         if inputfile is not None:
@@ -294,7 +296,7 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
                       ok_codes=ok_codes, decode=decode)
 
 
-def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
+def get_files_rsync(ip, data, ssh_opts, ssh_user, dpath, timeout=15):
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
@@ -303,30 +305,36 @@ def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
                " --progress --partial --delete-before" %
                (timeout, dpath))
     else:
-        cmd = ("timeout '%s' rsync -avzr -e 'ssh %s"
+        cmd = ("timeout '%s' rsync -avzr -e 'ssh %s@%s"
                " -oCompression=no' --include-from=- '%s':/ '%s' --exclude='*'"
                " --progress --partial --delete-before"
-               ) % (timeout, ssh_opts, ip, dpath)
+               ) % (timeout, ssh_opts, ssh_user, ip, dpath)
     logger.debug("command:%s\ndata:\n%s" % (cmd, data))
     if data == '':
         return cmd, '', 127
     return launch_cmd(cmd, timeout, input=data)
 
 
-def get_file_scp(ip, file, ddir, timeout=600, recursive=False):
+def get_file_scp(ip, file, ddir, ssh_opts, ssh_user,
+                 timeout=600, recursive=False):
+    if type(ssh_opts) is list:
+        ssh_opts = ' '.join(ssh_opts)
     dest = os.path.split(os.path.normpath(file).lstrip(os.path.sep))[0]
     ddir = os.path.join(os.path.normpath(ddir), dest)
     mdir(ddir)
     r = '-r ' if recursive else ''
-    cmd = ("timeout '%s' scp -oStrictHostKeyChecking=no -q %s'%s':'%s' '%s'" %
-           (timeout, r, ip, file, ddir))
+    cmd = ("timeout '%s' scp %s -p -q %s'%s@%s':'%s' '%s'" %
+           (timeout, ssh_opts, r, ssh_user, ip, file, ddir))
     return launch_cmd(cmd, timeout)
 
 
-def put_file_scp(ip, file, dest, timeout=600, recursive=True):
+def put_file_scp(ip, file, dest, ssh_opts, ssh_user,
+                 timeout=600, recursive=True):
+    if type(ssh_opts) is list:
+        ssh_opts = ' '.join(ssh_opts)
     r = '-r ' if recursive else ''
-    cmd = ("timeout '%s' scp -oStrictHostKeyChecking=no -q %s'%s' '%s':'%s'" %
-           (timeout, r, file, ip, dest))
+    cmd = ("timeout '%s' scp %s -p -q %s'%s' '%s@%s':'%s'" %
+           (timeout, ssh_opts, r, file, ssh_user, ip, dest))
     return launch_cmd(cmd, timeout)
 
 

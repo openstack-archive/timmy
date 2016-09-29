@@ -194,6 +194,7 @@ class Node(object):
         release, err, code = tools.ssh_node(ip=self.ip,
                                             command=cmd,
                                             ssh_opts=self.ssh_opts,
+                                            ssh_user=self.ssh_user,
                                             timeout=self.timeout,
                                             prefix=self.prefix)
         if code != 0:
@@ -217,6 +218,7 @@ class Node(object):
         outs, errs, code = tools.ssh_node(ip=self.ip,
                                           command=cmd,
                                           ssh_opts=self.ssh_opts,
+                                          ssh_user=self.ssh_user,
                                           env_vars=self.env_vars,
                                           timeout=self.timeout,
                                           prefix=self.prefix)
@@ -245,6 +247,7 @@ class Node(object):
         outs, errs, code = tools.ssh_node(ip=self.ip,
                                           command=cmd,
                                           ssh_opts=self.ssh_opts,
+                                          ssh_user=self.ssh_user,
                                           env_vars=self.env_vars,
                                           timeout=self.timeout,
                                           prefix=self.prefix)
@@ -261,6 +264,7 @@ class Node(object):
         outs, errs, code = tools.ssh_node(ip=self.ip,
                                           command=cmd,
                                           ssh_opts=self.ssh_opts,
+                                          ssh_user=self.ssh_user,
                                           env_vars=self.env_vars,
                                           timeout=self.timeout,
                                           prefix=self.prefix)
@@ -273,6 +277,7 @@ class Node(object):
         outs, errs, code = tools.ssh_node(ip=self.ip,
                                           command=cmd,
                                           ssh_opts=self.ssh_opts,
+                                          ssh_user=self.ssh_user,
                                           env_vars=self.env_vars,
                                           timeout=self.timeout,
                                           prefix=self.prefix)
@@ -303,6 +308,7 @@ class Node(object):
                     outs, errs, code = tools.ssh_node(ip=self.ip,
                                                       command=bash_cmd,
                                                       ssh_opts=self.ssh_opts,
+                                                      ssh_user=self.ssh_user,
                                                       env_vars=self.env_vars,
                                                       timeout=self.timeout,
                                                       prefix=self.prefix)
@@ -338,6 +344,7 @@ class Node(object):
                 outs, errs, code = tools.ssh_node(ip=self.ip,
                                                   filename=f,
                                                   ssh_opts=self.ssh_opts,
+                                                  ssh_user=self.ssh_user,
                                                   env_vars=env_vars,
                                                   timeout=self.timeout,
                                                   prefix=self.prefix)
@@ -357,6 +364,7 @@ class Node(object):
             outs, errs, code = tools.ssh_node(ip=self.ip,
                                               command=cmd,
                                               ssh_opts=self.ssh_opts,
+                                              ssh_user=self.ssh_user,
                                               env_vars=self.env_vars,
                                               timeout=timeout,
                                               outputfile=outfile,
@@ -390,12 +398,15 @@ class Node(object):
             o, e, c = tools.get_files_rsync(ip=self.ip,
                                             data=data,
                                             ssh_opts=self.ssh_opts,
+                                            ssh_user=self.ssh_user,
                                             dpath=ddir,
                                             timeout=self.timeout)
             self.check_code(c, 'get_files', 'tools.get_files_rsync', e)
         for f in self.files:
             outs, errs, code = tools.get_file_scp(ip=self.ip,
                                                   file=f,
+                                                  ssh_opts=self.ssh_opts,
+                                                  ssh_user=self.ssh_user,
                                                   ddir=ddir,
                                                   recursive=True)
             self.check_code(code, 'get_files', 'tools.get_file_scp', errs)
@@ -406,6 +417,8 @@ class Node(object):
             outs, errs, code = tools.put_file_scp(ip=self.ip,
                                                   file=f[0],
                                                   dest=f[1],
+                                                  ssh_opts=self.ssh_opts,
+                                                  ssh_user=self.ssh_user,
                                                   recursive=True)
             self.check_code(code, 'put_files', 'tools.put_file_scp', errs)
 
@@ -466,6 +479,7 @@ class Node(object):
             outs, errs, code = tools.ssh_node(ip=self.ip,
                                               command=cmd,
                                               ssh_opts=self.ssh_opts,
+                                              ssh_user=self.ssh_user,
                                               env_vars=self.env_vars,
                                               timeout=timeout,
                                               prefix=self.prefix)
@@ -875,6 +889,7 @@ class NodeManager(object):
         nodes_json, err, code = tools.ssh_node(ip=fuelnode.ip,
                                                command=cmd,
                                                ssh_opts=fuelnode.ssh_opts,
+                                               ssh_user=fuelnode.ssh_user,
                                                timeout=fuelnode.timeout,
                                                prefix=fuelnode.prefix)
         if code != 0:
@@ -884,6 +899,7 @@ class NodeManager(object):
             nodes_json, err, code = tools.ssh_node(ip=fuelnode.ip,
                                                    command=cmd,
                                                    ssh_opts=fuelnode.ssh_opts,
+                                                   ssh_user=fuelnode.ssh_user,
                                                    timeout=fuelnode.timeout,
                                                    prefix=fuelnode.prefix)
             if code != 0:
