@@ -29,7 +29,7 @@ def load_conf(filename):
     conf['soft_filter'] = {}
     conf['ssh_opts'] = ['-oConnectTimeout=2', '-oStrictHostKeyChecking=no',
                         '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
-                        '-lroot', '-oBatchMode=yes']
+                        '-oBatchMode=yes', '-oUser=root']
     conf['env_vars'] = ['OPENRC=/root/openrc', 'LC_ALL="C"', 'LANG="C"']
     conf['fuel_ip'] = '127.0.0.1'
     conf['fuel_api_user'] = 'admin'

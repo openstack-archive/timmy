@@ -396,6 +396,7 @@ class Node(object):
         for f in self.files:
             outs, errs, code = tools.get_file_scp(ip=self.ip,
                                                   file=f,
+                                                  ssh_opts=self.ssh_opts,
                                                   ddir=ddir,
                                                   recursive=True)
             self.check_code(code, 'get_files', 'tools.get_file_scp', errs)
@@ -406,6 +407,7 @@ class Node(object):
             outs, errs, code = tools.put_file_scp(ip=self.ip,
                                                   file=f[0],
                                                   dest=f[1],
+                                                  ssh_opts=self.ssh_opts,
                                                   recursive=True)
             self.check_code(code, 'put_files', 'tools.put_file_scp', errs)
 
