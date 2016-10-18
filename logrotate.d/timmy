@@ -1,0 +1,6 @@
+/var/log/timmy.log {
+    missingok
+    compress
+    minsize 100M
+    rotate 4
+}
