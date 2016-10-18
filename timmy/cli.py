@@ -15,14 +15,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import argparse
-from timmy.nodes import Node, NodeManager
-import logging
-import sys
-import os
 from timmy.conf import load_conf
+from timmy.env import project_name, version
+from timmy.nodes import Node, NodeManager
 from timmy.tools import interrupt_wrapper
-from timmy.env import version
+import argparse
+import logging
+import logging.handlers
+import os
+import sys
 
 
 def pretty_run(quiet, msg, f, args=[], kwargs={}):
@@ -202,13 +203,17 @@ def main(argv=None):
         args.verbose = 0
     loglevel = loglevels[min(len(loglevels)-1, args.verbose)]
     # always enable debug log if log file specificed
-    loglevel = logging.DEBUG if args.log_file else loglevel
-    FORMAT = ('%(asctime)s %(levelname)s: %(module)s: '
-              '%(funcName)s(): %(message)s')
-    logging.basicConfig(filename=args.log_file,
-                        level=loglevel,
-                        format=FORMAT)
-    logger = logging.getLogger(__name__)
+    if args.log_file:
+        loglevel = logging.DEBUG
+        log_handler = logging.handlers.WatchedFileHandler(args.log_file)
+    else:
+        log_handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s %(levelname)s: %(module)s: '
+                                  '%(funcName)s(): %(message)s')
+    log_handler.setFormatter(formatter)
+    logger = logging.getLogger(project_name)
+    logger.addHandler(log_handler)
+    logger.setLevel(loglevel)
     conf = load_conf(args.config)
     if args.fuel_ip:
         conf['fuel_ip'] = args.fuel_ip
