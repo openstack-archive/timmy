@@ -851,7 +851,6 @@ class NodeManager(object):
                 pass
 
     def get_nodes_api(self):
-        return False
         self.logger.info('using API to get nodes json')
         nodes_json = self.get_api_request('nodes')
         if nodes_json:
