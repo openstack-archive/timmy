@@ -20,12 +20,13 @@ tools module
 """
 
 from flock import FLock
-from multiprocessing import Process, Queue, BoundedSemaphore
 from pipes import quote
 from tempfile import gettempdir
 from timmy.env import project_name
+import Queue
 import json
 import logging
+import multiprocessing as mp
 import os
 import signal
 import subprocess
@@ -88,9 +89,9 @@ class RunItem():
         self.logger = logger or logging.getLogger(project_name)
 
 
-class SemaphoreProcess(Process):
+class SemaphoreProcess(mp.Process):
     def __init__(self, semaphore, target, args=None, queue=None, logger=None):
-        Process.__init__(self)
+        mp.Process.__init__(self)
         self.logger = logger or logging.getLogger(project_name)
         self.semaphore = semaphore
         self.target = target
@@ -121,6 +122,7 @@ def run_batch(item_list, maxthreads, dict_result=False):
     exc_msg = 'exception in subprocess, pid: %s, details:'
     rem_msg = 'removing reference to finished subprocess, pid: %s'
     int_msg = 'received keyboard interrupt during batch execution, cleaning up'
+    emp_msg = 'subprocess did not return results, pid: %s'
 
     def cleanup(launched):
         logger.info('cleaning up running subprocesses')
@@ -134,23 +136,26 @@ def run_batch(item_list, maxthreads, dict_result=False):
         remove_procs = []
         for key, proc in l.items():
             if not proc.is_alive() or join:
-                results[key] = proc.queue.get()
-                if isinstance(results[key], Exception):
+                logger.debug('joining subprocess, pid: %s' % proc.pid)
+                proc.join()
+                try:
+                    results[key] = proc.queue.get(block=False)
+                except Queue.Empty:
+                    logger.warning(emp_msg % proc.pid)
+                if key in results and isinstance(results[key], Exception):
                     exc_text = proc.queue.get()
                     logger.critical(exc_msg % proc.pid)
                     for line in exc_text.splitlines():
                         logger.critical('____%s' % line)
                     cleanup(l)
                     sys.exit(109)
-                logger.debug('joining subprocess, pid: %s' % proc.pid)
-                proc.join()
                 remove_procs.append(key)
         for key in remove_procs:
             logger.debug(rem_msg % key)
             l.pop(key)
         return results
 
-    semaphore = BoundedSemaphore(maxthreads)
+    semaphore = mp.BoundedSemaphore(maxthreads)
     try:
         launched = {}
         results = {}
@@ -162,7 +167,7 @@ def run_batch(item_list, maxthreads, dict_result=False):
             p = SemaphoreProcess(target=run_item.target,
                                  semaphore=semaphore,
                                  args=run_item.args,
-                                 queue=Queue())
+                                 queue=mp.Queue())
             p.start()
             if dict_result:
                 launched[run_item.key] = p
