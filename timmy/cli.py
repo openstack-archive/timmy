@@ -18,7 +18,7 @@
 from timmy.conf import load_conf
 from timmy.env import project_name, version
 from timmy.nodes import Node, NodeManager
-from timmy.tools import interrupt_wrapper
+from timmy.tools import signal_wrapper
 import argparse
 import logging
 import logging.handlers
@@ -189,7 +189,7 @@ def parse_args():
     return parser
 
 
-@interrupt_wrapper
+@signal_wrapper
 def main(argv=None):
     if argv is None:
         argv = sys.argv
