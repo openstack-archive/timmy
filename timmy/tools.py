@@ -49,13 +49,11 @@ while 1:
 '''
 
 
-def interrupt_wrapper(f):
+def signal_wrapper(f):
     def wrapper(*args, **kwargs):
+        setup_handle_sig()
         try:
             f(*args, **kwargs)
-        except KeyboardInterrupt:
-            logger.warning('received keyboard interrupt, exiting')
-            sys.exit(signal.SIGINT)
         except Exception as e:
             logger.error('Error: %s' % e, exc_info=True)
             for k in dir(e):
@@ -65,6 +63,35 @@ def interrupt_wrapper(f):
                     v = getattr(e, k)
                     logger.debug('Error details: %s = %s' % (k, v))
     return wrapper
+
+
+def main_handle_sig(sig, frame):
+    sig_msg = 'main application received signal %d, sending to children'
+    logger.warning(sig_msg % sig)
+    pids, errs, code = launch_cmd('pgrep -P %d' % os.getpid(), 2)
+    if pids:
+        for pid in pids.splitlines():
+            os.kill(int(pid), sig)
+    sys.exit(sig)
+
+
+def sub_handle_sig(sig, frame):
+    sig_msg = 'subprocess received signal %d, sending to children, pid: %d'
+    logger.warning(sig_msg % (sig, os.getpid()))
+    signal.signal(sig, signal.SIG_IGN)
+    try:
+        os.killpg(os.getpid(), sig)
+    except OSError:
+        pass
+    sys.exit(sig)
+
+
+def setup_handle_sig(subprocess=False):
+    if os.getpid() != os.getpgrp():
+        os.setpgrp()
+    sig_handler = main_handle_sig if not subprocess else sub_handle_sig
+    for sig in [signal.SIGINT, signal.SIGTERM, signal.SIGHUP]:
+        signal.signal(sig, sig_handler)
 
 
 def run_with_lock(f):
@@ -101,7 +128,7 @@ class SemaphoreProcess(mp.Process):
         self.queue = queue
 
     def run(self):
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        setup_handle_sig(subprocess=True)
         fin_msg = 'finished subprocess, pid: %s'
         sem_msg = 'semaphore released by subprocess, pid: %s'
         try:
@@ -121,7 +148,6 @@ class SemaphoreProcess(mp.Process):
 def run_batch(item_list, maxthreads, dict_result=False):
     exc_msg = 'exception in subprocess, pid: %s, details:'
     rem_msg = 'removing reference to finished subprocess, pid: %s'
-    int_msg = 'received keyboard interrupt during batch execution, cleaning up'
     emp_msg = 'subprocess did not return results, pid: %s'
 
     def cleanup(launched):
@@ -156,38 +182,33 @@ def run_batch(item_list, maxthreads, dict_result=False):
         return results
 
     semaphore = mp.BoundedSemaphore(maxthreads)
-    try:
-        launched = {}
-        results = {}
-        if not dict_result:
-            key = 0
-        for run_item in item_list:
-            results.update(collect_results(launched))
-            semaphore.acquire(block=True)
-            p = SemaphoreProcess(target=run_item.target,
-                                 semaphore=semaphore,
-                                 args=run_item.args,
-                                 queue=mp.Queue())
-            p.start()
-            if dict_result:
-                launched[run_item.key] = p
-                logger.debug('started subprocess, pid: %s, func: %s, key: %s' %
-                             (p.pid, run_item.target, run_item.key))
-            else:
-                launched[key] = p
-                key += 1
-                logger.debug('started subprocess, pid:%s, func:%s, key:%s' %
-                             (p.pid, run_item.target, key))
-
-        results.update(collect_results(launched, True))
+    launched = {}
+    results = {}
+    if not dict_result:
+        key = 0
+    for run_item in item_list:
+        results.update(collect_results(launched))
+        semaphore.acquire(block=True)
+        p = SemaphoreProcess(target=run_item.target,
+                             semaphore=semaphore,
+                             args=run_item.args,
+                             queue=mp.Queue())
+        p.start()
         if dict_result:
-            return results
+            launched[run_item.key] = p
+            logger.debug('started subprocess, pid: %s, func: %s, key: %s' %
+                         (p.pid, run_item.target, run_item.key))
         else:
-            return results.values()
-    except KeyboardInterrupt:
-        logger.warning(int_msg)
-        cleanup(launched)
-        raise KeyboardInterrupt()
+            launched[key] = p
+            key += 1
+            logger.debug('started subprocess, pid:%s, func:%s, key:%s' %
+                         (p.pid, run_item.target, key))
+
+    results.update(collect_results(launched, True))
+    if dict_result:
+        return results
+    else:
+        return results.values()
 
 
 def load_json_file(filename):
