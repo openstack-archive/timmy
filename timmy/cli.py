@@ -18,7 +18,7 @@
 from timmy.conf import load_conf
 from timmy.env import project_name, version
 from timmy.nodes import Node, NodeManager
-from timmy.tools import interrupt_wrapper
+from timmy.tools import signal_wrapper
 import argparse
 import logging
 import logging.handlers
@@ -189,7 +189,7 @@ def parse_args():
     return parser
 
 
-@interrupt_wrapper
+@signal_wrapper
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -209,7 +209,7 @@ def main(argv=None):
     else:
         log_handler = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s %(levelname)s: %(module)s: '
-                               '%(funcName)s(): %(message)s')
+                                  '%(funcName)s(): %(message)s')
     log_handler.setFormatter(formatter)
     logger = logging.getLogger(project_name)
     logger.addHandler(log_handler)
