@@ -367,6 +367,50 @@ class Node(object):
                                               prefix=self.prefix)
             self.check_code(code, 'exec_simple_cmd', cmd, errs, ok_codes)
 
+    def exec_pair(self, action, server_ip=None):
+        cl = self.cluster_repr
+        for i in self.scripts_all_pairs:
+            if action in i:
+                action_val = i[action]
+                ddir = os.path.join(self.outdir, 'scripts_all_pairs', cl,
+                                    action, self.repr)
+                tools.mdir(ddir)
+                if type(action_val) is dict:
+                    env_vars = [action_val.values()[0]]
+                    action_val = action_val.keys()[0]
+                else:
+                    env_vars = self.env_vars
+                if os.path.sep in action_val:
+                    f = action_val
+                else:
+                    f = os.path.join(self.rqdir, Node.skey, action_val)
+                if action.startswith('client'):
+                    if server_ip:
+                        env_vars.append('SERVER_IP=%s' % server_ip)
+                    else:
+                        self.logger.warning('server_ip not provided for '
+                                            'client %s, skipping client' %
+                                            self.repr)
+                        return self.scripts_all_pairs
+                if action == 'server_stop' and 'server_output' in i:
+                    env_vars.append('SERVER_OUTPUT=%s' % i['server_output'])
+                if action.startswith('client'):
+                    dname = os.path.basename(f) + '-%s' % server_ip
+                    dfile = os.path.join(ddir, dname)
+                else:
+                    dfile = os.path.join(ddir, os.path.basename(f))
+                outs, errs, code = tools.ssh_node(ip=self.ip,
+                                                  filename=f,
+                                                  ssh_opts=self.ssh_opts,
+                                                  env_vars=env_vars,
+                                                  timeout=self.timeout,
+                                                  prefix=self.prefix)
+                self.check_code(code, 'exec_pair, action:%s' % action, f, errs)
+                if action == 'server_start' and code == 0:
+                    i['server_output'] = outs.strip()
+                open(dfile, 'a+').write(outs)
+        return self.scripts_all_pairs
+
     def get_files(self, timeout=15):
         self.logger.info('%s: getting files' % self.repr)
         cl = self.cluster_repr
@@ -1164,6 +1208,38 @@ class NodeManager(object):
             run_items.append(tools.RunItem(target=n.put_files))
         tools.run_batch(run_items, 10)
 
+    @run_with_lock
+    def run_scripts_all_pairs(self, maxthreads):
+        if len(self.selected_nodes()) < 2:
+            self.logger.warning('less than 2 nodes are available, '
+                                'skipping paired scripts')
+            return
+        run_server_start_items = []
+        run_server_stop_items = []
+        for n in self.selected_nodes():
+            start_args = {'action': 'server_start'}
+            run_server_start_items.append(tools.RunItem(target=n.exec_pair,
+                                                        args=start_args,
+                                                        key=n.ip))
+            stop_args = {'action': 'server_stop'}
+            run_server_stop_items.append(tools.RunItem(target=n.exec_pair,
+                                                       args=stop_args))
+        result = tools.run_batch(run_server_start_items, maxthreads,
+                                 dict_result=True)
+        for key in result:
+            self.nodes[key].scripts_all_pairs = result[key]
+        for pairset in tools.all_pairs(self.selected_nodes()):
+            run_client_items = []
+            self.logger.info(['%s->%s' % (p[0].ip, p[1].ip) for p in pairset])
+            for pair in pairset:
+                client = pair[0]
+                server = pair[1]
+                client_args = {'action': 'client', 'server_ip': server.ip}
+                run_client_items.append(tools.RunItem(target=client.exec_pair,
+                                                      args=client_args))
+            tools.run_batch(run_client_items, len(run_client_items))
+        tools.run_batch(run_server_stop_items, maxthreads)
+
     def has(self, *keys):
         nodes = {}
         for k in keys:
@@ -1175,6 +1251,9 @@ class NodeManager(object):
                             nodes[k] = []
                         nodes[k].append(n)
         return nodes
+
+    def selected_nodes(self):
+        return [n for n in self.nodes.values() if not n.filtered_out]
 
 
 def main(argv=None):
