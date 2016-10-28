@@ -73,7 +73,7 @@ class Node(object):
 
     def __init__(self, ip, conf, id=None, name=None, fqdn=None, mac=None,
                  cluster=None, roles=None, os_platform=None,
-                 online=True, status="ready", logger=None):
+                 online=True, status="ready", logger=None, network_data=None):
         self.logger = logger or logging.getLogger(project_name)
         self.id = int(id) if id is not None else None
         self.mac = mac
@@ -89,6 +89,7 @@ class Node(object):
             self.logger.critical('Node: ip address must be defined')
             sys.exit(111)
         self.ip = ip
+        self.network_data = network_data
         self.release = None
         self.files = []
         self.filelists = []
@@ -366,6 +367,80 @@ class Node(object):
                                               input=input,
                                               prefix=self.prefix)
             self.check_code(code, 'exec_simple_cmd', cmd, errs, ok_codes)
+
+    def exec_pair(self, phase, server_node=None, fake=False):
+        sn = server_node
+        cl = self.cluster_repr
+        if sn:
+            self.logger.debug('%s: phase %s: server %s' % (self.repr, phase,
+                                                          sn.repr))
+        else:
+            self.logger.debug('%s: phase %s' % (self.repr, phase))
+        nond_msg  = ('%s: network specified but network_data not set for %s')
+        nonet_msg = ('%s: network %s not found in network_data of %s')
+        nosrv_msg = ('%s: server_node not provided')
+        noip_msg = ('%s: %s has no IP in network %s')
+        for i in self.scripts_all_pairs:
+            if phase not in i:
+                self.logger.warning('phase %s not defined in config' % phase)
+                return self.scripts_all_pairs
+            if phase.startswith('client'):
+                if not sn:
+                    self.logger.warning(nosrv_msg % self.repr)
+                    return self.scripts_all_pairs
+                if 'network' in i:
+                    if not sn.network_data:
+                        self.logger.warning(nond_msg % (self.repr, sn.repr))
+                        return self.scripts_all_pairs
+                    nd = sn.network_data
+                    net_dict = dict((v['name'], v) for v in nd)
+                    if i['network'] not in net_dict:
+                        self.logger.warning(nonet_msg % (self.repr, sn.repr))
+                        return self.scripts_all_pairs
+                    if 'ip' not in net_dict[i['network']]:
+                        self.logger.warning(noip_msg % (self.repr, sn.repr,
+                                                        i['network']))
+                        return self.scripts_all_pairs
+                    ip = net_dict[i['network']]['ip']
+                    if '/' in ip:
+                        server_ip = ip.split('/')[0]
+                    else:
+                        server_ip = ip
+                else:
+                    server_ip = sn.ip
+            phase_val = i[phase]
+            ddir = os.path.join(self.outdir, 'scripts_all_pairs', cl, phase,
+                                self.repr)
+            tools.mdir(ddir)
+            if type(phase_val) is dict:
+                env_vars = [phase_val.values()[0]]
+                phase_val = phase_val.keys()[0]
+            else:
+                env_vars = self.env_vars
+            if os.path.sep in phase_val:
+                f = phase_val
+            else:
+                f = os.path.join(self.rqdir, Node.skey, phase_val)
+            dfile = os.path.join(ddir, os.path.basename(f))
+            if phase.startswith('client'):
+                env_vars.append('SERVER_IP=%s' % server_ip)
+                dname = os.path.basename(f) + '-%s' % server_ip
+                dfile = os.path.join(ddir, dname)
+            elif phase == 'server_stop' and 'server_output' in i:
+                env_vars.append('SERVER_OUTPUT=%s' % i['server_output'])
+            if fake:
+                return self.scripts_all_pairs
+            outs, errs, code = tools.ssh_node(ip=self.ip,
+                                              filename=f,
+                                              ssh_opts=self.ssh_opts,
+                                              env_vars=env_vars,
+                                              timeout=self.timeout,
+                                              prefix=self.prefix)
+            self.check_code(code, 'exec_pair, phase:%s' % phase, f, errs)
+            if phase == 'server_start' and code == 0:
+                i['server_output'] = outs.strip()
+            open(dfile, 'a+').write(outs)
+        return self.scripts_all_pairs
 
     def get_files(self, timeout=15):
         self.logger.info('%s: getting files' % self.repr)
@@ -914,7 +989,7 @@ class NodeManager(object):
         for node_data in self.nodes_json:
             params = {'conf': self.conf}
             keys = ['id', 'cluster', 'roles', 'fqdn', 'name', 'mac',
-                    'os_platform', 'status', 'online', 'ip']
+                    'os_platform', 'status', 'online', 'ip', 'network_data']
             for key in keys:
                 if key in node_data:
                     params[key] = node_data[key]
@@ -1164,6 +1239,39 @@ class NodeManager(object):
             run_items.append(tools.RunItem(target=n.put_files))
         tools.run_batch(run_items, 10)
 
+    @run_with_lock
+    def run_scripts_all_pairs(self, maxthreads, fake=False):
+        if len(self.selected_nodes()) < 2:
+            self.logger.warning('less than 2 nodes are available, '
+                                'skipping paired scripts')
+            return
+        run_server_start_items = []
+        run_server_stop_items = []
+        for n in self.selected_nodes():
+            start_args = {'phase': 'server_start', 'fake': fake}
+            run_server_start_items.append(tools.RunItem(target=n.exec_pair,
+                                                        args=start_args,
+                                                        key=n.ip))
+            stop_args = {'phase': 'server_stop', 'fake': fake}
+            run_server_stop_items.append(tools.RunItem(target=n.exec_pair,
+                                                       args=stop_args))
+        result = tools.run_batch(run_server_start_items, maxthreads,
+                                 dict_result=True)
+        for key in result:
+            self.nodes[key].scripts_all_pairs = result[key]
+        for pairset in tools.all_pairs(self.selected_nodes()):
+            run_client_items = []
+            self.logger.info(['%s->%s' % (p[0].ip, p[1].ip) for p in pairset])
+            for pair in pairset:
+                client = pair[0]
+                server = pair[1]
+                client_args = {'phase': 'client', 'server_node': server,
+                               'fake': fake}
+                run_client_items.append(tools.RunItem(target=client.exec_pair,
+                                                      args=client_args))
+            tools.run_batch(run_client_items, len(run_client_items))
+        tools.run_batch(run_server_stop_items, maxthreads)
+
     def has(self, *keys):
         nodes = {}
         for k in keys:
@@ -1175,6 +1283,9 @@ class NodeManager(object):
                             nodes[k] = []
                         nodes[k].append(n)
         return nodes
+
+    def selected_nodes(self):
+        return [n for n in self.nodes.values() if not n.filtered_out]
 
 
 def main(argv=None):
