@@ -62,6 +62,7 @@ def interrupt_wrapper(f):
                 if not k.startswith('__') and k != 'message':
                     v = getattr(e, k)
                     logger.debug('Error details: %s = %s' % (k, v))
+            sys.exit(113)
     return wrapper
 
 

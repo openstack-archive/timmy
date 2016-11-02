@@ -16,3 +16,4 @@ Exit Codes
 * `110` - unable to create a directory.
 * `111` - ip address must be defined for Node instance.
 * `112` - one of the two parameters **fuel_user** or **fuel_pass** specified without the other.
+* `113` - unhandled Python exception occured in main process.
