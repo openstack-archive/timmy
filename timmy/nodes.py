@@ -1176,6 +1176,46 @@ class NodeManager(object):
                         nodes[k].append(n)
         return nodes
 
+    def analyze(self):
+        col_msg = 'Column "%s" not found in output of "%s" from node "%s"'
+        grey = -1
+        green = 0
+        yellow = 1
+        red = 2
+        def parse_df(data, script, node):
+            column_use = "Use%"
+            full = 100
+            near_full = 80
+            if column_use not in data[0]:
+                self.logger.warning(col_msg % (column_use, script, node.repr))
+                return grey, ""
+            index = data[0].split().index(column_use)
+            for line in data[2:]:
+                value = int(line.split()[index][:-1])
+                if value >= full:
+                    return red, line
+                elif value >= near_full:
+                    return yellow, line
+            return green, ""
+
+        function_mapping = {"df-m": parse_df}
+        results = []
+    #    import pudb
+    #    pudb.set_trace()
+        for node in self.nodes.values():
+            for script, output_file in node.mapscr.items():
+                if script in function_mapping:
+                    with open(output_file,"r") as f:
+                        data = f.readlines()
+                    health, details = function_mapping[script](data, script, node)
+                    results.append({"node": node.repr,
+                                    "script": script,
+                                    "output_file": output_file,
+                                    "health": health,
+                                    "details": details})
+        print
+        import yaml
+        print(yaml.dump(results, default_style=False))
 
 def main(argv=None):
     return 0
