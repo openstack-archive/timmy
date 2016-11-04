@@ -23,6 +23,7 @@ from flock import FLock
 from multiprocessing import Process, Queue, BoundedSemaphore
 from pipes import quote
 from tempfile import gettempdir
+from timmy.env import project_name
 import json
 import logging
 import os
@@ -33,7 +34,7 @@ import threading
 import traceback
 import yaml
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(project_name)
 slowpipe = '''
 import sys
 import time
@@ -85,13 +86,13 @@ class RunItem():
         self.key = key
         self.process = None
         self.queue = None
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger or logging.getLogger(project_name)
 
 
 class SemaphoreProcess(Process):
     def __init__(self, semaphore, target, args=None, queue=None, logger=None):
         Process.__init__(self)
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger or logging.getLogger(project_name)
         self.semaphore = semaphore
         self.target = target
         if not args:

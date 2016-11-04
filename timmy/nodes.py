@@ -19,17 +19,18 @@
 main module
 """
 
-import json
-import os
-import shutil
-import logging
-import sys
-import re
-from datetime import datetime, date, timedelta
-import urllib2
-import tools
-from tools import w_list, run_with_lock
 from copy import deepcopy
+from datetime import datetime, date, timedelta
+from timmy.env import project_name
+from tools import w_list, run_with_lock
+import json
+import logging
+import os
+import re
+import shutil
+import sys
+import tools
+import urllib2
 
 try:
     import fuelclient
@@ -73,7 +74,7 @@ class Node(object):
     def __init__(self, ip, conf, id=None, name=None, fqdn=None, mac=None,
                  cluster=None, roles=None, os_platform=None,
                  online=True, status="ready", logger=None):
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger or logging.getLogger(project_name)
         self.id = int(id) if id is not None else None
         self.mac = mac
         self.cluster = int(cluster) if cluster is not None else None
@@ -528,7 +529,7 @@ class NodeManager(object):
 
     def __init__(self, conf, extended=False, nodes_json=None, logger=None):
         self.conf = conf
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger or logging.getLogger(project_name)
         if conf['outputs_timestamp'] or conf['dir_timestamp']:
             timestamp_str = datetime.now().strftime('_%F_%H-%M-%S')
             if conf['outputs_timestamp']:
