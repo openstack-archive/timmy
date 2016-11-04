@@ -331,6 +331,7 @@ def main(argv=None):
         if nm.has(Node.ckey, Node.skey):
             pretty_run(args.quiet, 'Executing commands and scripts',
                        nm.run_commands, args=(args.maxthreads,))
+            pretty_run(args.quiet, 'Analyzing outputs', nm.analyze)
         if nm.has('scripts_all_pairs'):
             pretty_run(args.quiet, 'Executing paired scripts',
                        nm.run_scripts_all_pairs, args=(args.maxthreads,))
