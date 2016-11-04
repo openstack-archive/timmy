@@ -72,6 +72,7 @@ def init_default_conf():
     conf['do_print_results'] = False
     '''Clean - erase previous results in outdir and archive_dir dir, if any.'''
     conf['clean'] = True
+    conf['analyze'] = False
     return conf
 
 
