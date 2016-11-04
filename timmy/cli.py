@@ -15,6 +15,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from timmy.analyze import analyze, analyze_print_results
 from timmy.env import project_name, version
 from timmy.nodes import Node
 from timmy.tools import signal_wrapper
@@ -171,6 +172,9 @@ def parser_init(add_help=False):
     parser.add_argument('-m', '--module', metavar='INVENTORY MODULE',
                         default='fuel',
                         help='Use module to get node data')
+    parser.add_argument('-a', '--analyze', action='store_true',
+                        help=('Analyze collected outputs to determine node or'
+                              'service health and print results'))
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help=('This works for -vvvv, -vvv, -vv, -v, -v -v,'
                               'etc, If no -v then logging.WARNING is '
@@ -286,6 +290,8 @@ def main(argv=None):
             # this is mainly to see the path in logs instad of ""
             conf['archive_dir'] = os.getcwd()
         conf['archive_name'] = os.path.split(args.dest_file)[1]
+    if args.analyze:
+        conf['analyze'] = True
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
@@ -315,6 +321,9 @@ def main(argv=None):
         if nm.has(Node.ckey, Node.skey):
             pretty_run(args.quiet, 'Executing commands and scripts',
                        nm.run_commands, args=(args.maxthreads,))
+            if conf['analyze']:
+                pretty_run(args.quiet, 'Analyzing outputs', analyze,
+                           args=[nm])
         if nm.has('scripts_all_pairs'):
             pretty_run(args.quiet, 'Executing paired scripts',
                        nm.run_scripts_all_pairs, args=(args.maxthreads,))
@@ -350,6 +359,8 @@ def main(argv=None):
                 for line in output_dict[node.ip]['output']:
                     name = output_dict[node.ip]['name'].rjust(maxlength)
                     print("%s: %s" % (name, line))
+    if conf['analyze']:
+        analyze_print_results(nm)
     if nm.has(Node.ckey, Node.skey, Node.fkey, Node.flkey) and not args.quiet:
         print('Outputs and/or files available in "%s".' % nm.conf['outdir'])
     if all([not args.no_archive, nm.has(*Node.conf_archive_general),
