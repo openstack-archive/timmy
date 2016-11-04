@@ -925,6 +925,101 @@ class NodeManager(object):
     def selected_nodes(self):
         return dict([(ip, n) for ip, n in self.nodes.items() if not n.skipped])
 
+    def analyze(self):
+        col_msg = 'Column "%s" not found in output of "%s" from node "%s"'
+        green = 0
+        unknown = 1
+        yellow = 2
+        red = 3
+
+        def parse_df_m(data, script, node):
+            column_use = "Use%"
+            full = 100
+            near_full = 80
+            health = green
+            details = []
+            if column_use not in data[0]:
+                self.logger.warning(col_msg % (column_use, script, node.repr))
+                health = unknown
+            index = data[0].split().index(column_use)
+            for line in data[2:]:
+                value = int(line.split()[index][:-1])
+                if value >= full:
+                    health = red
+                    details.append(line)
+                elif value >= near_full:
+                    health = yellow if health < yellow else health
+                    details.append(line)
+            return health, details
+
+        def parse_df_i(data, script, node):
+            column_use = "IUse%"
+            full = 100
+            near_full = 80
+            health = green
+            details = []
+            if column_use not in data[0]:
+                self.logger.warning(col_msg % (column_use, script, node.repr))
+                health = unknown
+            index = data[0].split().index(column_use)
+            for line in data[2:]:
+                if "%" in line.split()[index]:
+                    value = int(line.split()[index][:-1])
+                    if value >= full:
+                        health = red
+                        details.append(line)
+                    elif value >= near_full:
+                        health = yellow if health < yellow else health
+                        details.append(line)
+            return health, details
+
+        fn_mapping = {"df-m": parse_df_m,
+                      "df-i": parse_df_i}
+        results = {}
+        for node in self.nodes.values():
+            for script, output_file in node.mapscr.items():
+                if script in fn_mapping:
+                    with open(output_file, "r") as f:
+                        data = [l.rstrip() for l in f.readlines()]
+                    health, details = fn_mapping[script](data, script, node)
+                    if node.repr not in results:
+                        results[node.repr] = []
+                    results[node.repr].append({"script": script,
+                                               "output_file": output_file,
+                                               "health": health,
+                                               "details": details})
+        self.analyze_results = results
+        self.analyze_print_results()
+
+    def analyze_print_results(self):
+        code_colors = {3: ["RED", "\033[91m"],
+                       2: ["YELLOW", "\033[93m"],
+                       0: ["GREEN", "\033[92m"],
+                       1: ["BLUE", "\033[94m"]}
+        color_end = "\033[0m"
+        print("")
+        print("Nodes health analysis:")
+        for node, result in self.analyze_results.items():
+            node_health = max([x["health"] for x in result])
+            node_color = code_colors[node_health][1]
+            print("    %s%s%s" % (node_color, node, color_end))
+            for r in result:
+                color = code_colors[r["health"]][1]
+                sys.stdout.write(color)
+                for key, value in r.items():
+                    if key == "health":
+                        value = code_colors[value][0]
+                    if key == "details" and len(value) > 0:
+                        if len(value) > 1:
+                            print("        details:")
+                            for d in value:
+                                print("            - %s" % d)
+                        else:
+                            print("        details: %s" % value[0])
+                    elif key != "details":
+                        print("        %s: %s" % (key, value))
+                sys.stdout.write(color_end)
+
 
 def main(argv=None):
     return 0
