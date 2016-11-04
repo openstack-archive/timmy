@@ -326,6 +326,8 @@ def main(argv=None):
         if nm.has(Node.ckey, Node.skey):
             pretty_run(args.quiet, 'Executing commands and scripts',
                        nm.run_commands, args=(args.maxthreads,))
+            pretty_run(args.quiet, 'Analyzing outputs',
+                       nm.analyze)
         if nm.has(Node.fkey, Node.flkey):
             pretty_run(args.quiet, 'Collecting files and filelists',
                        nm.get_files, args=(args.maxthreads,))
