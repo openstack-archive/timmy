@@ -318,7 +318,7 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
         bstr = "%s timeout '%s' bash -c " % (
                env_vars, timeout)
     else:
-        bstr = "timeout '%s' ssh -t -T %s '%s' '%s' " % (
+        bstr = "timeout '%s' ssh -T %s '%s' '%s' " % (
                timeout, ssh_opts, ip, env_vars)
     if filename is None:
         cmd = '%s %s' % (bstr, quote(prefix + ' ' + command))
@@ -388,6 +388,33 @@ def free_space(destdir, timeout):
 # wrap non-list into list
 def w_list(value):
     return value if type(value) == list else [value]
+
+
+def all_pairs(items):
+    def incomplete(i_set, p_dict):
+        for i, p_set in p_dict.items():
+            not_paired = i_set.difference(p_set).difference([i])
+            if not_paired:
+                return not_paired
+
+    items_set = set(items)
+    pairs = []
+    paired = {}
+    for i in items_set:
+        paired[i] = set()
+    while incomplete(items_set, paired):
+        busy = set()
+        current_pairs = []
+        for i in [i for i in items if items_set.difference(paired[i])]:
+            can_pair = incomplete(items_set.difference(busy), {i: paired[i]})
+            if i not in busy and can_pair:
+                pair_i = next(iter(can_pair))
+                current_pairs.append([i, pair_i])
+                busy.add(i)
+                busy.add(pair_i)
+                paired[i].add(pair_i)
+        pairs.append(current_pairs)
+    return pairs
 
 
 if __name__ == '__main__':
