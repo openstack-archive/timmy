@@ -271,7 +271,8 @@ class NodeManager(BaseNodeManager):
             if not self.filter(node, self.conf['soft_filter']):
                 node.filtered_out = True
                 if self.conf['fuel_logs_exclude_filtered']:
-                    self.logs_excluded_nodes.append(node.fqdn)
+                    if node.fqdn:
+                        self.logs_excluded_nodes.append(node.fqdn)
                     self.logs_excluded_nodes.append(node.ip)
 
     def get_release(self):
