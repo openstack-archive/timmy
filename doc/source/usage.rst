@@ -2,6 +2,8 @@
 Usage
 =====
 
+**NOTICE:** Even though Timmy uses nice and ionice to limit impact on the cloud, you should still expect 1 core utilization both locally (where Timmy is launched) and on each node where commands are executed or logs collected. Additionally, if logs are collected, local disk (log destination directory) may get utilized significantly.
+
 The easiest way to launch timmy would be running the ``timmy.py`` script.
 However, you need to :doc:`configure </configuration>` it first.
 
