@@ -1,0 +1,8 @@
+Code-Review+2: Dmitry Sutyagin <dsutyagin@mirantis.com>
+Workflow+1: Dmitry Sutyagin <dsutyagin@mirantis.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 14 Nov 2016 18:11:40 +0000
+Reviewed-on: https://review.openstack.org/397310
+Project: openstack/timmy
+Branch: refs/heads/master
