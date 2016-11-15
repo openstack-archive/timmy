@@ -30,6 +30,8 @@ def init_default_conf():
     conf['ssh_opts'] = ['-oConnectTimeout=2', '-oStrictHostKeyChecking=no',
                         '-oUserKnownHostsFile=/dev/null', '-oLogLevel=error',
                         '-oBatchMode=yes', '-oUser=root']
+    conf['rsync_opts'] = ['-avzr', '--progress', '--partial',
+                          '--delete-before']
     conf['env_vars'] = ['OPENRC=/root/openrc', 'LC_ALL="C"', 'LANG="C"']
     conf['timeout'] = 30
     conf['prefix'] = 'nice -n 19 ionice -c 3'
