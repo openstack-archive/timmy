@@ -374,6 +374,7 @@ class Node(object):
             o, e, c = tools.get_files_rsync(ip=self.ip,
                                             data=data,
                                             ssh_opts=self.ssh_opts,
+                                            rsync_opts=self.rsync_opts,
                                             dpath=ddir,
                                             timeout=self.timeout)
             self.check_code(c, 'get_files', 'tools.get_files_rsync', e)

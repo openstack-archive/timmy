@@ -341,19 +341,19 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
                       ok_codes=ok_codes, decode=decode)
 
 
-def get_files_rsync(ip, data, ssh_opts, dpath, timeout=15):
+def get_files_rsync(ip, data, ssh_opts, rsync_opts, dpath, timeout=15):
     if type(ssh_opts) is list:
         ssh_opts = ' '.join(ssh_opts)
+    if type(rsync_opts) is list:
+        rsync_opts = ' '.join(rsync_opts)
     if (ip in ['localhost', '127.0.0.1']) or ip.startswith('127.'):
         logger.info("skip ssh rsync")
-        cmd = ("timeout '%s' rsync -avzr --include-from=- / '%s' --exclude='*'"
-               " --progress --partial --delete-before" %
-               (timeout, dpath))
+        cmd = ("timeout '%s' rsync %s --include-from=- / '%s' --exclude='*'" %
+               (timeout, rsync_opts, dpath))
     else:
-        cmd = ("timeout '%s' rsync -avzr -e 'ssh %s"
-               " -oCompression=no' --include-from=- '%s':/ '%s' --exclude='*'"
-               " --progress --partial --delete-before"
-               ) % (timeout, ssh_opts, ip, dpath)
+        cmd = ("timeout '%s' rsync %s -e 'ssh %s -oCompression=no' "
+               "--include-from=- '%s':/ '%s' --exclude='*'" %
+               (timeout, rsync_opts, ssh_opts, ip, dpath))
     logger.debug("command:%s\ndata:\n%s" % (cmd, data))
     if data == '':
         return cmd, '', 127
