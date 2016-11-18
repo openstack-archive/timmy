@@ -445,10 +445,9 @@ class NodeManager(BaseNodeManager):
 
     def get_release_cli(self):
         run_items = []
-        for key, node in self.nodes.items():
-            if not node.filtered_out:
-                run_items.append(tools.RunItem(target=node.get_release,
-                                               key=key))
+        for key, node in self.selected_nodes.items():
+            run_items.append(tools.RunItem(target=node.get_release,
+                                           key=key))
         result = tools.run_batch(run_items, 100, dict_result=True)
         if result:
             for key in result:
@@ -464,9 +463,8 @@ class NodeManager(BaseNodeManager):
 
     def nodes_get_roles_hiera(self, maxthreads=100):
         run_items = []
-        for key, node in self.nodes.items():
-            if all([not node.filtered_out, not node.roles,
-                    node.status != 'discover']):
+        for key, node in self.selected_nodes.items():
+            if node.status != 'discover' and not node.roles:
                 run_items.append(tools.RunItem(target=node.get_roles_hiera,
                                                key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
@@ -477,8 +475,8 @@ class NodeManager(BaseNodeManager):
     def nodes_get_cluster_ids(self, maxthreads=100):
         self.logger.debug('getting cluster ids from nodes')
         run_items = []
-        for key, node in self.nodes.items():
-            if not node.filtered_out and not node.cluster:
+        for key, node in self.selected_nodes.items():
+            if not node.cluster:
                 run_items.append(tools.RunItem(target=node.get_cluster_id,
                                                key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
