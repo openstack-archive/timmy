@@ -82,7 +82,7 @@ class Node(object):
         self.name = name
         self.fqdn = fqdn
         self.accessible = True
-        self.filtered_out = False
+        self.skipped = False
         self.outputs_timestamp = False
         self.outputs_timestamp_dir = None
         self.apply_conf(conf)
@@ -97,10 +97,10 @@ class Node(object):
         return self.pt.format(*fields)
 
     def print_table(self):
-        if not self.filtered_out:
+        if not self.skipped:
             my_id = self.id
         else:
-            my_id = str(self.id) + ' [skipped]'
+            my_id = '%s [skipped]' % self.id
         return [str(my_id), str(self.cluster), str(self.ip), str(self.mac),
                 self.os_platform, ','.join(self.roles),
                 str(self.online), str(self.accessible), str(self.status),
@@ -542,7 +542,7 @@ class NodeManager(object):
         # apply soft-filter on all nodes
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
-                node.filtered_out = True
+                node.skipped = True
 
     def post_init(self):
         self.nodes_reapply_conf()
@@ -663,7 +663,7 @@ class NodeManager(object):
             attr_name = k[len(once_p):]
             assigned = dict((k, None) for k in self.conf[k])
             for ak in assigned:
-                for node in self.nodes.values():
+                for node in self.selected_nodes.values():
                     if hasattr(node, attr_name) and not assigned[ak]:
                         attr = w_list(getattr(node, attr_name))
                         for v in attr:
@@ -681,8 +681,8 @@ class NodeManager(object):
 
     def nodes_get_os(self, maxthreads=100):
         run_items = []
-        for key, node in self.nodes.items():
-            if not node.filtered_out and not node.os_platform:
+        for key, node in self.selected_nodes.items():
+            if not node.os_platform:
                 run_items.append(tools.RunItem(target=node.get_os, key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:
@@ -692,10 +692,9 @@ class NodeManager(object):
     def nodes_check_access(self, maxthreads=100):
         self.logger.debug('checking if nodes are accessible')
         run_items = []
-        for key, node in self.nodes.items():
-            if not node.filtered_out:
-                run_items.append(tools.RunItem(target=node.check_access,
-                                               key=key))
+        for key, node in self.selected_nodes.items():
+            run_items.append(tools.RunItem(target=node.check_access,
+                                           key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:
             self.nodes[key].accessible = result[key]
@@ -730,11 +729,10 @@ class NodeManager(object):
     @run_with_lock
     def run_commands(self, timeout=15, fake=False, maxthreads=100):
         run_items = []
-        for key, node in self.nodes.items():
-            if not node.filtered_out:
-                run_items.append(tools.RunItem(target=node.exec_cmd,
-                                               args={'fake': fake},
-                                               key=key))
+        for key, node in self.selected_nodes.items():
+            run_items.append(tools.RunItem(target=node.exec_cmd,
+                                           args={'fake': fake},
+                                           key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:
             self.nodes[key].mapcmds = result[key][0]
@@ -743,15 +741,14 @@ class NodeManager(object):
     def calculate_log_size(self, timeout=15, maxthreads=100):
         total_size = 0
         run_items = []
-        for key, node in self.nodes.items():
-            if not node.filtered_out:
-                run_items.append(tools.RunItem(target=node.logs_populate,
-                                               args={'timeout': timeout},
-                                               key=key))
+        for key, node in self.selected_nodes.items():
+            run_items.append(tools.RunItem(target=node.logs_populate,
+                                           args={'timeout': timeout},
+                                           key=key))
         result = tools.run_batch(run_items, maxthreads, dict_result=True)
         for key in result:
             self.nodes[key].logs = result[key]
-        for node in self.nodes.values():
+        for node in self.selected_nodes.values():
             total_size += sum(node.logs_dict().values())
         self.logger.info('Full log size on nodes(with fuel): %d bytes' %
                          total_size)
@@ -803,7 +800,7 @@ class NodeManager(object):
 
     def find_adm_interface_speed(self):
         '''Returns interface speed through which logs will be dowloaded'''
-        for node in self.nodes.values():
+        for node in self.selected_nodes.values():
             if not (node.ip == 'localhost' or node.ip.startswith('127.')):
                 cmd = ("%s$(/sbin/ip -o route get %s | cut -d' ' -f3)/speed" %
                        ('cat /sys/class/net/', node.ip))
@@ -831,7 +828,7 @@ class NodeManager(object):
             py_slowpipe = tools.slowpipe % speed
             limitcmd = "| python -c '%s'; exit ${PIPESTATUS}" % py_slowpipe
         run_items = []
-        for node in [n for n in self.nodes.values() if not n.filtered_out]:
+        for node in self.selected_nodes.values():
             if not node.logs_dict():
                 self.logger.info(("%s: no logs to collect") % node.repr)
                 continue
@@ -860,26 +857,26 @@ class NodeManager(object):
     @run_with_lock
     def get_files(self, timeout=15):
         run_items = []
-        for n in [n for n in self.nodes.values() if not n.filtered_out]:
-            run_items.append(tools.RunItem(target=n.get_files))
+        for node in self.selected_nodes.values():
+            run_items.append(tools.RunItem(target=node.get_files))
         tools.run_batch(run_items, 10)
 
     @run_with_lock
     def put_files(self):
         run_items = []
-        for n in [n for n in self.nodes.values() if not n.filtered_out]:
-            run_items.append(tools.RunItem(target=n.put_files))
+        for node in self.selected_nodes.values():
+            run_items.append(tools.RunItem(target=node.put_files))
         tools.run_batch(run_items, 10)
 
     @run_with_lock
     def run_scripts_all_pairs(self, maxthreads, fake=False):
-        if len(self.selected_nodes()) < 2:
+        if len(self.selected_nodes) < 2:
             self.logger.warning('less than 2 nodes are available, '
                                 'skipping paired scripts')
             return
         run_server_start_items = []
         run_server_stop_items = []
-        for n in self.selected_nodes():
+        for n in self.selected_nodes.values():
             start_args = {'phase': 'server_start', 'fake': fake}
             run_server_start_items.append(tools.RunItem(target=n.exec_pair,
                                                         args=start_args,
@@ -891,7 +888,7 @@ class NodeManager(object):
                                  dict_result=True)
         for key in result:
             self.nodes[key].scripts_all_pairs = result[key]
-        for pairset in tools.all_pairs(self.selected_nodes()):
+        for pairset in tools.all_pairs(self.selected_nodes.values()):
             run_client_items = []
             self.logger.info(['%s->%s' % (p[0].ip, p[1].ip) for p in pairset])
             for pair in pairset:
@@ -916,8 +913,9 @@ class NodeManager(object):
                         nodes[k].append(n)
         return nodes
 
+    @property
     def selected_nodes(self):
-        return [n for n in self.nodes.values() if not n.filtered_out]
+        return dict([(ip, n) for ip, n in self.nodes.items() if not n.skipped])
 
 
 def main(argv=None):
