@@ -1,0 +1,8 @@
+Code-Review+2: Aleksandr Dobdin <adobdin@mirantis.com>
+Workflow+1: Aleksandr Dobdin <adobdin@mirantis.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 21 Nov 2016 16:32:42 +0000
+Reviewed-on: https://review.openstack.org/400201
+Project: openstack/timmy
+Branch: refs/heads/master
