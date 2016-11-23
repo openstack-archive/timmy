@@ -282,6 +282,9 @@ def main(argv=None):
         conf['dir_timestamp'] = True
     if args.dest_file:
         conf['archive_dir'] = os.path.split(args.dest_file)[0]
+        if not conf['archive_dir']:
+            # this is mainly to see the path in logs instad of ""
+            conf['archive_dir'] = os.getcwd()
         conf['archive_name'] = os.path.split(args.dest_file)[1]
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))

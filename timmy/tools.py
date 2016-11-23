@@ -264,7 +264,7 @@ def mdir(directory):
     """
     Creates a directory if it doesn't exist
     """
-    if not os.path.exists(directory):
+    if directory and not os.path.exists(directory):
         logger.debug('creating directory %s' % directory)
         try:
             os.makedirs(directory)
