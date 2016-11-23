@@ -163,17 +163,24 @@ def run_batch(item_list, maxthreads, dict_result=False):
             proc.terminate()
             proc.join()
 
+    def get_result(proc, key, results):
+        try:
+            results[key] = proc.queue.get(block=False)
+        except Queue.Empty:
+            if not proc.is_alive():
+                logger.warning(emp_msg % proc.pid)
+
     def collect_results(l, join=False):
         results = {}
         remove_procs = []
         for key, proc in l.items():
             if not proc.is_alive() or join:
                 logger.debug('joining subprocess, pid: %s' % proc.pid)
-                proc.join()
-                try:
-                    results[key] = proc.queue.get(block=False)
-                except Queue.Empty:
-                    logger.warning(emp_msg % proc.pid)
+                while proc.is_alive():
+                    get_result(proc, key, results)
+                    proc.join(timeout=1)
+                if key not in results:
+                    get_result(proc, key, results)
                 if key in results and isinstance(results[key], Exception):
                     exc_text = proc.queue.get()
                     logger.critical(exc_msg % proc.pid)
