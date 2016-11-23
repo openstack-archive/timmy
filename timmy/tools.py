@@ -68,6 +68,13 @@ def signal_wrapper(f):
     return wrapper
 
 
+def handle_sig_usr1(sig, frame):
+    debug_msg = 'Pid %d received USR1, printing current stack:'
+    logger.critical(debug_msg % os.getpid())
+    for line in traceback.format_stack(frame).splitlines():
+        logger.critical(line.rstrip())
+
+
 def main_handle_sig(sig, frame):
     sig_msg = 'main application received signal %d, sending to children'
     logger.warning(sig_msg % sig)
@@ -98,6 +105,7 @@ def setup_handle_sig(subprocess=False):
     sig_handler = main_handle_sig if not subprocess else sub_handle_sig
     for sig in [signal.SIGINT, signal.SIGTERM, signal.SIGHUP]:
         signal.signal(sig, sig_handler)
+    signal.signal(signal.SIGUSR1, handle_sig_usr1)
 
 
 def run_with_lock(f):
