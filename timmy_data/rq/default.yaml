@@ -17,7 +17,6 @@ filelists:
       - 'etc-cobbler'
       - 'etc-dnsmasq.conf'
       - 'etc-fuel'
-      - 'etc-fuel_build_'
       - 'etc-nailgun'
     controller:
       - 'etc-apache2'
