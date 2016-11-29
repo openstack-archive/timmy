@@ -22,7 +22,7 @@ main module
 from copy import deepcopy
 from datetime import datetime, date, timedelta
 from timmy import conf
-from timmy.env import project_name
+from timmy.env import project_name, version
 from timmy import tools
 from tools import w_list, run_with_lock
 import logging
@@ -528,6 +528,14 @@ class NodeManager(object):
                 conf['archive_dir'] += timestamp_str
         if conf['clean']:
             shutil.rmtree(conf['outdir'], ignore_errors=True)
+            tools.mdir(conf['outdir'])
+        version_filename = '%s_version.txt' % project_name
+        version_filepath = os.path.join(conf['outdir'], version_filename)
+        with open(version_filepath, 'a') as f:
+            now = datetime.now()
+            ver_msg = 'running timmy version %s' % version
+            f.write('%s: %s\n' % (now, ver_msg))
+            self.logger.info(ver_msg)
         if not conf['shell_mode']:
             self.rqdir = conf['rqdir']
             if (not os.path.exists(self.rqdir)):
