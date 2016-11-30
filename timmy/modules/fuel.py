@@ -261,7 +261,7 @@ class NodeManager(BaseNodeManager):
         fuelnode.repr = "fuel"
         # soft-skip Fuel if it is hard-filtered
         if not self.filter(fuelnode, self.conf['hard_filter']):
-            fuelnode.filtered_out = True
+            fuelnode.skipped = True
         self.nodes[self.conf['fuel_ip']] = fuelnode
         return fuelnode
 
@@ -269,7 +269,7 @@ class NodeManager(BaseNodeManager):
         # apply soft-filter on all nodes
         for node in self.nodes.values():
             if not self.filter(node, self.conf['soft_filter']):
-                node.filtered_out = True
+                node.skipped = True
                 if self.conf['fuel_logs_exclude_filtered']:
                     if node.fqdn:
                         self.logs_excluded_nodes.append(node.fqdn)
