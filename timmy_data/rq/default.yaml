@@ -54,40 +54,40 @@ scripts:
         controller: [nova-manage-vm-list]
     '5.0':
       by_roles:
-        fuel: [fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker]
+        fuel: [fuel-docker-ps, fuel-dockerctl-check]
         controller: [nova-manage-vm-list]
     '5.0.1':
       by_roles:
-        fuel: [fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker]
+        fuel: [fuel-docker-ps, fuel-dockerctl-check]
         controller: [nova-manage-vm-list]
     '5.1':
       by_roles:
-        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker]
+        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check]
         controller: [nova-manage-vm-list]
     '5.1.1':
       by_roles:
-        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker]
+        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check]
         controller: [nova-manage-vm-list]
     '6.0':
       by_roles:
-        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker, docker-images]
+        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images]
         compute: [ipset-save, ipset-list]
         controller: [ipset-save, ipset-list, nova-manage-vm-list]
     '6.1':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker, docker-images]
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images]
         controller: [nova-manage-vm-list]
     '7.0':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker, docker-images]
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images]
     '8.0':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, postgres-dump-docker, docker-images, fuel-bootstrap-list]
+        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images, fuel-bootstrap-list]
     '9.0':
       by_roles:
         fuel: [fuel-notifications, fuel-postgres-dump, fuel-bootstrap-list, shotgun2-report]
   by_roles:
-    fuel: [fuel-release, fuel-task-list, fuel-environment-list]
+    fuel: [fuel-release, fuel-task-list, fuel-environment-list, fuel-docker-postgres-dump, fuel-postgres-dump]
     cinder: [ovs-vsctl-show, cinder-manage]
     compute: [ovs-dump-flows, ovs-ofctl-show-bridges, ovs-vsctl-show]
     controller: [rabbitmqctl-list-queues, nova-service-list,

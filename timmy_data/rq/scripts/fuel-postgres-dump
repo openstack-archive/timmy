@@ -1,1 +1,2 @@
+which pg_dumpall > /dev/null || exit 0
 su postgres -c 'pg_dumpall --clean'

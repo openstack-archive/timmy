@@ -1,1 +1,0 @@
-dockerctl shell postgres su postgres -c 'pg_dumpall --clean'
