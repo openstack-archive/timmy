@@ -1,0 +1,5 @@
+ip=$(grep -Ir 'bind' /etc/haproxy/* | perl -n -e '/bind (\d+\.\d+\.\d+\.\d+):10000/ && print $1')
+if [ -n "$ip" ]
+then
+    curl http://$ip:10000/
+fi
