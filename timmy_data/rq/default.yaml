@@ -94,7 +94,7 @@ scripts:
       rabbitmqctl-cluster-status, crm-resource-status, pcs-status, ovs-dump-flows, neutron-agent-list,
       mysql-status, ceph-mon-status, ovs-ofctl-show-bridges, rabbitmqctl-list-connections,
       ovs-vsctl-show, rabbitmqctl-report, mysql-size, rabbitmqctl-status, crm-resource-list,
-      cinder-manage]
+      cinder-manage, haproxy-stats-html, haproxy-stats-show-info, haproxy-stats-show-stat, haproxy-stats-show-errors, haproxy-stats-show-sess]
     mongo: [mongo-replication-status, ipa, mongo-replica-conf, mongo-status, ovs-vsctl-show]
   once_by_roles:
     ceph-osd: [ceph-df, ceph-osd-status, ceph-osd-tree, ceph-pg-dump, ovs-vsctl-show,

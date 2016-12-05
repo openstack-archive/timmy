@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.23.6
+Version:        1.23.7
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -104,6 +104,9 @@ popd
 
 
 %changelog
+* Mon Dec 5 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.23.7
+- Add: collect haproxy stats
+
 * Wed Nov 30 2016 Dmitry Sutyagin <dstuaygin@mirantis.com> - 1.23.6
 - Fix: Fuel not skipped when shell mode used
 

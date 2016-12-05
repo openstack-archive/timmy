@@ -1,0 +1,1 @@
+echo "show info" | socat unix-connect:///var/lib/haproxy/stats stdio
