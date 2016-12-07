@@ -1,2 +1,14 @@
-which pg_dumpall > /dev/null || exit 0
-su postgres -c 'pg_dumpall --clean'
+#!/bin/bash
+
+( `# check if docker present` \
+command -v docker &> /dev/null && \
+service docker status &> /dev/null && \
+docker images | grep -c postgres > /dev/null && \
+dockerctl shell postgres su postgres -c 'pg_dumpall --clean'\
+) \
+\
+|| \
+( `# if docker stopped` \
+command -v pg_dumpall && \
+su postgres -c 'pg_dumpall --clean'\
+)

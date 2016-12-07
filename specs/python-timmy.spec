@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.24.1
+Version:        1.24.2
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -72,7 +72,8 @@ rm -rf html/.{doctrees,buildinfo}
 
 %install
 %{__python2} setup.py install --skip-build --root %{buildroot}
-
+mkdir -p %{buildroot}/etc/logrotate.d
+install -m 755 logrotate.d/timmy %{buildroot}/etc/logrotate.d/timmy
 %if 0%{?with_python3}
 pushd %{py3dir}
 %{__python3} setup.py install --skip-build --root %{buildroot}
@@ -100,10 +101,14 @@ popd
 %{python3_sitelib}/%{pypi_name}
 %{python3_sitelib}/%{pypi_name}_data
 %{python3_sitelib}/*.egg-info
+%{buildroot}/etc/logrotate.d/timmy
 %endif
 
 
 %changelog
+* Wed Dec 7 2016 Aleksandr Dobdin <adobdin@mirantis.com> - 1.24.2
+- Fix: merge postgres dump
+
 * Tue Dec 6 2016 Alexander Lemeshko <oliemieshko@mirantis.com> - 1.24.1
 - Fix: fake not implemented for commands
 
