@@ -131,6 +131,9 @@ def parser_init(add_help=False):
                         action='store_true',
                         help=('Only collect logs, do not run commands or'
                               ' collect files.'))
+    parser.add_argument('--fake',
+                        help='Do not run commands and scripts',
+                        action='store_true')
     parser.add_argument('--fake-logs',
                         help='Do not collect logs, only calculate size.',
                         action='store_true')
@@ -320,7 +323,8 @@ def main(argv=None):
             pretty_run(args.quiet, 'Uploading files', nm.put_files)
         if nm.has(Node.ckey, Node.skey):
             pretty_run(args.quiet, 'Executing commands and scripts',
-                       nm.run_commands, args=(args.maxthreads,))
+                       nm.run_commands, kwargs={'maxthreads': args.maxthreads,
+                                                'fake': args.fake})
             if conf['analyze']:
                 pretty_run(args.quiet, 'Analyzing outputs', analyze,
                            args=[nm])
