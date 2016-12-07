@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.24.0
+Version:        1.24.1
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -104,6 +104,12 @@ popd
 
 
 %changelog
+* Tue Dec 6 2016 Alexander Lemeshko <oliemieshko@mirantis.com> - 1.24.1
+- Fix: fake not implemented for commands
+
+* Tue Dec 6 2016 Alexander Lemeshko <oliemieshko@mirantis.com> - 1.24.0
+- Add: function analyze
+
 * Mon Dec 5 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.23.7
 - Add: collect haproxy stats
 
