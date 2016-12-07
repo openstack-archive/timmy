@@ -50,7 +50,6 @@ scripts:
         controller: [nova-manage-vm-list]
     '4.1.1':
       by_roles:
-        fuel: [fuel-postgres-dump]
         controller: [nova-manage-vm-list]
     '5.0':
       by_roles:
@@ -85,9 +84,9 @@ scripts:
         fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images, fuel-bootstrap-list]
     '9.0':
       by_roles:
-        fuel: [fuel-notifications, fuel-postgres-dump, fuel-bootstrap-list, shotgun2-report]
+        fuel: [fuel-notifications, fuel-bootstrap-list, shotgun2-report]
   by_roles:
-    fuel: [fuel-release, fuel-task-list, fuel-environment-list, fuel-docker-postgres-dump, fuel-postgres-dump]
+    fuel: [fuel-release, fuel-task-list, fuel-environment-list, fuel-postgres-dump]
     cinder: [ovs-vsctl-show, cinder-manage]
     compute: [ovs-dump-flows, ovs-ofctl-show-bridges, ovs-vsctl-show]
     controller: [rabbitmqctl-list-queues, nova-service-list,
