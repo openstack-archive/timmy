@@ -1,3 +1,0 @@
-which docker > /dev/null || exit 0
-service docker status > /dev/null || exit 0
-docker images | grep -c postgres > /dev/null && dockerctl shell postgres su postgres -c 'pg_dumpall --clean'
