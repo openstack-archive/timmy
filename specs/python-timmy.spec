@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.24.0
+Version:        1.24.1
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
