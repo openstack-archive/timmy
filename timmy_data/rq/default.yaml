@@ -86,7 +86,7 @@ scripts:
       by_roles:
         fuel: [fuel-notifications, fuel-bootstrap-list, shotgun2-report]
   by_roles:
-    fuel: [fuel-release, fuel-task-list, fuel-environment-list, fuel-postgres-dump]
+    fuel: [fuel-release, fuel-task-list, fuel-environment-list, fuel-postgres-dump, fuel-node-json]
     cinder: [ovs-vsctl-show, cinder-manage]
     compute: [ovs-dump-flows, ovs-ofctl-show-bridges, ovs-vsctl-show]
     controller: [rabbitmqctl-list-queues, nova-service-list,

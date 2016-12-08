@@ -178,6 +178,9 @@ def parser_init(add_help=False):
     parser.add_argument('-a', '--analyze', action='store_true',
                         help=('Analyze collected outputs to determine node or'
                               'service health and print results'))
+    parser.add_argument('--offline', action='store_true',
+                        help=('Mark all nodes as offline, do not perform any'
+                              'operations on the nodes'))
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help=('This works for -vvvv, -vvv, -vv, -v, -v -v,'
                               'etc, If no -v then logging.WARNING is '
@@ -295,13 +298,17 @@ def main(argv=None):
         conf['archive_name'] = os.path.split(args.dest_file)[1]
     if args.analyze:
         conf['analyze'] = True
+    if args.offline:
+        conf['offline'] = True
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
                     inventory.NodeManager,
                     kwargs={'conf': conf,
                             'nodes_json': args.nodes_json})
-    if args.only_logs or args.logs:
+    logs = False
+    if not conf['offline'] and (args.only_logs or args.logs):
+        logs = True
         size = pretty_run(args.quiet, 'Calculating logs size',
                           nm.calculate_log_size, args=(args.maxthreads,))
         if size == 0:
@@ -318,16 +325,16 @@ def main(argv=None):
                 logger.error('Not enough space for logs in "%s", exiting.' %
                              nm.conf['archive_dir'])
                 sys.exit(100)
-    if not args.only_logs:
+    if not conf['offline'] and not args.only_logs:
         if nm.has(Node.pkey):
             pretty_run(args.quiet, 'Uploading files', nm.put_files)
         if nm.has(Node.ckey, Node.skey):
             pretty_run(args.quiet, 'Executing commands and scripts',
                        nm.run_commands, kwargs={'maxthreads': args.maxthreads,
                                                 'fake': args.fake})
-            if conf['analyze']:
-                pretty_run(args.quiet, 'Analyzing outputs', analyze,
-                           args=[nm])
+    if conf['analyze']:
+        pretty_run(args.quiet, 'Analyzing outputs', analyze, args=[nm])
+    if not conf['offline'] and not args.only_logs:
         if nm.has('scripts_all_pairs'):
             pretty_run(args.quiet, 'Executing paired scripts',
                        nm.run_scripts_all_pairs, args=(args.maxthreads,))
@@ -337,7 +344,7 @@ def main(argv=None):
         if not args.no_archive and nm.has(*Node.conf_archive_general):
             pretty_run(args.quiet, 'Creating outputs and files archive',
                        nm.create_archive_general, args=(60,))
-    if (args.only_logs or args.logs) and has_logs and enough_space:
+    if logs and has_logs and enough_space:
         msg = 'Collecting and packing logs'
         pretty_run(args.quiet, msg, nm.get_logs,
                    args=(conf['compress_timeout'],),
@@ -365,10 +372,11 @@ def main(argv=None):
                     print("%s: %s" % (name, line))
     if conf['analyze']:
         analyze_print_results(nm)
-    if nm.has(Node.ckey, Node.skey, Node.fkey, Node.flkey) and not args.quiet:
+    if all([nm.has(Node.ckey, Node.skey, Node.fkey, Node.flkey),
+            not args.quiet, not conf['offline']]):
         print('Outputs and/or files available in "%s".' % nm.conf['outdir'])
     if all([not args.no_archive, nm.has(*Node.conf_archive_general),
-            not args.quiet]):
+            not args.quiet, not conf['offline']]):
         print('Archives available in "%s".' % nm.conf['archive_dir'])
 
 if __name__ == '__main__':
