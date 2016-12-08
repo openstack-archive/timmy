@@ -84,7 +84,7 @@ scripts:
         fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images, fuel-bootstrap-list]
     '9.0':
       by_roles:
-        fuel: [fuel-notifications, fuel-bootstrap-list, shotgun2-report]
+        fuel: [fuel-notifications, fuel-bootstrap-list, shotgun2-report, fuel-network-template-download]
   by_roles:
     fuel: [fuel-release, fuel-task-list, fuel-environment-list, fuel-postgres-dump]
     cinder: [ovs-vsctl-show, cinder-manage]
