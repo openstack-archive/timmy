@@ -192,6 +192,34 @@ class Node(object):
             self.logger.info('%s: not accessible' % self.repr)
             return False
 
+    @property
+    def scripts_ddir(self):
+        return os.path.join(self.outdir, Node.skey, self.cluster_repr,
+                            self.repr)
+
+    def generate_mapscr(self):
+        mapscr = {}
+        for scr in self.scripts:
+            if type(scr) is dict:
+                env_vars = scr.values()[0]
+                scr = scr.keys()[0]
+            else:
+                env_vars = self.env_vars
+            if os.path.sep in scr:
+                script_path = scr
+            else:
+                script_path = os.path.join(self.rqdir, Node.skey, scr)
+            self.logger.debug('%s, exec: %s' % (self.repr, script_path))
+            output_path = os.path.join(self.scripts_ddir,
+                                       os.path.basename(script_path))
+            if self.outputs_timestamp:
+                output_path += self.outputs_timestamp_str
+            self.logger.debug('outfile: %s' % output_path)
+            mapscr[scr] = {'env_vars': env_vars,
+                           'script_path': script_path,
+                           'output_path': output_path}
+        self.mapscr = mapscr
+
     def exec_cmd(self, fake=False, ok_codes=None):
         cl = self.cluster_repr
         self.logger.debug('%s/%s/%s/%s' %
@@ -224,41 +252,26 @@ class Node(object):
                         self.logger.error("can't write to file %s" %
                                           dfile)
         if self.scripts:
-            ddir = os.path.join(self.outdir, Node.skey, cl, self.repr)
-            tools.mdir(ddir)
-            self.scripts = sorted(self.scripts)
-        mapscr = {}
-        for scr in self.scripts:
-            if type(scr) is dict:
-                env_vars = scr.values()[0]
-                scr = scr.keys()[0]
-            else:
-                env_vars = self.env_vars
-            if os.path.sep in scr:
-                f = scr
-            else:
-                f = os.path.join(self.rqdir, Node.skey, scr)
-            self.logger.debug('%s, exec: %s' % (self.repr, f))
-            dfile = os.path.join(ddir, os.path.basename(f))
-            if self.outputs_timestamp:
-                    dfile += self.outputs_timestamp_str
-            self.logger.debug('outfile: %s' % dfile)
-            mapscr[scr] = dfile
-            if not fake:
-                outs, errs, code = tools.ssh_node(ip=self.ip,
-                                                  filename=f,
-                                                  ssh_opts=self.ssh_opts,
-                                                  env_vars=env_vars,
-                                                  timeout=self.timeout,
-                                                  prefix=self.prefix)
-                self.check_code(code, 'exec_cmd', 'script %s' % f, errs,
-                                ok_codes)
-                try:
-                    with open(dfile, 'w') as df:
-                        df.write(outs.encode('utf-8'))
-                except:
-                    self.logger.error("can't write to file %s" % dfile)
-        return mapcmds, mapscr
+            self.generate_mapscr()
+            tools.mdir(self.scripts_ddir)
+        for scr, param in self.mapscr.items():
+            if fake:
+                continue
+            outs, errs, code = tools.ssh_node(ip=self.ip,
+                                              filename=param['script_path'],
+                                              ssh_opts=self.ssh_opts,
+                                              env_vars=param['env_vars'],
+                                              timeout=self.timeout,
+                                              prefix=self.prefix)
+            self.check_code(code, 'exec_cmd',
+                            'script %s' % param['script_path'], errs, ok_codes)
+            try:
+                with open(param['output_path'], 'w') as df:
+                    df.write(outs.encode('utf-8'))
+            except:
+                self.logger.error("can't write to file %s"
+                                  % param['output_path'])
+        return mapcmds, self.mapscr
 
     def exec_simple_cmd(self, cmd, timeout=15, infile=None, outfile=None,
                         fake=False, ok_codes=None, input=None, decode=True):
@@ -492,7 +505,14 @@ class Node(object):
             short_repr = self.ip
         output = []
         for cmd in sorted(result_map):
-            with open(result_map[cmd], 'r') as f:
+            if type(result_map[cmd]) is dict:
+                path = result_map[cmd]['output_path']
+            else:
+                path = result_map[cmd]
+            if not os.path.exists(path):
+                self.logger.warning("File %s does not exist" % path)
+                continue
+            with open(path, 'r') as f:
                 for line in f.readlines():
                     output.append(line.rstrip('\n'))
         return short_repr, output

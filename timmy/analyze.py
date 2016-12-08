@@ -17,6 +17,7 @@
 
 from timmy.env import project_name
 import logging
+import os
 import sys
 
 
@@ -75,15 +76,21 @@ def analyze(node_manager):
                   "df-i": parse_df_i}
     results = {}
     for node in node_manager.nodes.values():
-        for script, output_file in node.mapscr.items():
+        if not node.mapscr:
+            node.generate_mapscr()
+        for script, param in node.mapscr.items():
             if script in fn_mapping:
-                with open(output_file, "r") as f:
+                if not os.path.exists(param['output_path']):
+                    logger.warning("File %s does not exist"
+                                   % param['output_path'])
+                    continue
+                with open(param['output_path'], "r") as f:
                     data = [l.rstrip() for l in f.readlines()]
                 health, details = fn_mapping[script](data, script, node)
                 if node.repr not in results:
                     results[node.repr] = []
                 results[node.repr].append({"script": script,
-                                           "output_file": output_file,
+                                           "output_file": param['output_path'],
                                            "health": health,
                                            "details": details})
     node_manager.analyze_results = results
