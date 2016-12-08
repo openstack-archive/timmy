@@ -73,6 +73,7 @@ def init_default_conf():
     '''Clean - erase previous results in outdir and archive_dir dir, if any.'''
     conf['clean'] = True
     conf['analyze'] = False
+    conf['offline'] = False  # mark all nodes as offline
     return conf
 
 
