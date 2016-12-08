@@ -1,0 +1,21 @@
+#!/bin/bash
+exec /usr/bin/env python - << EOF
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+
+from fuelclient.v1.environment import EnvironmentClient
+from fuelclient.client import Client as FuelClient
+
+class CEnvironmentClient(EnvironmentClient):
+    def download_network_template(self, environment_id):
+        env = self._entity_wrapper(environment_id)
+        template_data = env.get_network_template_data()
+        return template_data
+
+ec = CEnvironmentClient()
+fc = FuelClient()
+clusters_dict = fc.get_request('clusters')
+for cluster in clusters_dict:
+    clid=int(cluster['id'])
+    print('---\n# cluster id:%s\n%s' %(clid, ec.download_network_template(clid)))
+EOF
