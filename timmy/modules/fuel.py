@@ -238,7 +238,8 @@ class NodeManager(BaseNodeManager):
                 sys.exit(105)
         self.nodes_init(Node)
         # get release information for all nodes
-        self.get_release()
+        if fuelnode.accessible:
+            self.get_release()
         self.post_init()
         fuelnode.logs_excluded_nodes = self.logs_excluded_nodes
 

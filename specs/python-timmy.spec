@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.24.2
+Version:        1.25.0
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Fri Dec 9 2016 Alexander Lemeshko <oliemieshko@mirantis.com> - 1.25.0
+- Add: ability to analyze old results
+
 * Wed Dec 7 2016 Aleksandr Dobdin <adobdin@mirantis.com> - 1.24.2
 - Fix: merge postgres dump
 

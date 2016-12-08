@@ -17,6 +17,7 @@
 
 from timmy.env import project_name
 import logging
+import os
 import sys
 
 
@@ -40,14 +41,22 @@ def analyze(node_manager):
             logger.warning(col_msg % (column_use, script, node.repr))
             health = unknown
         index = data[0].split().index(column_use)
+        prepend_str = ''  # workaround for data which spans 2 lines
+        index_shift = 0
         for line in data[2:]:
-            value = int(line.split()[index][:-1])
+            if len(line.split()) <= index:
+                prepend_str = line.rstrip()
+                index_shift = len(line.split())
+                continue
+            value = int(line.split()[index - index_shift][:-1])
             if value >= full:
                 health = red
-                details.append(line)
+                details.append(prepend_str + line)
             elif value >= near_full:
                 health = yellow if health < yellow else health
-                details.append(line)
+                details.append(prepend_str + line)
+            prepend_str = ''
+            index_shift = 0
         return health, details
 
     def parse_df_i(data, script, node):
@@ -60,30 +69,43 @@ def analyze(node_manager):
             logger.warning(col_msg % (column_use, script, node.repr))
             health = unknown
         index = data[0].split().index(column_use)
+        prepend_str = ''  # workaround for data which spans 2 lines
+        index_shift = 0
         for line in data[2:]:
-            if "%" in line.split()[index]:
-                value = int(line.split()[index][:-1])
+            if len(line.split()) <= index:
+                prepend_str = line.rstrip()
+                index_shift = len(line.split())
+                continue
+            if "%" in line.split()[index - index_shift]:
+                value = int(line.split()[index - index_shift][:-1])
                 if value >= full:
                     health = red
-                    details.append(line)
+                    details.append(prepend_str + line)
                 elif value >= near_full:
                     health = yellow if health < yellow else health
-                    details.append(line)
+                    details.append(prepend_str + line)
+            prepend_str = ''
         return health, details
 
     fn_mapping = {"df-m": parse_df_m,
                   "df-i": parse_df_i}
     results = {}
     for node in node_manager.nodes.values():
-        for script, output_file in node.mapscr.items():
+        if not node.mapscr:
+            node.generate_mapscr()
+        for script, param in node.mapscr.items():
             if script in fn_mapping:
-                with open(output_file, "r") as f:
+                if not os.path.exists(param['output_path']):
+                    logger.warning("File %s does not exist"
+                                   % param['output_path'])
+                    continue
+                with open(param['output_path'], "r") as f:
                     data = [l.rstrip() for l in f.readlines()]
                 health, details = fn_mapping[script](data, script, node)
                 if node.repr not in results:
                     results[node.repr] = []
                 results[node.repr].append({"script": script,
-                                           "output_file": output_file,
+                                           "output_file": param['output_path'],
                                            "health": health,
                                            "details": details})
     node_manager.analyze_results = results
