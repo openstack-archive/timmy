@@ -40,14 +40,22 @@ def analyze(node_manager):
             logger.warning(col_msg % (column_use, script, node.repr))
             health = unknown
         index = data[0].split().index(column_use)
+        prepend_str = '' # workaround for data which spans 2 lines
+        index_shift = 0
         for line in data[2:]:
-            value = int(line.split()[index][:-1])
+            if len(line.split()) <= index:
+                prepend_str = line.rstrip()
+                index_shift = len(line.split())
+                continue
+            value = int(line.split()[index - index_shift][:-1])
             if value >= full:
                 health = red
-                details.append(line)
+                details.append(prepend_str + line)
             elif value >= near_full:
                 health = yellow if health < yellow else health
-                details.append(line)
+                details.append(prepend_str + line)
+            prepend_str = ''
+            index_shift = 0
         return health, details
 
     def parse_df_i(data, script, node):
@@ -60,15 +68,22 @@ def analyze(node_manager):
             logger.warning(col_msg % (column_use, script, node.repr))
             health = unknown
         index = data[0].split().index(column_use)
+        prepend_str = '' # workaround for data which spans 2 lines
+        index_shift = 0
         for line in data[2:]:
-            if "%" in line.split()[index]:
-                value = int(line.split()[index][:-1])
+            if len(line.split()) <= index:
+                prepend_str = line.rstrip()
+                index_shift = len(line.split())
+                continue
+            if "%" in line.split()[index - index_shift]:
+                value = int(line.split()[index - index_shift][:-1])
                 if value >= full:
                     health = red
-                    details.append(line)
+                    details.append(prepend_str + line)
                 elif value >= near_full:
                     health = yellow if health < yellow else health
-                    details.append(line)
+                    details.append(prepend_str + line)
+            prepend_str = ''
         return health, details
 
     fn_mapping = {"df-m": parse_df_m,
