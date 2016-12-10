@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.25.0
+Version:        1.25.1
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Fri Dec 9 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.25.1
+Fix: IOError if no-clean + outdir missing
+
 * Fri Dec 9 2016 Alexander Lemeshko <oliemieshko@mirantis.com> - 1.25.0
 - Add: ability to analyze old results
 
