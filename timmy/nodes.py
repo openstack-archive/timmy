@@ -548,7 +548,7 @@ class NodeManager(object):
                 conf['archive_dir'] += timestamp_str
         if conf['clean']:
             shutil.rmtree(conf['outdir'], ignore_errors=True)
-            tools.mdir(conf['outdir'])
+        tools.mdir(conf['outdir'])
         version_filename = '%s_version.txt' % project_name
         version_filepath = os.path.join(conf['outdir'], version_filename)
         with open(version_filepath, 'a') as f:
