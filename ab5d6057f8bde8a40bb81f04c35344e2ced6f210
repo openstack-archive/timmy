@@ -1,0 +1,8 @@
+Code-Review+2: Aleksandr Dobdin <adobdin@mirantis.com>
+Workflow+1: Aleksandr Dobdin <adobdin@mirantis.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 13 Dec 2016 10:36:39 +0000
+Reviewed-on: https://review.openstack.org/410134
+Project: openstack/timmy
+Branch: refs/heads/stable/mitaka
