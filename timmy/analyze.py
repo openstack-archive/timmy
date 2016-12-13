@@ -48,50 +48,47 @@ def analyze(node_manager):
         for script, param in node.mapscr.items():
             if script in fn_mapping:
                 if not os.path.exists(param['output_path']):
-                    logger.warning("File %s does not exist"
+                    logger.warning('File %s does not exist'
                                    % param['output_path'])
                     continue
-                with open(param['output_path'], "r") as f:
+                with open(param['output_path'], 'r') as f:
                     data = [l.rstrip() for l in f.readlines()]
                 health, details = fn_mapping[script](data, script, node)
                 if node.repr not in results:
                     results[node.repr] = []
-                results[node.repr].append({"script": script,
-                                           "output_file": param['output_path'],
-                                           "health": health,
-                                           "details": details})
+                results[node.repr].append({'script': script,
+                                           'output_file': param['output_path'],
+                                           'health': health,
+                                           'details': details})
     node_manager.analyze_results = results
 
 
 def analyze_print_results(node_manager):
-    code_colors = {GREEN: ["GREEN", "\033[92m"],
-                   UNKNOWN: ["UNKNOWN", "\033[94m"],
-                   YELLOW: ["YELLOW", "\033[93m"],
-                   RED: ["RED", "\033[91m"]}
-    color_end = "\033[0m"
-    print("Nodes health analysis:")
+    code_colors = {GREEN: ['GREEN', '\033[92m'],
+                   UNKNOWN: ['UNKNOWN', '\033[94m'],
+                   YELLOW: ['YELLOW', '\033[93m'],
+                   RED: ['RED', '\033[91m']}
+    color_end = '\033[0m'
+    print('Nodes health analysis:')
     for node, result in node_manager.analyze_results.items():
-        node_health = max([x["health"] for x in result])
+        node_health = max([x['health'] for x in result])
         node_color = code_colors[node_health][1]
         health_repr = code_colors[node_health][0]
-        print("    %s%s: %s%s" % (node_color, node, health_repr, color_end))
+        print('    %s%s: %s%s' % (node_color, node, health_repr, color_end))
         if node_health == 0:
             continue
         for r in result:
             if r['health'] == 0:
                 continue
-            color = code_colors[r["health"]][1]
+            color = code_colors[r['health']][1]
             sys.stdout.write(color)
-            for key, value in r.items():
-                if key == "health":
-                    value = code_colors[value][0]
-                if key == "details" and len(value) > 0:
-                    if len(value) > 1:
-                        print("        details:")
-                        for d in value:
-                            print("            - %s" % d)
-                    else:
-                        print("        details: %s" % value[0])
-                elif key != "details":
-                    print("        %s: %s" % (key, value))
+            health_repr = code_colors[r['health']][0]
+            print('        %s: %s' % (r['script'], health_repr))
+            print('            %s: %s' % ('output_file', r['output_file']))
+            if len(r['details']) > 1:
+                print('            details:')
+                for d in r['details']:
+                    print('                - %s' % d)
+            else:
+                print('            details: %s' % r['details'][0])
             sys.stdout.write(color_end)
