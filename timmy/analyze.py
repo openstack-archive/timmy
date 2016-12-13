@@ -15,7 +15,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from timmy.analyze_health import GREEN, UNKNOWN, YELLOW, RED
 from timmy.env import project_name
+import imp
 import logging
 import os
 import sys
@@ -25,70 +27,20 @@ logger = logging.getLogger(project_name)
 
 
 def analyze(node_manager):
-    col_msg = 'Column "%s" not found in output of "%s" from node "%s"'
-    green = 0
-    unknown = 1
-    yellow = 2
-    red = 3
+    def is_module(f):
+        return f.endswith('.py') and not f.startswith('__')
 
-    def parse_df_m(data, script, node):
-        column_use = "Use%"
-        full = 100
-        near_full = 80
-        health = green
-        details = []
-        if column_use not in data[0]:
-            logger.warning(col_msg % (column_use, script, node.repr))
-            health = unknown
-        index = data[0].split().index(column_use)
-        prepend_str = ''  # workaround for data which spans 2 lines
-        index_shift = 0
-        for line in data[2:]:
-            if len(line.split()) <= index:
-                prepend_str = line.rstrip()
-                index_shift = len(line.split())
-                continue
-            value = int(line.split()[index - index_shift][:-1])
-            if value >= full:
-                health = red
-                details.append(prepend_str + line)
-            elif value >= near_full:
-                health = yellow if health < yellow else health
-                details.append(prepend_str + line)
-            prepend_str = ''
-            index_shift = 0
-        return health, details
+    fn_mapping = {}
+    modules_dir = 'analyze_modules'
+    modules_path = os.path.join(os.path.dirname(__file__), modules_dir)
+    module_paths = m = []
+    for item in os.walk(modules_path):
+        m.extend([os.sep.join([item[0], f]) for f in item[2] if is_module(f)])
+    for module_path in module_paths:
+        module_name = os.path.basename(module_path)
+        module = imp.load_source(module_name, module_path)
+        module.register(fn_mapping)
 
-    def parse_df_i(data, script, node):
-        column_use = "IUse%"
-        full = 100
-        near_full = 80
-        health = green
-        details = []
-        if column_use not in data[0]:
-            logger.warning(col_msg % (column_use, script, node.repr))
-            health = unknown
-        index = data[0].split().index(column_use)
-        prepend_str = ''  # workaround for data which spans 2 lines
-        index_shift = 0
-        for line in data[2:]:
-            if len(line.split()) <= index:
-                prepend_str = line.rstrip()
-                index_shift = len(line.split())
-                continue
-            if "%" in line.split()[index - index_shift]:
-                value = int(line.split()[index - index_shift][:-1])
-                if value >= full:
-                    health = red
-                    details.append(prepend_str + line)
-                elif value >= near_full:
-                    health = yellow if health < yellow else health
-                    details.append(prepend_str + line)
-            prepend_str = ''
-        return health, details
-
-    fn_mapping = {"df-m": parse_df_m,
-                  "df-i": parse_df_i}
     results = {}
     for node in node_manager.nodes.values():
         if not node.mapscr:
@@ -112,10 +64,10 @@ def analyze(node_manager):
 
 
 def analyze_print_results(node_manager):
-    code_colors = {3: ["RED", "\033[91m"],
-                   2: ["YELLOW", "\033[93m"],
-                   0: ["GREEN", "\033[92m"],
-                   1: ["BLUE", "\033[94m"]}
+    code_colors = {GREEN: ["GREEN", "\033[92m"],
+                   UNKNOWN: ["UNKNOWN", "\033[94m"],
+                   YELLOW: ["YELLOW", "\033[93m"],
+                   RED: ["RED", "\033[91m"]}
     color_end = "\033[0m"
     print("Nodes health analysis:")
     for node, result in node_manager.analyze_results.items():
