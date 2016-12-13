@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.25.3
+Version:        1.25.4
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Mon Dec 12 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.25.4
+- Change: compact analyze output, minor refactor
+
 * Mon Dec 12 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.25.3
 - Add: dynamic import of analyze modules
 
