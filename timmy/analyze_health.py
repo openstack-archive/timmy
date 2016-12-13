@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
-#    Copyright 2015 Mirantis, Inc.
+#    Copyright 2016 Mirantis, Inc.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -15,9 +15,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-project_name = 'timmy'
-version = '1.25.3'
-
-if __name__ == '__main__':
-    import sys
-    sys.exit(0)
+GREEN = 0
+UNKNOWN = 1
+YELLOW = 2
+RED = 3
