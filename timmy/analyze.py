@@ -15,12 +15,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from timmy.analyze_health import GREEN, UNKNOWN, YELLOW, RED
-from timmy.env import project_name
-import imp
 import logging
 import os
 import sys
+import timmy
+from timmy.analyze_health import GREEN, UNKNOWN, YELLOW, RED
+from timmy.env import project_name
 
 
 logger = logging.getLogger(project_name)
@@ -32,14 +32,16 @@ def analyze(node_manager):
 
     fn_mapping = {}
     modules_dir = 'analyze_modules'
-    modules_path = os.path.join(os.path.dirname(__file__), modules_dir)
-    module_paths = m = []
-    for item in os.walk(modules_path):
-        m.extend([os.sep.join([item[0], f]) for f in item[2] if is_module(f)])
-    for module_path in module_paths:
-        module_name = os.path.basename(module_path)
-        module = imp.load_source(module_name, module_path)
-        module.register(fn_mapping)
+    scan_path = os.path.join(os.path.dirname(__file__), modules_dir)
+    base_path = os.path.split(timmy.__path__[0])[0]
+    for item in os.walk(scan_path):
+        for module_path in [m for m in item[2] if is_module(m)]:
+            module_full_path = os.path.join(scan_path, module_path)
+            module_rel_path = os.path.relpath(module_full_path, base_path)
+            module_rel_path_noext = os.path.splitext(module_rel_path)[0]
+            module_name = module_rel_path_noext.replace(os.path.sep, '.')
+            module = __import__(module_name, fromlist=[project_name])
+            module.register(fn_mapping)
 
     results = {}
     for node in node_manager.nodes.values():

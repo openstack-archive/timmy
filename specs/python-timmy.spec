@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.25.4
+Version:        1.25.5
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Wed Dec 14 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.25.5
+- Fix: RuntimeWarning when using analyze
+
 * Mon Dec 12 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.25.4
 - Change: compact analyze output, minor refactor
 
