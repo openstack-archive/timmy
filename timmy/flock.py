@@ -96,6 +96,7 @@ class FLock:
             # lockfile can be erased and everything still works normally.
             pass
 
+
 # Test main routine
 if __name__ == '__main__':
     import time
