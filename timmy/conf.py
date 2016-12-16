@@ -74,6 +74,7 @@ def init_default_conf():
     conf['clean'] = True
     conf['analyze'] = False
     conf['offline'] = False  # mark all nodes as offline
+    conf['scripts_all_pairs_one_way'] = False
     return conf
 
 
