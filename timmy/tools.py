@@ -408,29 +408,31 @@ def w_list(value):
     return value if type(value) == list else [value]
 
 
-def all_pairs(items):
-    def incomplete(i_set, p_dict):
-        for i, p_set in p_dict.items():
-            not_paired = i_set.difference(p_set).difference([i])
-            if not_paired:
-                return not_paired
+def all_pairs(items, one_way=False):
+    def incomplete(items_set, paired_dict):
+        for paired_set in paired_dict.values():
+            if items_set.difference(paired_set):
+                return True
 
     items_set = set(items)
     pairs = []
     paired = {}
     for i in items_set:
-        paired[i] = set()
+        paired[i] = set([i])
     while incomplete(items_set, paired):
         busy = set()
         current_pairs = []
-        for i in [i for i in items if items_set.difference(paired[i])]:
-            can_pair = incomplete(items_set.difference(busy), {i: paired[i]})
-            if i not in busy and can_pair:
-                pair_i = next(iter(can_pair))
+        for i in items_set:
+            if items_set.difference(paired[i]) and i not in busy:
+                can_pair = items_set.difference(busy).difference(paired[i])
+            if can_pair:
+                pair_i = can_pair.pop()
                 current_pairs.append([i, pair_i])
                 busy.add(i)
                 busy.add(pair_i)
                 paired[i].add(pair_i)
+                if one_way:
+                    paired[pair_i].add(i)
         pairs.append(current_pairs)
     return pairs
 
