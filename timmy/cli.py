@@ -86,6 +86,11 @@ def parser_init(add_help=False):
                               ' a path specified by "rqdir" configuration'
                               ' parameter. For help on shell mode, read'
                               ' timmy/conf.py.') % Node.skey)
+    parser.add_argument('--one-way', action='store_true',
+                        help=('When executing scripts_all_pairs (if defined),'
+                              ' for each pair of nodes [A, B] run client'
+                              ' script only on A (A->B connection).'
+                              ' Default is to run both A->B and B->A.'))
     parser.add_argument('-P', '--put', nargs=2, action='append',
                         metavar=('SOURCE', 'DESTINATION'),
                         help=('Enables shell mode. Can be specified multiple'
@@ -300,6 +305,8 @@ def main(argv=None):
         conf['analyze'] = True
     if args.offline:
         conf['offline'] = True
+    if args.one_way:
+        conf['scripts_all_pairs_one_way'] = True
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
