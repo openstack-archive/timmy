@@ -4,7 +4,9 @@ exec /usr/bin/env python - << EOF
 # -*- coding: utf-8 -*-
 
 from fuelclient.v1.environment import EnvironmentClient
-from fuelclient.client import Client as FuelClient
+import subprocess
+import json
+import yaml
 
 class CEnvironmentClient(EnvironmentClient):
     def download_network_template(self, environment_id):
@@ -13,9 +15,12 @@ class CEnvironmentClient(EnvironmentClient):
         return template_data
 
 ec = CEnvironmentClient()
-fc = FuelClient()
-clusters_dict = fc.get_request('clusters')
+p = subprocess.Popen(['fuel', 'env', 'list', '--json'],
+                     stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE)
+out, err = p.communicate()
+clusters_dict = json.loads(out)
 for cluster in clusters_dict:
     clid=int(cluster['id'])
-    print('---\n# cluster id:%s\n%s' %(clid, ec.download_network_template(clid)))
+    print('---\n# cluster id:%s\n%s' %(clid, yaml.dump(yaml.load((json.dumps(ec.download_network_template(clid)))))))
 EOF
