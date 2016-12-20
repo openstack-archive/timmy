@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Tue Dec 20 2016 Aleksandr Dobdin <adobdin@mirantis.com> - 1.26.1
+- Fix: download network templates for 9.1
+
 * Thu Dec 15 2016 Alexander Lemeshko <oliemieshko@mirantis.com> - 1.26.0
 - Add: scripts_all_pairs 'one way' mode
 
