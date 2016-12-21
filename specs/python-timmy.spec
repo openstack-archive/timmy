@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.26.0
+Version:        1.26.2
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Tue Dec 20 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.2
+- Add: rabbitmq analysis module
+
 * Tue Dec 20 2016 Aleksandr Dobdin <adobdin@mirantis.com> - 1.26.1
 - Fix: download network templates for 9.1
 
