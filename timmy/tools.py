@@ -425,14 +425,14 @@ def all_pairs(items, one_way=False):
         for i in items_set:
             if items_set.difference(paired[i]) and i not in busy:
                 can_pair = items_set.difference(busy).difference(paired[i])
-            if can_pair:
-                pair_i = can_pair.pop()
-                current_pairs.append([i, pair_i])
-                busy.add(i)
-                busy.add(pair_i)
-                paired[i].add(pair_i)
-                if one_way:
-                    paired[pair_i].add(i)
+                if can_pair:
+                    pair_i = can_pair.pop()
+                    current_pairs.append([i, pair_i])
+                    busy.add(i)
+                    busy.add(pair_i)
+                    paired[i].add(pair_i)
+                    if one_way:
+                        paired[pair_i].add(i)
         pairs.append(current_pairs)
     return pairs
 
