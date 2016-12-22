@@ -386,5 +386,6 @@ def main(argv=None):
             not args.quiet, not conf['offline']]):
         print('Archives available in "%s".' % nm.conf['archive_dir'])
 
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
