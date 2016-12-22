@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.25.0
+Version:        1.26.3
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,33 @@ popd
 
 
 %changelog
+* Wed Dec 21 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.3
+- Fix: scripts_all_pairs sometimes uses same node
+
+* Tue Dec 20 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.2
+- Add: rabbitmq analysis module
+
+* Tue Dec 20 2016 Aleksandr Dobdin <adobdin@mirantis.com> - 1.26.1
+- Fix: download network templates for 9.1
+
+* Thu Dec 15 2016 Alexander Lemeshko <oliemieshko@mirantis.com> - 1.26.0
+- Add: scripts_all_pairs 'one way' mode
+
+* Wed Dec 14 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.25.5
+- Fix: RuntimeWarning when using analyze
+
+* Mon Dec 12 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.25.4
+- Change: compact analyze output, minor refactor
+
+* Mon Dec 12 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.25.3
+- Add: dynamic import of analyze modules
+
+* Thu Dec 9 2016 Aleksandr Dobdin <adobdin@mirantis.com> - 1.25.2
+- Add: fuel network template download script
+
+* Fri Dec 9 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.25.1
+- Fix: IOError if no-clean + outdir missing
+
 * Fri Dec 9 2016 Alexander Lemeshko <oliemieshko@mirantis.com> - 1.25.0
 - Add: ability to analyze old results
 

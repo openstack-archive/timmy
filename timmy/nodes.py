@@ -548,7 +548,7 @@ class NodeManager(object):
                 conf['archive_dir'] += timestamp_str
         if conf['clean']:
             shutil.rmtree(conf['outdir'], ignore_errors=True)
-            tools.mdir(conf['outdir'])
+        tools.mdir(conf['outdir'])
         version_filename = '%s_version.txt' % project_name
         version_filepath = os.path.join(conf['outdir'], version_filename)
         with open(version_filepath, 'a') as f:
@@ -902,13 +902,14 @@ class NodeManager(object):
 
     @run_with_lock
     def run_scripts_all_pairs(self, maxthreads, fake=False):
-        if len(self.selected_nodes) < 2:
+        nodes = self.selected_nodes.values()
+        if len(nodes) < 2:
             self.logger.warning('less than 2 nodes are available, '
                                 'skipping paired scripts')
             return
         run_server_start_items = []
         run_server_stop_items = []
-        for n in self.selected_nodes.values():
+        for n in nodes:
             start_args = {'phase': 'server_start', 'fake': fake}
             run_server_start_items.append(tools.RunItem(target=n.exec_pair,
                                                         args=start_args,
@@ -920,7 +921,8 @@ class NodeManager(object):
                                  dict_result=True)
         for key in result:
             self.nodes[key].scripts_all_pairs = result[key]
-        for pairset in tools.all_pairs(self.selected_nodes.values()):
+        one_way = self.conf['scripts_all_pairs_one_way']
+        for pairset in tools.all_pairs(nodes, one_way=one_way):
             run_client_items = []
             self.logger.info(['%s->%s' % (p[0].ip, p[1].ip) for p in pairset])
             for pair in pairset:
@@ -952,6 +954,7 @@ class NodeManager(object):
 
 def main(argv=None):
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
