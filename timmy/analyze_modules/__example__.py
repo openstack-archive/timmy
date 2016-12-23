@@ -50,12 +50,14 @@ def register(function_mapping):
     function_mapping['script-basename'] = parsing_function
 
 
-def parsing_function(data, script, node):
+def parsing_function(stdout, script, node, stderr=None, exitcode=None):
     '''
     each analyzing function should have 3 arguments:
-    data - list of strings aquired by reading the output file
+    stdout - string aquired by reading the output file
     script - path to the script file
     node - node object
+    stderr - optional string with error file content
+    exitcode - optional int with script exit code
 
     return should contain 2 values:
     health - set to one of the imported constants according to the analysis
@@ -63,7 +65,8 @@ def parsing_function(data, script, node):
         lines which were indicative of the issue
     '''
     health = UNKNOWN
-    line = data[0]  # in this example we only look at the first line
+    # in this example we only look at the first line
+    line = stdout.splitlines()[0]
     details = [line]
     if line.find('error'):
         health = RED
