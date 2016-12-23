@@ -72,9 +72,24 @@ def init_default_conf():
     conf['do_print_results'] = False
     '''Clean - erase previous results in outdir and archive_dir dir, if any.'''
     conf['clean'] = True
+    '''Analyze collected data and provide cluster health insight.'''
     conf['analyze'] = False
-    conf['offline'] = False  # mark all nodes as offline
+    '''Mark all nodes as inaccessible. Useful for offline analysis.'''
+    conf['offline'] = False
+    '''Limit the amount of workers which run simultanelously. Impacts all
+    concurrent operations except log collection and client phase of
+    scripts_all_pairs. Mandatory.'''
+    conf['maxthreads'] = 100
+    '''Limit the amount of workers which collect logs (one per node = the
+    amount of nodes from which logs are simultaneously collected). Impacts
+    only log collection routine. Mandatory.'''
+    conf['logs_maxthreads'] = 10
+    '''For each pair of nodes A & B only run client script on node A.
+    Decreases the amount of iterations in scripts_all_pairs twice.'''
     conf['scripts_all_pairs_one_way'] = False
+    '''How many pairs to process simultaneously. 0 = unlimited = num. nodes
+    divided by 2. Limits concurrency for scripts_all_pairs client phase.'''
+    conf['scripts_all_pairs_max_pairs'] = 0
     return conf
 
 
