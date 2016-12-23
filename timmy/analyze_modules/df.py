@@ -30,12 +30,13 @@ def register(function_mapping):
     function_mapping['df-i'] = parse_df_i
 
 
-def parse_df_m(data, script, node):
+def parse_df_m(stdout, script, node, stderr=None, exitcode=None):
     column_use = "Use%"
     full = 100
     near_full = 80
     health = GREEN
     details = []
+    data = [l.rstrip() for l in stdout.splitlines()]
     if column_use not in data[0]:
         logger.warning(col_msg % (column_use, script, node.repr))
         health = UNKNOWN
@@ -59,12 +60,13 @@ def parse_df_m(data, script, node):
     return health, details
 
 
-def parse_df_i(data, script, node):
+def parse_df_i(stdout, script, node, stderr=None, exitcode=None):
     column_use = "IUse%"
     full = 100
     near_full = 80
     health = GREEN
     details = []
+    data = [l.rstrip() for l in stdout.splitlines()]
     if column_use not in data[0]:
         logger.warning(col_msg % (column_use, script, node.repr))
         health = UNKNOWN
