@@ -44,7 +44,7 @@ def analyze(node_manager):
             module.register(fn_mapping)
 
     results = {}
-    for node in node_manager.nodes.values():
+    for node in node_manager.sorted_nodes():
         if not node.mapscr:
             node.generate_mapscr()
         for script, param in node.mapscr.items():
@@ -53,13 +53,28 @@ def analyze(node_manager):
                     logger.warning('File %s does not exist'
                                    % param['output_path'])
                     continue
-                with open(param['output_path'], 'r') as f:
-                    data = [l.rstrip() for l in f.readlines()]
-                health, details = fn_mapping[script](data, script, node)
+                try:
+                    with open(param['output_path'], 'r') as f:
+                        stdout = f.read()
+                    if os.path.exists(param['stderr_path']):
+                        with open(param['stderr_path'], 'r') as f:
+                            stderr = f.read()
+                            exitcode = stderr.splitlines()[0]
+                            exitcode = exitcode.rstrip().split()[1]
+                    else:
+                        stderr = None
+                        exitcode = 0
+                except IOError as e:
+                    logger.warning('Could not read from %s' % e.filename)
+                health, details = fn_mapping[script](stdout, script, node,
+                                                     stderr=stderr,
+                                                     exitcode=exitcode)
                 if node.repr not in results:
                     results[node.repr] = []
                 results[node.repr].append({'script': script,
                                            'output_file': param['output_path'],
+                                           'stderr_file': param['stderr_path'],
+                                           'exitcode': exitcode,
                                            'health': health,
                                            'details': details})
     node_manager.analyze_results = results
@@ -72,7 +87,7 @@ def analyze_print_results(node_manager):
                    RED: ['RED', '\033[91m']}
     color_end = '\033[0m'
     print('Nodes health analysis:')
-    for node, result in node_manager.analyze_results.items():
+    for node, result in sorted(node_manager.analyze_results.items()):
         node_health = max([x['health'] for x in result])
         node_color = code_colors[node_health][1]
         health_repr = code_colors[node_health][0]
@@ -85,8 +100,13 @@ def analyze_print_results(node_manager):
             color = code_colors[r['health']][1]
             sys.stdout.write(color)
             health_repr = code_colors[r['health']][0]
-            print('        %s: %s' % (r['script'], health_repr))
-            print('            %s: %s' % ('output_file', r['output_file']))
+            print('%s%s: %s' % (8*' ', r['script'], health_repr))
+            print('%s%s: %s' % (12*' ', 'output_file', r['output_file']))
+            if ((r['stderr_file'] is not None) and
+                    (os.path.exists(r['stderr_file']))):
+                print('%s%s: %s' % (12*' ', 'stderr_file', r['stderr_file']))
+            if r['exitcode'] != 0:
+                print('%s%s: %s' % (12*' ', 'exit code', r['exitcode']))
             if len(r['details']) > 1:
                 print('            details:')
                 for d in r['details']:
