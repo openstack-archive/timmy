@@ -91,6 +91,11 @@ def parser_init(add_help=False):
                               ' for each pair of nodes [A, B] run client'
                               ' script only on A (A->B connection).'
                               ' Default is to run both A->B and B->A.'))
+    parser.add_argument('--max-pairs', type=int, metavar='NUMBER',
+                        help=('When executing scripts_all_pairs (if defined),'
+                              ' limit the amount of pairs processed'
+                              ' simultaneously. Default is to run max number'
+                              ' of pairs possible, which is num. nodes / 2.'))
     parser.add_argument('-P', '--put', nargs=2, action='append',
                         metavar=('SOURCE', 'DESTINATION'),
                         help=('Enables shell mode. Can be specified multiple'
@@ -156,12 +161,10 @@ def parser_init(add_help=False):
                               ' messages. Good for quick runs / "watch" wrap.'
                               ' This option disables any -v parameters.'),
                         action='store_true')
-    parser.add_argument('--maxthreads', type=int, default=100,
-                        metavar='NUMBER',
+    parser.add_argument('--maxthreads', type=int, metavar='NUMBER',
                         help=('Maximum simultaneous nodes for command'
                               'execution.'))
-    parser.add_argument('--logs-maxthreads', type=int, default=10,
-                        metavar='NUMBER',
+    parser.add_argument('--logs-maxthreads', type=int, metavar='NUMBER',
                         help='Maximum simultaneous nodes for log collection.')
     parser.add_argument('-t', '--outputs-timestamp',
                         help=('Add timestamp to outputs - allows accumulating'
@@ -233,6 +236,10 @@ def main(argv=None):
         conf['do_print_results'] = True
     if args.no_clean:
         conf['clean'] = False
+    if args.maxthreads:
+        conf['maxthreads'] = args.maxthreads
+    if args.logs_maxthreads:
+        conf['logs_maxthreads'] = args.logs_maxthreads
     if args.rqfile:
         conf['rqfile'] = []
         for file in args.rqfile:
@@ -307,6 +314,8 @@ def main(argv=None):
         conf['offline'] = True
     if args.one_way:
         conf['scripts_all_pairs_one_way'] = True
+    if args.max_pairs:
+        conf['scripts_all_pairs_max_pairs'] = args.max_pairs
     logger.info('Using rqdir: %s, rqfile: %s' %
                 (conf['rqdir'], conf['rqfile']))
     nm = pretty_run(args.quiet, 'Initializing node data',
@@ -317,7 +326,7 @@ def main(argv=None):
     if not conf['offline'] and (args.only_logs or args.logs):
         logs = True
         size = pretty_run(args.quiet, 'Calculating logs size',
-                          nm.calculate_log_size, args=(args.maxthreads,))
+                          nm.calculate_log_size)
         if size == 0:
             logger.warning('Size zero - no logs to collect.')
             has_logs = False
@@ -337,17 +346,16 @@ def main(argv=None):
             pretty_run(args.quiet, 'Uploading files', nm.put_files)
         if nm.has(Node.ckey, Node.skey):
             pretty_run(args.quiet, 'Executing commands and scripts',
-                       nm.run_commands, kwargs={'maxthreads': args.maxthreads,
-                                                'fake': args.fake})
+                       nm.run_commands, kwargs={'fake': args.fake})
     if conf['analyze']:
         pretty_run(args.quiet, 'Analyzing outputs', analyze, args=[nm])
     if not conf['offline'] and not args.only_logs:
         if nm.has('scripts_all_pairs'):
             pretty_run(args.quiet, 'Executing paired scripts',
-                       nm.run_scripts_all_pairs, args=(args.maxthreads,))
+                       nm.run_scripts_all_pairs)
         if nm.has(Node.fkey, Node.flkey):
             pretty_run(args.quiet, 'Collecting files and filelists',
-                       nm.get_files, args=(args.maxthreads,))
+                       nm.get_files)
         if not args.no_archive and nm.has(*Node.conf_archive_general):
             pretty_run(args.quiet, 'Creating outputs and files archive',
                        nm.create_archive_general, args=(60,))
@@ -355,8 +363,7 @@ def main(argv=None):
         msg = 'Collecting and packing logs'
         pretty_run(args.quiet, msg, nm.get_logs,
                    args=(conf['compress_timeout'],),
-                   kwargs={'maxthreads': args.logs_maxthreads,
-                           'fake': args.fake_logs})
+                   kwargs={'fake': args.fake_logs})
     logger.info("Nodes:\n%s" % nm)
     if not args.quiet:
         print('Run complete. Node information:')

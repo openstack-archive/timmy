@@ -408,7 +408,7 @@ def w_list(value):
     return value if type(value) == list else [value]
 
 
-def all_pairs(items, one_way=False):
+def all_pairs(items, one_way=False, max_pairs=0):
     def incomplete(items_set, paired_dict):
         for paired_set in paired_dict.values():
             if items_set.difference(paired_set):
@@ -433,6 +433,8 @@ def all_pairs(items, one_way=False):
                     paired[i].add(pair_i)
                     if one_way:
                         paired[pair_i].add(i)
+                    if max_pairs and len(busy) >= max_pairs:
+                        break
         pairs.append(current_pairs)
     return pairs
 
