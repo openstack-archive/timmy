@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.26.3
+Version:        1.26.4
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Thu Dec 22 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.4
+- Add: max_pairs argument; other minor changes
+
 * Wed Dec 21 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.3
 - Fix: scripts_all_pairs sometimes uses same node
 

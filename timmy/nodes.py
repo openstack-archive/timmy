@@ -538,6 +538,8 @@ class NodeManager(object):
 
     def base_init(self, conf, logger=None):
         self.conf = conf
+        self.maxthreads = conf['maxthreads']  # shortcut
+        self.logs_maxthreads = conf['maxthreads']  # shortcut
         self.logger = logger or logging.getLogger(project_name)
         if conf['outputs_timestamp'] or conf['dir_timestamp']:
             timestamp_str = datetime.now().strftime('_%F_%H-%M-%S')
@@ -711,23 +713,23 @@ class NodeManager(object):
         for node in self.nodes.values():
             node.apply_conf(self.conf)
 
-    def nodes_get_os(self, maxthreads=100):
+    def nodes_get_os(self):
         run_items = []
         for key, node in self.selected_nodes.items():
             if not node.os_platform:
                 run_items.append(tools.RunItem(target=node.get_os, key=key))
-        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        result = tools.run_batch(run_items, self.maxthreads, dict_result=True)
         for key in result:
             if result[key]:
                 self.nodes[key].os_platform = result[key]
 
-    def nodes_check_access(self, maxthreads=100):
+    def nodes_check_access(self):
         self.logger.debug('checking if nodes are accessible')
         run_items = []
         for key, node in self.selected_nodes.items():
             run_items.append(tools.RunItem(target=node.check_access,
                                            key=key))
-        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        result = tools.run_batch(run_items, self.maxthreads, dict_result=True)
         for key in result:
             self.nodes[key].accessible = result[key]
 
@@ -759,25 +761,25 @@ class NodeManager(object):
             return all(checks)
 
     @run_with_lock
-    def run_commands(self, timeout=15, fake=False, maxthreads=100):
+    def run_commands(self, timeout=15, fake=False):
         run_items = []
         for key, node in self.selected_nodes.items():
             run_items.append(tools.RunItem(target=node.exec_cmd,
                                            args={'fake': fake},
                                            key=key))
-        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        result = tools.run_batch(run_items, self.maxthreads, dict_result=True)
         for key in result:
             self.nodes[key].mapcmds = result[key][0]
             self.nodes[key].mapscr = result[key][1]
 
-    def calculate_log_size(self, timeout=15, maxthreads=100):
+    def calculate_log_size(self, timeout=15):
         total_size = 0
         run_items = []
         for key, node in self.selected_nodes.items():
             run_items.append(tools.RunItem(target=node.logs_populate,
                                            args={'timeout': timeout},
                                            key=key))
-        result = tools.run_batch(run_items, maxthreads, dict_result=True)
+        result = tools.run_batch(run_items, self.maxthreads, dict_result=True)
         for key in result:
             self.nodes[key].logs = result[key]
         for node in self.selected_nodes.values():
@@ -847,7 +849,7 @@ class NodeManager(object):
                 return speed
 
     @run_with_lock
-    def get_logs(self, timeout, fake=False, maxthreads=10):
+    def get_logs(self, timeout, fake=False):
         if fake:
             self.logger.info('fake = True, skipping')
             return
@@ -856,7 +858,8 @@ class NodeManager(object):
                 speed = self.conf['logs_speed']
             else:
                 speed = self.find_adm_interface_speed()
-            speed = int(speed * 0.9 / min(maxthreads, len(self.nodes)))
+            speed = int(speed * 0.9 / min(self.logs_maxthreads,
+                                          len(self.nodes)))
             py_slowpipe = tools.slowpipe % speed
             limitcmd = "| python -c '%s'; exit ${PIPESTATUS}" % py_slowpipe
         run_items = []
@@ -884,7 +887,7 @@ class NodeManager(object):
                     'decode': False}
             run_items.append(tools.RunItem(target=node.exec_simple_cmd,
                                            args=args))
-        tools.run_batch(run_items, maxthreads)
+        tools.run_batch(run_items, self.logs_maxthreads)
 
     @run_with_lock
     def get_files(self, timeout=15):
@@ -901,8 +904,9 @@ class NodeManager(object):
         tools.run_batch(run_items, 10)
 
     @run_with_lock
-    def run_scripts_all_pairs(self, maxthreads, fake=False):
+    def run_scripts_all_pairs(self, fake=False):
         nodes = self.selected_nodes.values()
+        max_pairs = self.conf['scripts_all_pairs_max_pairs']
         if len(nodes) < 2:
             self.logger.warning('less than 2 nodes are available, '
                                 'skipping paired scripts')
@@ -917,12 +921,13 @@ class NodeManager(object):
             stop_args = {'phase': 'server_stop', 'fake': fake}
             run_server_stop_items.append(tools.RunItem(target=n.exec_pair,
                                                        args=stop_args))
-        result = tools.run_batch(run_server_start_items, maxthreads,
+        result = tools.run_batch(run_server_start_items, self.maxthreads,
                                  dict_result=True)
         for key in result:
             self.nodes[key].scripts_all_pairs = result[key]
         one_way = self.conf['scripts_all_pairs_one_way']
-        for pairset in tools.all_pairs(nodes, one_way=one_way):
+        chain = tools.all_pairs(nodes, one_way=one_way, max_pairs=max_pairs)
+        for pairset in chain:
             run_client_items = []
             self.logger.info(['%s->%s' % (p[0].ip, p[1].ip) for p in pairset])
             for pair in pairset:
@@ -933,7 +938,7 @@ class NodeManager(object):
                 run_client_items.append(tools.RunItem(target=client.exec_pair,
                                                       args=client_args))
             tools.run_batch(run_client_items, len(run_client_items))
-        tools.run_batch(run_server_stop_items, maxthreads)
+        tools.run_batch(run_server_stop_items, self.maxthreads)
 
     def has(self, *keys):
         nodes = {}
