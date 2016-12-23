@@ -53,13 +53,27 @@ def analyze(node_manager):
                     logger.warning('File %s does not exist'
                                    % param['output_path'])
                     continue
-                with open(param['output_path'], 'r') as f:
-                    data = [l.rstrip() for l in f.readlines()]
-                health, details = fn_mapping[script](data, script, node)
+                try:
+                    with open(param['output_path'], 'r') as f:
+                        stdout = f.read()
+                    if os.path.exists(param['stderr_path']):
+                        with open(param['stderr_path'], 'r') as f:
+                            stderr = f.read()
+                            exitcode = stderr.splitlines().rstrip().split()[1]
+                    else:
+                        stderr = None
+                        exitcode = 0
+                except IOError as e:
+                    logger.warning('Could not read from %s' % e.filename)
+                health, details = fn_mapping[script](stdout, script, node,
+                                                     stderr=stderr,
+                                                     exitcode=exitcode)
                 if node.repr not in results:
                     results[node.repr] = []
                 results[node.repr].append({'script': script,
                                            'output_file': param['output_path'],
+                                           'stderr_file': param['stderr_path'],
+                                           'exitcode': exitcode,
                                            'health': health,
                                            'details': details})
     node_manager.analyze_results = results
