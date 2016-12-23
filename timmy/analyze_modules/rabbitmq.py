@@ -30,11 +30,12 @@ def register(function_mapping):
     function_mapping['rabbitmqctl-status'] = parse_status
 
 
-def parse_list_queues(data, script, node):
+def parse_list_queues(stdout, script, node, stderr=None, exitcode=None):
     warning = 100
     error = 1000
     health = GREEN
     details = []
+    data = [l.rstrip() for l in stdout.splitlines()]
     for line in data[1:]:
         elements = line.rstrip().split()
         if len(elements) < 2:
@@ -47,8 +48,8 @@ def parse_list_queues(data, script, node):
     return health, details
 
 
-def prepare_status(data):
-    bad_yaml = ''.join(data[1:])
+def prepare_status(stdout):
+    bad_yaml = ''.join(stdout.splitlines()[1:])
     # quoting string elements
     bad_yaml = re.sub(r'([,{])([a-z_A-Z]+)([,}])', r'\1"\2"\3', bad_yaml)
     # changing first element int a key - replacing , with :
@@ -116,8 +117,13 @@ def squash_dicts(input_data):
     return input_data
 
 
-def parse_status(data, script, node):
-    status = prepare_status(data)
+def parse_status(stdout, script, node, stderr=None, exitcode=None):
+    status = prepare_status(stdout)
+    if not status or exitcode:
+        health = RED
+        details = ['Failed on getting data from status']
+        return health, details
+
     health = GREEN
     details = []
 
