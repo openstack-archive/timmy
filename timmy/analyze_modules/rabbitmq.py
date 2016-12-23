@@ -118,6 +118,11 @@ def squash_dicts(input_data):
 
 def parse_status(data, script, node):
     status = prepare_status(data)
+    if not status:
+        health = RED
+        details = ['Failed on getting data from status']
+        return health, details
+
     health = GREEN
     details = []
 

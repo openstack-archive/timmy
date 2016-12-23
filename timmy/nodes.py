@@ -212,12 +212,14 @@ class Node(object):
             self.logger.debug('%s, exec: %s' % (self.repr, script_path))
             output_path = os.path.join(self.scripts_ddir,
                                        os.path.basename(script_path))
+            stderr_path = "%s.stderr" % output_path
             if self.outputs_timestamp:
                 output_path += self.outputs_timestamp_str
             self.logger.debug('outfile: %s' % output_path)
             mapscr[scr] = {'env_vars': env_vars,
                            'script_path': script_path,
-                           'output_path': output_path}
+                           'output_path': output_path,
+                           'stderr_path': stderr_path}
         self.mapscr = mapscr
 
     def exec_cmd(self, fake=False, ok_codes=None):
@@ -232,6 +234,8 @@ class Node(object):
         for c in self.cmds:
             for cmd in c:
                 dfile = os.path.join(ddir, cmd)
+                errf = '%s.stderr' % dfile
+
                 if self.outputs_timestamp:
                         dfile += self.outputs_timestamp_str
                 self.logger.info('outfile: %s' % dfile)
@@ -244,13 +248,22 @@ class Node(object):
                                                       env_vars=self.env_vars,
                                                       timeout=self.timeout,
                                                       prefix=self.prefix)
-                    self.check_code(code, 'exec_cmd', c[cmd], errs, ok_codes)
+                    ec = self.check_code(code, 'exec_cmd',
+                                         c[cmd], errs, ok_codes)
                     try:
                         with open(dfile, 'w') as df:
                             df.write(outs.encode('utf-8'))
                     except:
                         self.logger.error("can't write to file %s" %
                                           dfile)
+                    if ec:
+                        try:
+                            with open(errf, 'w') as ef:
+                                ef.write('code:%s\n' % code.encode('utf-8'))
+                                ef.write('err:\n%s' % errs.encode('utf-8'))
+                        except:
+                            self.logger.error("can't write to file %s" %
+                                              errf)
         if self.scripts:
             self.generate_mapscr()
             tools.mdir(self.scripts_ddir)
@@ -263,14 +276,23 @@ class Node(object):
                                               env_vars=param['env_vars'],
                                               timeout=self.timeout,
                                               prefix=self.prefix)
-            self.check_code(code, 'exec_cmd',
-                            'script %s' % param['script_path'], errs, ok_codes)
+            ec = self.check_code(code, 'exec_cmd',
+                                 ('script %s' % param['script_path']),
+                                 errs, ok_codes)
             try:
                 with open(param['output_path'], 'w') as df:
                     df.write(outs.encode('utf-8'))
             except:
                 self.logger.error("can't write to file %s"
                                   % param['output_path'])
+            if not ec:
+                try:
+                    with open(param['stderr_path'], 'w') as ef:
+                        ef.write('exit code:%s\n' % code)
+                        ef.write('error report:\n%s\n' % errs.encode('utf-8'))
+                except:
+                    self.logger.error("can't write to file %s"
+                                      % param['stderr_path'])
         return mapcmds, self.mapscr
 
     def exec_simple_cmd(self, cmd, timeout=15, infile=None, outfile=None,
@@ -496,6 +518,11 @@ class Node(object):
                 self.logger.warning("%s: func: %s: "
                                     "cmd: '%s' exited %d, error: %s" %
                                     (self.repr, func_name, cmd, code, err))
+                return False
+        if (code == 0) or (code in ok_codes):
+            return True
+        else:
+            return False
 
     def get_results(self, result_map):
         # result_map should be either mapcmds or mapscr
