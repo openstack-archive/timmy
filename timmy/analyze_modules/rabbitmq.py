@@ -35,6 +35,9 @@ def parse_list_queues(stdout, script, node, stderr=None, exitcode=None):
     error = 1000
     health = GREEN
     details = []
+    if exitcode:
+        health = UNKNOWN
+        return health, details
     data = [l.rstrip() for l in stdout.splitlines()]
     for line in data[1:]:
         elements = line.rstrip().split()
@@ -118,14 +121,17 @@ def squash_dicts(input_data):
 
 
 def parse_status(stdout, script, node, stderr=None, exitcode=None):
-    status = prepare_status(stdout)
-    if not status or exitcode:
-        health = RED
-        details = ['Failed on getting data from status']
-        return health, details
-
     health = GREEN
     details = []
+    status = prepare_status(stdout)
+    if not status:
+        health = UNKNOWN
+        details = ['Status unavailable']
+        if exitcode:
+            if exitcode == 69:
+                health = RED
+                details = ['RabbitMQ is not running']
+        return health, details
 
     # disk free check
     try:
