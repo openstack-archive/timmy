@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.26.4
+Version:        1.26.5
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,10 @@ popd
 
 
 %changelog
+* Tue Dec 27 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.5
+- Change: minor changes in analyze & rabbitmq module 
+- Add: stderr for mapping scripts
+
 * Thu Dec 22 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.4
 - Add: max_pairs argument; other minor changes
 

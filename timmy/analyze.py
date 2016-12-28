@@ -59,8 +59,17 @@ def analyze(node_manager):
                     if os.path.exists(param['stderr_path']):
                         with open(param['stderr_path'], 'r') as f:
                             stderr = f.read()
-                            exitcode = stderr.splitlines()[0]
-                            exitcode = exitcode.rstrip().split()[1]
+                            try:
+                                exitcode = stderr.splitlines()[0]
+                                exitcode = int(exitcode.rstrip().split()[1])
+                            except IndexError:
+                                logger.warning('Could not extract exitcode'
+                                               ' from file "%s"' %
+                                               param['stderr_path'])
+                            except ValueError:
+                                logger.warning('Could not convert exitcode'
+                                               ' in file "%s" to int' %
+                                               param['stderr_path'])
                     else:
                         stderr = None
                         exitcode = 0
@@ -106,11 +115,11 @@ def analyze_print_results(node_manager):
                     (os.path.exists(r['stderr_file']))):
                 print('%s%s: %s' % (12*' ', 'stderr_file', r['stderr_file']))
             if r['exitcode'] != 0:
-                print('%s%s: %s' % (12*' ', 'exit code', r['exitcode']))
+                print('%s%s: %s' % (12*' ', 'exitcode', r['exitcode']))
             if len(r['details']) > 1:
                 print('            details:')
                 for d in r['details']:
                     print('                - %s' % d)
-            else:
+            elif r['details']:
                 print('            details: %s' % r['details'][0])
             sys.stdout.write(color_end)
