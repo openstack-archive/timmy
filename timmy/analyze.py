@@ -96,13 +96,15 @@ def analyze_print_results(node_manager):
                    RED: ['RED', '\033[91m']}
     color_end = '\033[0m'
     print('Nodes health analysis:')
+    ag = True
     for node, result in sorted(node_manager.analyze_results.items()):
         node_health = max([x['health'] for x in result])
         node_color = code_colors[node_health][1]
         health_repr = code_colors[node_health][0]
-        print('    %s%s: %s%s' % (node_color, node, health_repr, color_end))
         if node_health == 0:
             continue
+        ag = False
+        print('    %s%s: %s%s' % (node_color, node, health_repr, color_end))
         for r in result:
             if r['health'] == 0:
                 continue
@@ -123,3 +125,7 @@ def analyze_print_results(node_manager):
             elif r['details']:
                 print('%sdetails: %s' % (12*' ', r['details'][0]))
             sys.stdout.write(color_end)
+    if ag:
+        sys.stdout.write(code_colors[GREEN][1])
+        print('All green')
+        sys.stdout.write(color_end)
