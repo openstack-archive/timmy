@@ -255,7 +255,7 @@ def load_yaml_file(filename):
     """
     try:
         with open(filename, 'r') as f:
-            return yaml.load(f)
+            return yaml.safe_load(f)
     except IOError as e:
         logger.critical("I/O error(%s): file: %s; msg: %s" %
                         (e.errno, e.filename, e.strerror))
