@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.26.5
+Version:        1.26.6
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,13 @@ popd
 
 
 %changelog
+* Thu Jan 19 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.6
+- Add yum.repos.d directory to snapshot
+- Change: print only summary for analysis module if all nodes are ok
+- Replace yaml.load() with yaml.safe_load()
+- Change: minor changes in analyze & rabbitmq module
+- Added: stderr for mapping scripts
+ 
 * Tue Dec 27 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.5
 - Change: minor changes in analyze & rabbitmq module
 - Add: stderr for mapping scripts
