@@ -541,6 +541,28 @@ class Node(object):
                     output.append(line.rstrip('\n'))
         return short_repr, output
 
+    def filter(self, node_filter):
+        f = node_filter
+        elems = []
+        for k in f:
+            if k.startswith('no_') and hasattr(self, k[3:]):
+                elems.append({'node_k': k[3:], 'k': k, 'negative': True})
+            elif hasattr(self, k) and f[k]:
+                elems.append({'node_k': k, 'k': k, 'negative': False})
+        checks = []
+        for el in elems:
+            node_v = w_list(getattr(self, el['node_k']))
+            filter_v = w_list(f[el['k']])
+            if el['negative']:
+                checks.append(set(node_v).isdisjoint(filter_v))
+            elif self.id != 0:
+                '''TODO: NEED TO MOVE THIS TO fuel.py
+                Do not apply normal (positive) filters to Fuel node
+                , Fuel node will only be filtered by negative filters
+                such as no_id = [0] or no_roles = ['fuel']'''
+                checks.append(not set(node_v).isdisjoint(filter_v))
+        return self if all(checks) else None
+
 
 class NodeManager(object):
     """Class NodeManager """
@@ -594,9 +616,19 @@ class NodeManager(object):
 
     def apply_soft_filter(self):
         # apply soft-filter on all nodes
-        for node in self.nodes.values():
-            if not self.filter(node, self.conf['soft_filter']):
+        for node in self.selected_nodes.values():
+            if node.accessible and node.filter(self.conf['soft_filter']):
+                pass
+            else:
                 node.skipped = True
+
+    def filter_nodes(self, node_filter):
+        # return a dict of non-skipped nodes filtered by any provided filter
+        nodes = {}
+        for n, k in self.selected_nodes.items():
+            if n.filter(node_filter):
+                nodes[k] = n
+        return nodes
 
     def post_init(self):
         self.nodes_reapply_conf()
@@ -704,7 +736,7 @@ class NodeManager(object):
                 if key in node_data:
                     params[key] = node_data[key]
             node = NodeClass(**params)
-            if self.filter(node, self.conf['hard_filter']):
+            if node.filter(self.conf['hard_filter']):
                 self.nodes[node.ip] = node
         if self.conf['offline']:
             for node in self.nodes.values():
@@ -756,33 +788,6 @@ class NodeManager(object):
         result = tools.run_batch(run_items, self.maxthreads, dict_result=True)
         for key in result:
             self.nodes[key].accessible = result[key]
-
-    def filter(self, node, node_filter):
-        f = node_filter
-        if f is self.conf['soft_filter'] and not node.accessible:
-            return False
-        # soft-skip Fuel node for shell mode
-        if (node.id == 0 and self.conf['shell_mode']):
-            return False
-        else:
-            elems = []
-            for k in f:
-                if k.startswith('no_') and hasattr(node, k[3:]):
-                    elems.append({'node_k': k[3:], 'k': k, 'negative': True})
-                elif hasattr(node, k) and f[k]:
-                    elems.append({'node_k': k, 'k': k, 'negative': False})
-            checks = []
-            for el in elems:
-                node_v = w_list(getattr(node, el['node_k']))
-                filter_v = w_list(f[el['k']])
-                if el['negative']:
-                    checks.append(set(node_v).isdisjoint(filter_v))
-                elif node.id != 0:
-                    '''Do not apply normal (positive) filters to Fuel node
-                    , Fuel node will only be filtered by negative filters
-                    such as no_id = [0] or no_roles = ['fuel']'''
-                    checks.append(not set(node_v).isdisjoint(filter_v))
-            return all(checks)
 
     @run_with_lock
     def run_commands(self, timeout=15, fake=False):
