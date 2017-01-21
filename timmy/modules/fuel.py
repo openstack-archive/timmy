@@ -267,16 +267,20 @@ class NodeManager(BaseNodeManager):
                         conf=self.conf)
         fuelnode.cluster_repr = ""
         fuelnode.repr = "fuel"
+        # soft-skip Fuel if shell_mode enabled
+        if self.conf['shell_mode']:
+            fuelnode.skipped = True
         # soft-skip Fuel if it is hard-filtered
-        if not self.filter(fuelnode, self.conf['hard_filter']):
+        if not fuelnode.filter(self.conf['hard_filter']):
             fuelnode.skipped = True
         self.nodes[self.conf['fuel_ip']] = fuelnode
         return fuelnode
 
     def apply_soft_filter(self):
-        # apply soft-filter on all nodes
-        for node in self.nodes.values():
-            if not self.filter(node, self.conf['soft_filter']):
+        for node in self.selected_nodes.values():
+            if node.accessible and node.filter(self.conf['soft_filter']):
+                pass
+            else:
                 node.skipped = True
                 if self.conf['fuel_logs_exclude_filtered']:
                     if node.fqdn:
