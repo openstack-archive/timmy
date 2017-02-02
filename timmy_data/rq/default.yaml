@@ -48,43 +48,49 @@ scripts:
     '4.1':
       by_roles:
         controller: [nova-manage-vm-list]
+        fuel: [fuel-task-list]
     '4.1.1':
       by_roles:
         controller: [nova-manage-vm-list]
+        fuel: [fuel-task-list]
     '5.0':
       by_roles:
-        fuel: [fuel-docker-ps, fuel-dockerctl-check]
+        fuel: [fuel-task-list, fuel-docker-ps, fuel-dockerctl-check]
         controller: [nova-manage-vm-list]
     '5.0.1':
       by_roles:
-        fuel: [fuel-docker-ps, fuel-dockerctl-check]
+        fuel: [fuel-task-list, fuel-docker-ps, fuel-dockerctl-check]
         controller: [nova-manage-vm-list]
     '5.1':
       by_roles:
-        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check]
+        fuel: [fuel-task-list, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check]
         controller: [nova-manage-vm-list]
     '5.1.1':
       by_roles:
-        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check]
+        fuel: [fuel-task-list, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check]
         controller: [nova-manage-vm-list]
     '6.0':
       by_roles:
-        fuel: [fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images]
+        fuel: [fuel-task-list, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images]
         compute: [ipset-save, ipset-list]
         controller: [ipset-save, ipset-list, nova-manage-vm-list]
     '6.1':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images]
+        fuel: [fuel-task-list, fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images]
         controller: [nova-manage-vm-list]
     '7.0':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images, fuel-all-network-templates-combined-yaml]
+        fuel: [fuel-task-list, fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images, fuel-all-network-templates-combined-yaml]
     '8.0':
       by_roles:
-        fuel: [fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images, fuel-bootstrap-list, fuel-all-network-templates-combined-yaml]
+        fuel: [fuel-task-list, fuel-notifications, fuel-dockerctl-list, fuel-docker-ps, fuel-dockerctl-check, docker-images, fuel-bootstrap-list, fuel-all-network-templates-combined-yaml]
     '9.0':
       by_roles:
+        fuel: [fuel-task-list, fuel-notifications, fuel-bootstrap-list, shotgun2-report, fuel-all-network-templates-combined-yaml]
+    '10.0':
+      by_roles:
         fuel: [fuel-notifications, fuel-bootstrap-list, shotgun2-report, fuel-all-network-templates-combined-yaml]
+
   by_roles:
     fuel: [fuel-release, fuel-task-list, fuel-environment-list, fuel-postgres-dump, fuel-node-json]
     cinder: [ovs-vsctl-show, cinder-manage]
