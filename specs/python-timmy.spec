@@ -107,7 +107,7 @@ popd
 
 
 %changelog
-* Thu Jan 19 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.6
+* Thu Jan 19 2017 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.6
 - Add yum.repos.d directory to snapshot
 - Change: print only summary for analysis module if all nodes are ok
 - Replace yaml.load() with yaml.safe_load()
