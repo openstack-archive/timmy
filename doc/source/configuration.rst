@@ -4,45 +4,46 @@ General configuration
 
 All default configuration values are defined in ``timmy/conf.py``. Timmy works with these values if no configuration file is provided.
 If a configuration file is provided via ``-c | --config`` option, it overlays the default configuration.
-An example of a configuration file is ``config.yaml``.
+An example of a configuration file is ``timmy_data/rq/config/example.yaml``.
 
 Some of the parameters available in configuration file:
 
-* **ssh_opts** parameters to send to ssh command directly (recommended to leave at default), such as connection timeout, etc. See ``timmy/conf.py`` to review defaults.
-* **env_vars** environment variables to pass to the commands and scripts - you can use these to expand variables in commands or scripts
-* **fuel_ip** the IP address of the master node in the environment
-* **fuel_user** username to use for accessing Nailgun API
-* **fuel_pass** password to access Nailgun API
-* **fuel_tenant** Fuel Keystone tenant to use when accessing Nailgun API
-* **fuel_port** port to use when connecting to Fuel Nailgun API
-* **fuel_keystone_port** port to use when getting a Keystone token to access Nailgun API
-* **fuelclient** True/False - whether to use fuelclient library to access Nailgun API
-* **fuel_skip_proxy** True/False - ignore ``http(s)_proxy`` environment variables when connecting to Nailgun API
-* **rqdir** the path to the directory containing rqfiles, scripts to execute, and filelists to pass to rsync
+* **ssh_opts** - parameters to send to ssh command directly (recommended to leave at default), such as connection timeout, etc. See ``timmy/conf.py`` to review defaults.
+* **env_vars** - environment variables to pass to the commands and scripts - you can use these to expand variables in commands or scripts
+* **fuel_ip** - the IP address of the master node in the environment
+* **fuel_user** - username to use for accessing Nailgun API
+* **fuel_pass** - password to access Nailgun API
+* **fuel_tenant** - Fuel Keystone tenant to use when accessing Nailgun API
+* **fuel_port** - port to use when connecting to Fuel Nailgun API
+* **fuel_keystone_port** - port to use when getting a Keystone token to access Nailgun API
+* **fuelclient** - True/False - whether to use fuelclient library to access Nailgun API
+* **fuel_skip_proxy** - True/False - ignore ``http(s)_proxy`` environment variables when connecting to Nailgun API
+* **rqdir** - the path to the directory containing rqfiles, scripts to execute, and filelists to pass to rsync
 * **rqfile** - list of dicts:
     * **file** - path to an rqfile containing actions and/or other configuration parameters
-    * **default** - should always be False, except when included default.yaml is used. This option is used to make **logs_no_default** work
-* **logs_days** how many past days of logs to collect. This option will set **start** parameter for each **logs** action if not defined in it.
-* **logs_speed_limit** True/False - enable speed limiting of log transfers (total transfer speed limit, not per-node)
-* **logs_speed_default** Mbit/s - used when autodetect fails
-* **logs_speed** Mbit/s - manually specify max bandwidth
-* **logs_size_coefficient** a float value used to check local free space; 'logs size * coefficient' must be > free space; values lower than 0.3 are not recommended and will likely cause local disk fillup during log collection
-* **do_print_results** print outputs of commands and scripts to stdout
-* **clean** True/False - erase previous results in outdir and archive_dir dir, if any
-* **outdir** directory to store output data. **WARNING: this directory is WIPED by default at the beginning of data collection. Be careful with what you define here.**
-* **archive_dir** directory to put resulting archives into
-* **timeout** timeout for SSH commands and scripts in seconds
+    * **default** - True/False - this option is used to make **logs_no_default** work (see below). Optional.
+* **logs_no_default** - True/False - do not collect logs defined in any rqfile for which "default" is True
+* **logs_days** - how many past days of logs to collect. This option will set **start** parameter for each **logs** action if not defined in it.
+* **logs_speed_limit** - True/False - enable speed limiting of log transfers (total transfer speed limit, not per-node)
+* **logs_speed_default** - Mbit/s - used when autodetect fails
+* **logs_speed** - Mbit/s - manually specify max bandwidth
+* **logs_size_coefficient** - a float value used to check local free space; 'logs size * coefficient' must be > free space; values lower than 0.3 are not recommended and will likely cause local disk fillup during log collection
+* **do_print_results** - print outputs of commands and scripts to stdout
+* **clean** - True/False - erase previous results in outdir and archive_dir dir, if any
+* **outdir** - directory to store output data. **WARNING: this directory is WIPED by default at the beginning of data collection. Be careful with what you define here.**
+* **archive_dir** - directory to put resulting archives into
+* **timeout** - timeout for SSH commands and scripts in seconds
 
 ===================
 Configuring actions
 ===================
 
-Actions can be configured in a separate yaml file (by default ``rq.yaml`` is used) and / or defined in the main config file or passed via command line options ``-P``, ``-C``, ``-S``, ``-G``.
+Actions can be configured in a separate yaml file (by default ``timmy_data/rq/default.yaml`` is used) and / or defined in the main config file or passed via command line options ``-P``, ``-C``, ``-S``, ``-G``.
 
 The following actions are available for definition:
 
 * **put** - a list of tuples / 2-element lists: [source, destination]. Passed to ``scp`` like so ``scp source <node-ip>:destination``. Wildcards supported for source.
-* **cmds** - a list of dicts: {'command-name':'command-string'}. Example: {'command-1': 'uptime'}. Command string is a bash string. Commands are executed in a sorted order of their names.
+* **cmds** - a list of dicts: {'command-name':'command-string'}. Example: {'command-1': 'uptime'}. Command string is a bash string. Commands are executed in alphabetical order of their names.
 * **scripts** - a list of elements, each of which can be a string or a dict:
     * string - represents a script filename located on a local system. If filename does not contain a path separator, the script is expected to be located inside ``rqdir/scripts``. Otherwise the provided path is used to access the script. Example: ``'./my-test-script.sh'``
     * dict - use this option if you need to pass variables to your script. Script parameters are not supported, but you can use env variables instead. A dict should only contain one key which is the script filename (read above), and the value is a Bash space-separated variable assignment string. Example: ``'./my-test-script.sh': 'var1=123 var2="HELLO WORLD"'``
@@ -52,9 +53,9 @@ The following actions are available for definition:
 * **filelists** - a list of filelist filenames located on a local system. Filelist is a text file containing files and directories to collect, passed to rsync. Does not support wildcards. If the filename does not contain path separator, the filelist is expected to be located inside ``rqdir/filelists``. Otherwise the provided path is used to read the filelist.
 * **logs**
     * **path** - base path to scan for logs
-    * **include** - regexp string to match log files against for inclusion (if not set = include all)
-    * **exclude** - regexp string to match log files against. Excludes matched files from collection.
-    * **start** - date or datetime string to collect only files modified on or after the specified time. Format - ``YYYY-MM-DD`` or ``YYYY-MM-DD HH:MM:SS`` or ``N`` where N = integer number of days (meaning last N days).
+    * **include** - list of regexp strings to match log files against for inclusion (if not set = include all). Optional.
+    * **exclude** - list of regexp strings to match log files against. Excludes matched files from collection. Optional.
+    * **start** - date or datetime string to collect only files modified on or after the specified time. Format - ``YYYY-MM-DD`` or ``YYYY-MM-DD HH:MM:SS`` or ``N`` where N = integer number of days (meaning last N days). Optional.
 
 ===============
 Filtering nodes
@@ -141,7 +142,7 @@ rqfile format
     by_roles:
       compute: [d, e, f]
 
-The **config** and **rqfile** definitions presented above are equivalent. It is possible to define config in a config file using the **config** format, or in an **rqfile** using **rqfile** format, linking to the **rqfile** in config with ``rqfile`` setting. It is also possible to define part here and part there. Mixing identical parameters in both places is not recommended - the results may be unpredictable (such a scenario has not been thoroughly tested). In general, **rqfile** is good for fewer settings with more parameter-based variations (``by_``), and main config for more different settings with less such variations.
+The **config** and **rqfile** definitions presented above are equivalent. It is possible to define actions in a config file using the **config** format, or in an **rqfile** using **rqfile** format, linking to the **rqfile** in config with ``rqfile`` setting. It is also possible to define part here and part there. Mixing identical parameters in both places is not recommended - the results may be unpredictable (such a scenario has not been thoroughly tested). In general, **rqfile** is the preferred place to define actions.
 
 ===============================
 Configuration application order
