@@ -26,6 +26,13 @@ def add_args(parser):
     return parser
 
 
+def prepare_args():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser = add_args(parser)
+    return parser
+
+
 def check_args(args, conf):
     pass
 
