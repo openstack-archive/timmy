@@ -252,7 +252,7 @@ class Node(object):
                                          c[cmd], errs, ok_codes)
                     try:
                         with open(dfile, 'w') as df:
-                            df.write(outs.encode('utf-8'))
+                            df.write(outs)
                     except IOError:
                         self.logger.error("can't write to file %s" %
                                           dfile)
@@ -260,7 +260,7 @@ class Node(object):
                         try:
                             with open(errf, 'w') as ef:
                                 ef.write('exitcode: %s\n' % code)
-                                ef.write(errs.encode('utf-8'))
+                                ef.write(errs)
                         except IOError:
                             self.logger.error("can't write to file %s" %
                                               errf)
@@ -281,7 +281,7 @@ class Node(object):
                                  errs, ok_codes)
             try:
                 with open(param['output_path'], 'w') as df:
-                    df.write(outs.encode('utf-8'))
+                    df.write(outs)
             except IOError:
                 self.logger.error("can't write to file %s" %
                                   param['output_path'])
@@ -289,14 +289,14 @@ class Node(object):
                 try:
                     with open(param['stderr_path'], 'w') as ef:
                         ef.write('exitcode: %s\n' % code)
-                        ef.write(errs.encode('utf-8'))
+                        ef.write(errs)
                 except IOError:
                     self.logger.error("can't write to file %s" %
                                       param['stderr_path'])
         return mapcmds, self.mapscr
 
     def exec_simple_cmd(self, cmd, timeout=15, infile=None, outfile=None,
-                        fake=False, ok_codes=None, input=None, decode=True):
+                        fake=False, ok_codes=None, input=None):
         self.logger.info('%s, exec: %s' % (self.repr, cmd))
         if not fake:
             outs, errs, code = tools.ssh_node(ip=self.ip,
@@ -306,7 +306,6 @@ class Node(object):
                                               timeout=timeout,
                                               outputfile=outfile,
                                               ok_codes=ok_codes,
-                                              decode=decode,
                                               input=input,
                                               prefix=self.prefix)
             self.check_code(code, 'exec_simple_cmd', cmd, errs, ok_codes)
@@ -515,9 +514,10 @@ class Node(object):
     def check_code(self, code, func_name, cmd, err, ok_codes=None):
         if code:
             if not ok_codes or code not in ok_codes:
+                p_err = unicode(err, 'utf-8', 'replace').rstrip('\n')
                 self.logger.warning("%s: func: %s: "
                                     "cmd: '%s' exited %d, error: %s" %
-                                    (self.repr, func_name, cmd, code, err))
+                                    (self.repr, func_name, cmd, code, p_err))
                 return False
         return True
 
@@ -907,8 +907,7 @@ class NodeManager(object):
                     'timeout': timeout,
                     'outfile': node.archivelogsfile,
                     'input': input,
-                    'ok_codes': [0, 1],
-                    'decode': False}
+                    'ok_codes': [0, 1]}
             run_items.append(tools.RunItem(target=node.exec_simple_cmd,
                                            args=args))
         tools.run_batch(run_items, self.logs_maxthreads)

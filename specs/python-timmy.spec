@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.26.6
+Version:        1.26.7
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,7 +107,12 @@ popd
 
 
 %changelog
-* Thu Jan 19 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.6
+* Thu Feb 23 2017 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.7
+- Fix: UnicodeDecodeError, broken spec; add SPT
+- Update documentation to match timmy 1.26.6 code
+- Fix: CLI docs
+
+* Thu Jan 19 2017 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.6
 - Add yum.repos.d directory to snapshot
 - Change: print only summary for analysis module if all nodes are ok
 - Replace yaml.load() with yaml.safe_load()
