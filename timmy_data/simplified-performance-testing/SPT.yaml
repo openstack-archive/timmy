@@ -1,0 +1,13 @@
+scripts:
+  once_by_roles:
+    controller:
+      - 'glance-1-image-create.sh'
+      - 'glance-2-image-download.sh'
+      - {'cinder-VM-volume-write.sh': 'SPT_FLOATING_NET="admin_floating_net" SPT_FLAVOR="m1.small" SPT_IMAGE="xenial" SPT_VM_USER="ubuntu" DD_OPTIONS="oflag=direct" SPT_VM_COOLDOWN="120" DD_TIMEOUT="10" VM_BOOT_TIMEOUT_MINUTES="5"'}
+      - {'network-VM-to-VM-iperf-tests.sh': 'SPT_FLOATING_NET="admin_floating_net" SPT_FLAVOR="m1.small" SPT_IMAGE="xenial" SPT_VM_USER="ubuntu" SPT_VM_COOLDOWN="120" VM_BOOT_TIMEOUT_MINUTES="5" SPT_AVAILABILITY_ZONE="nova"'}
+scripts_all_pairs:
+  __default:
+    - server_start: {'iperf-server-start.sh': 'SPT_IPERF_PORT=65432'}
+      server_stop: 'iperf-server-stop.sh'
+      client: {'iperf-client.sh': 'SPT_IPERF_PORT=65432'}
+      network: 'management'

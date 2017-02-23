@@ -1,0 +1,7 @@
+rqfile:
+  - file: simplified-performance-testing/SPT.yaml
+    default: false
+rqdir: 'simplified-performance-testing'
+timeout: 3600
+soft_filter:
+  no_roles: ['fuel']
