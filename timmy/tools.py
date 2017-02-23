@@ -282,7 +282,7 @@ def mdir(directory):
             sys.exit(110)
 
 
-def launch_cmd(cmd, timeout, input=None, ok_codes=None, decode=True):
+def launch_cmd(cmd, timeout, input=None, ok_codes=None):
     def _timeout_terminate(pid):
         try:
             os.kill(pid, 15)
@@ -303,26 +303,25 @@ def launch_cmd(cmd, timeout, input=None, ok_codes=None, decode=True):
         timeout_killer = threading.Timer(timeout, _timeout_terminate, [p.pid])
         timeout_killer.start()
         outs, errs = p.communicate(input=input)
-        errs = errs.rstrip('\n')
-        if decode:
-            outs = outs.decode('utf-8')
-            errs = errs.decode('utf-8')
     finally:
         if timeout_killer:
             timeout_killer.cancel()
-        input = input.decode('utf-8') if input else None
-        logger.debug(('___command: %s\n'
-                      '_______pid: %s\n'
-                      '_exit_code: %s\n'
-                      '_____stdin: %s\n'
-                      '____stderr: %s') % (cmd, p.pid, p.returncode, input,
-                                           errs))
+        if logger.isEnabledFor(logging.DEBUG):
+            # p_out = unicode(outs, 'utf-8', 'replace')
+            p_err = unicode(errs, 'utf-8', 'replace').rstrip('\n')
+            p_inp = unicode(input, 'utf-8', 'replace') if input else None
+            logger.debug(('___command: %s\n'
+                          '_______pid: %s\n'
+                          '_exit_code: %s\n'
+                          '_____stdin: %s\n'
+                          '____stderr: %s') % (cmd, p.pid, p.returncode, p_inp,
+                                               p_err))
     return outs, errs, p.returncode
 
 
 def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
              filename=None, inputfile=None, outputfile=None,
-             ok_codes=None, input=None, prefix=None, decode=True):
+             ok_codes=None, input=None, prefix=None):
     if not ssh_opts:
         ssh_opts = ''
     if not env_vars:
@@ -354,7 +353,7 @@ def ssh_node(ip, command='', ssh_opts=None, env_vars=None, timeout=15,
            "trap 'kill $pid' 2; echo -n \"$input\" | xxd -r -p | " + cmd +
            ' &:; pid=$!; wait $!')
     return launch_cmd(cmd, timeout, input=input,
-                      ok_codes=ok_codes, decode=decode)
+                      ok_codes=ok_codes)
 
 
 def get_files_rsync(ip, data, ssh_opts, rsync_opts, dpath, timeout=15):
