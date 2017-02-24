@@ -6,7 +6,7 @@ SPT_IPERF_PORT=${SPT_IPERF_PORT:-"65432"}
 which iperf &>/dev/null
 if [ "$?" -ne "0" ]
 then
-  result="$(DEBIAN_FRONTEND=noninteractive apt-get -y install iperf 2>&1)"
+  result="$(DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes install iperf 2>&1)"
   [ "$?" -ne "0" ] && echo -e "failed to install iperf:\n$result" && exit 1
 fi
 
