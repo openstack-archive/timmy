@@ -24,7 +24,7 @@ from datetime import datetime, date, timedelta
 from timmy import conf
 from timmy.env import project_name, version
 from timmy import tools
-from tools import w_list, run_with_lock
+from tools import w_list, run_with_lock, print_and_exit
 import logging
 import os
 import re
@@ -65,7 +65,7 @@ class Node(object):
         self.status = status
         if ip is None:
             self.logger.critical('Node: ip address must be defined')
-            sys.exit(111)
+            print_and_exit(111)
         self.ip = ip
         self.network_data = network_data
         self.release = None
@@ -337,7 +337,9 @@ class Node(object):
                     nd = sn.network_data
                     net_dict = dict((v['name'], v) for v in nd)
                     if i['network'] not in net_dict:
-                        self.logger.warning(nonet_msg % (self.repr, sn.repr))
+                        self.logger.warning(nonet_msg % (self.repr,
+                                                         i['network'],
+                                                         sn.repr))
                         return self.scripts_all_pairs
                     if 'ip' not in net_dict[i['network']]:
                         self.logger.warning(noip_msg % (self.repr, sn.repr,
@@ -587,7 +589,7 @@ class NodeManager(object):
             if (not os.path.exists(self.rqdir)):
                 self.logger.critical(('NodeManager: directory %s does not'
                                       ' exist') % self.rqdir)
-                sys.exit(101)
+                print_and_exit(101)
             if self.conf['rqfile']:
                 self.import_rq()
         self.nodes = {}
@@ -980,9 +982,5 @@ class NodeManager(object):
         return dict([(ip, n) for ip, n in self.nodes.items() if not n.skipped])
 
 
-def main(argv=None):
-    return 0
-
-
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    pass

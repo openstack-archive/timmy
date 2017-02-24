@@ -49,6 +49,14 @@ while 1:
 '''
 
 
+def print_and_exit(code):
+    msg = ('An error occured, exiting with code %s. See log or documentation'
+           ' for details.')
+    logger.error(msg % code)
+    print(msg % code)
+    sys.exit(code)
+
+
 def signal_wrapper(f):
     def wrapper(*args, **kwargs):
         setup_handle_sig()
@@ -64,7 +72,7 @@ def signal_wrapper(f):
                 if not k.startswith('__') and k != 'message':
                     v = getattr(e, k)
                     logger.debug('Error details: %s = %s' % (k, v))
-            sys.exit(113)
+            print_and_exit(113)
     return wrapper
 
 
@@ -86,7 +94,7 @@ def main_handle_sig(sig, frame):
                 os.kill(int(pid), sig)
             except OSError:
                 pass
-    sys.exit(sig)
+    print_and_exit(sig)
 
 
 def sub_handle_sig(sig, frame):
@@ -97,7 +105,7 @@ def sub_handle_sig(sig, frame):
         os.killpg(os.getpid(), sig)
     except OSError:
         pass
-    sys.exit(sig)
+    print_and_exit(sig)
 
 
 def setup_handle_sig(subprocess=False):
@@ -196,7 +204,7 @@ def run_batch(item_list, maxthreads, dict_result=False):
                     for line in exc_text.splitlines():
                         logger.critical('____%s' % line)
                     cleanup(l)
-                    sys.exit(109)
+                    print_and_exit(109)
                 remove_procs.append(key)
         for key in remove_procs:
             logger.debug(rem_msg % key)
@@ -243,10 +251,10 @@ def load_json_file(filename):
     except IOError as e:
         logger.critical("I/O error(%s): file: %s; msg: %s" %
                         (e.errno, e.filename, e.strerror))
-        sys.exit(107)
+        print_and_exit(107)
     except ValueError:
         logger.critical("Could not convert data", exc_info=True)
-        sys.exit(108)
+        print_and_exit(108)
 
 
 def load_yaml_file(filename):
@@ -259,14 +267,14 @@ def load_yaml_file(filename):
     except IOError as e:
         logger.critical("I/O error(%s): file: %s; msg: %s" %
                         (e.errno, e.filename, e.strerror))
-        sys.exit(102)
+        print_and_exit(102)
     except ValueError:
         logger.critical("Could not convert data", exc_info=True)
-        sys.exit(103)
+        print_and_exit(103)
     except yaml.parser.ParserError as e:
         logger.critical("Could not parse %s:\n%s" %
                         (filename, str(e)))
-        sys.exit(105)
+        print_and_exit(104)
 
 
 def mdir(directory):
@@ -279,7 +287,7 @@ def mdir(directory):
             os.makedirs(directory)
         except OSError:
             logger.critical("Can't create a directory: %s" % directory)
-            sys.exit(110)
+            print_and_exit(110)
 
 
 def launch_cmd(cmd, timeout, input=None, ok_codes=None):
@@ -439,4 +447,4 @@ def all_pairs(items, one_way=False, max_pairs=0):
 
 
 if __name__ == '__main__':
-    sys.exit(0)
+    pass
