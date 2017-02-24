@@ -18,7 +18,7 @@
 from timmy.analyze import analyze, analyze_print_results
 from timmy.env import project_name, version
 from timmy.nodes import Node
-from timmy.tools import signal_wrapper
+from timmy.tools import signal_wrapper, print_and_exit
 import argparse
 import logging
 import logging.handlers
@@ -340,7 +340,7 @@ def main(argv=None):
             if not enough_space:
                 logger.error('Not enough space for logs in "%s", exiting.' %
                              nm.conf['archive_dir'])
-                sys.exit(100)
+                print_and_exit(100)
     if not conf['offline'] and not args.only_logs:
         if nm.has(Node.pkey):
             pretty_run(args.quiet, 'Uploading files', nm.put_files)
@@ -395,4 +395,4 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    main(sys.argv)
