@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.26.8
+Version:        1.26.9
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,10 @@ popd
 
 
 %changelog
+* Tue Mar 14 2017 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.9
+- Add: collect ceilometer & aodh config
+- Fix: add "fuel2 task list" for 10.x series
+
 * Fri Feb 24 2017 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.8
 - Fix: exec_pair trace; SPT bugs; print non-0 exit
 

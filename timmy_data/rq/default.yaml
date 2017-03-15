@@ -19,7 +19,9 @@ filelists:
       - 'etc-fuel'
       - 'etc-nailgun'
     controller:
+      - 'etc-aodh'
       - 'etc-apache2'
+      - 'etc-ceilometer'
       - 'etc-ceph'
       - 'etc-cinder'
       - 'etc-glance'
@@ -33,7 +35,7 @@ filelists:
     cinder: ['etc-cinder']
     cinder-block-device: ['etc-cinder']
     ceph-osd: ['root-ceph', 'etc-ceph']
-    compute: ['etc-libvirt', 'etc-nova']
+    compute: ['etc-ceilometer', 'etc-libvirt', 'etc-nova']
     ironic: ['etc-ironic']
     no_fuel: ['etc-hiera', 'etc-neutron']
     virt: ['etc-libvirt']
