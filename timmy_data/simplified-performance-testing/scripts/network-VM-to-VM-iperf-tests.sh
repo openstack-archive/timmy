@@ -64,7 +64,7 @@ function check_code {
 }
 
 
-. openrc
+source $OPENRC
 
 # create keypair
 result="$(nova keypair-add "spt-temporary-keypair" >"spt-temporary-keypair" 2>&1)"
