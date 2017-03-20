@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.26.9
+Version:        1.26.10
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Mon Mar 20 2017 Dmitrii Kabanov <dkabanov@mirantis.com> - 1.26.10
+- Change: use environment variable for openrc in SPT
+
 * Tue Mar 14 2017 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.9
 - Add: collect ceilometer & aodh config
 - Fix: add "fuel2 task list" for 10.x series
@@ -125,7 +128,7 @@ popd
 - Replace yaml.load() with yaml.safe_load()
 - Change: minor changes in analyze & rabbitmq module
 - Added: stderr for mapping scripts
- 
+
 * Tue Dec 27 2016 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.5
 - Change: minor changes in analyze & rabbitmq module
 - Add: stderr for mapping scripts
