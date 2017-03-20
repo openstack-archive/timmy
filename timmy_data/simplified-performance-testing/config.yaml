@@ -5,3 +5,7 @@ rqdir: 'simplified-performance-testing'
 timeout: 3600
 soft_filter:
   no_roles: ['fuel']
+#env_vars:
+#  - 'OPENRC=/root/openrc'
+#  - 'LC_ALL="C"'
+#  - 'LANG="C"'
