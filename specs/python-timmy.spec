@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.26.10
+Version:        1.26.11
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Wed Mar 22 2017 Dmitrii Kabanov <dkabanov@mirantis.com> - 1.26.11
+- Change: prepend conf.env_vars to scripts with env vars
+
 * Mon Mar 20 2017 Dmitrii Kabanov <dkabanov@mirantis.com> - 1.26.10
 - Change: use environment variable for openrc in SPT
 
