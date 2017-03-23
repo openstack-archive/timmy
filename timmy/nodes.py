@@ -199,11 +199,10 @@ class Node(object):
     def generate_mapscr(self):
         mapscr = {}
         for scr in self.scripts:
+            env_vars = self.env_vars
             if type(scr) is dict:
-                env_vars = scr.values()[0]
+                env_vars = env_vars + scr.values()[0].split()
                 scr = scr.keys()[0]
-            else:
-                env_vars = self.env_vars
             if os.path.sep in scr:
                 script_path = scr
             else:
