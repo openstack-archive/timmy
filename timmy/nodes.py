@@ -34,13 +34,14 @@ import shutil
 class Node(object):
     ckey = 'cmds'
     skey = 'scripts'
+    sapkey = 'scripts_all_pairs'
     fkey = 'files'
     flkey = 'filelists'
     lkey = 'logs'
     pkey = 'put'
-    conf_actionable = [lkey, ckey, skey, fkey, flkey, pkey]
+    conf_actionable = [lkey, ckey, skey, fkey, flkey, pkey, sapkey]
     conf_appendable = [lkey, ckey, skey, fkey, flkey, pkey]
-    conf_archive_general = [ckey, skey, fkey, flkey]
+    conf_archive_general = [ckey, skey, fkey, flkey, sapkey]
     conf_keep_default = [skey, ckey, fkey, flkey]
     conf_once_prefix = 'once_'
     conf_match_prefix = 'by_'
