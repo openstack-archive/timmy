@@ -4,7 +4,7 @@
 %global pypi_name timmy
 
 Name:           python-%{pypi_name}
-Version:        1.26.11
+Version:        1.26.12
 Release:        1%{?dist}~mos0
 Summary:        Log collector tool for OpenStack Fuel
 
@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Fri Oct 20 2017 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.12
+- Fix: scripts_all_pairs does not trigger archive
+
 * Wed Mar 22 2017 Dmitrii Kabanov <dkabanov@mirantis.com> - 1.26.11
 - Change: prepend conf.env_vars to scripts with env vars
 
