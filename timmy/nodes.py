@@ -59,7 +59,7 @@ class Node(object):
         if type(roles) is list:
             self.roles = roles
         else:
-            self.roles = roles.split(', ') if roles else []
+            self.roles = re.split(', *', roles) if roles else []
         self.os_platform = os_platform
         self.online = online
         self.status = status

@@ -107,6 +107,9 @@ popd
 
 
 %changelog
+* Tue Oct 24 2017 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.13
+- Change: improve roles string split
+
 * Fri Oct 20 2017 Dmitry Sutyagin <dsutyagin@mirantis.com> - 1.26.12
 - Fix: scripts_all_pairs does not trigger archive
 
