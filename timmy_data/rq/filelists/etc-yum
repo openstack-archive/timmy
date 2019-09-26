@@ -1,7 +1,0 @@
-+ /etc
-+ /etc/yum
-+ /etc/yum/**
-+ /etc/yum.d
-+ /etc/yum.d/**
-+ /etc/yum.repos.d
-+ /etc/yum.repos.d/**

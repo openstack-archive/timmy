@@ -1,2 +1,0 @@
-source "$OPENRC"
-nova usage-list

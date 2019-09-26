@@ -1,1 +1,0 @@
-fuel task list 2>/dev/null || fuel2 task list
